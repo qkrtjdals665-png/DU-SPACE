@@ -121,6 +121,8 @@
       <div class="nav-item" data-page="order-daily"><span class="nav-icon">📈</span> 일별 매출/순익 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-costs"><span class="nav-icon">💰</span> 상품 원가 관리 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-products"><span class="nav-icon">📊</span> 제품별 판매량 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-ads"><span class="nav-icon">📢</span> 광고비 관리 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-finance"><span class="nav-icon">🏦</span> 재무 리포트 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
     </div>
     <div class="nav-group">
@@ -215,6 +217,8 @@
     <div class="subpage" id="page-order-daily"></div>
     <div class="subpage" id="page-order-costs"></div>
     <div class="subpage" id="page-order-products"></div>
+    <div class="subpage" id="page-order-ads"></div>
+    <div class="subpage" id="page-order-finance"></div>
 
     <!-- 개발 예정 -->
     <div class="subpage" id="page-profit"><div class="placeholder-box"><div class="placeholder-icon">💰</div><div class="placeholder-title">수익 계산기</div><div class="placeholder-desc">손익분기점 시뮬레이션 · 가구매 계산기<br>개발 예정</div></div></div>
@@ -234,7 +238,9 @@
     'order-list': 'order-list.html',
     'order-daily': 'order-daily.html',
     'order-costs': 'order-costs.html',
-    'order-products': 'order-products.html'
+    'order-products': 'order-products.html',
+    'order-ads': 'order-ads.html',
+    'order-finance': 'order-finance.html'
   };
 
   const pageInfo = {
@@ -249,6 +255,8 @@
     'order-daily': ['📈', '일별 매출/순익'],
     'order-costs': ['💰', '상품 원가 관리'],
     'order-products': ['📊', '제품별 판매량'],
+    'order-ads': ['📢', '광고비 관리'],
+    'order-finance': ['🏦', '재무 리포트'],
     invoice: ['🚚', '송장 변환기'],
     profit: ['💰', '수익 계산기'],
     ledger: ['🏦', '가계부']

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 재무 리포트</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:1000px;margin:0 auto;padding:24px;}
+.month-nav{display:flex;align-items:center;gap:8px;background:#fff;padding:14px 20px;border-radius:14px;border:1px solid #D9D4CA;margin-bottom:20px;}
+.month-nav button{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.month-nav .nav-btn{background:#f5f0e8;color:#555;}.month-nav .current-btn{background:#f4a900;color:#1a1a2e;}
+.month-label{font-size:18px;font-weight:700;min-width:140px;text-align:center;}
+/* 리포트 카드 */
+.report-card{background:#fff;border-radius:14px;padding:28px;border:1px solid #D9D4CA;margin-bottom:20px;}
+.report-title{font-size:18px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #D9D4CA;color:#1a1a2e;}
+.report-section{margin-bottom:24px;}
+.report-section h4{font-size:14px;font-weight:700;color:#555;margin-bottom:12px;}
+/* 플랫폼 그리드 */
+.platform-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.pf-card{border-radius:12px;padding:16px;color:white;}
+.pf-card .pf-name{font-size:13px;font-weight:600;margin-bottom:10px;opacity:0.9;}
+.pf-card .pf-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;opacity:0.85;}
+.pf-card .pf-row.total{font-weight:700;opacity:1;font-size:13px;border-top:1px solid rgba(255,255,255,0.3);padding-top:8px;margin-top:6px;}
+/* 손익표 */
+.pnl-table{width:100%;font-size:14px;}
+.pnl-table tr td{padding:10px 16px;border-bottom:1px solid #f0ebe3;}
+.pnl-table tr td:first-child{color:#666;font-weight:500;}
+.pnl-table tr td:last-child{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+.pnl-table tr.section-head td{background:#f5f0e8;font-weight:700;color:#1a1a2e;font-size:15px;}
+.pnl-table tr.subtotal td{background:#f9f6f0;font-weight:700;}
+.pnl-table tr.grand-total td{background:#1a1a2e;color:white;font-size:16px;font-weight:800;}
+.pnl-table tr.deduct td:last-child{color:#e94560;}
+.pnl-table tr.positive td:last-child{color:#0f9b58;}
+/* 요약 카드 */
+.summary-big{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.sb-card{background:#fff;border-radius:14px;padding:24px;border:1px solid #D9D4CA;text-align:center;}
+.sb-card .sb-label{font-size:12px;color:#888;font-weight:600;margin-bottom:6px;}
+.sb-card .sb-value{font-size:28px;font-weight:800;}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}
+@media(max-width:768px){.platform-grid{grid-template-columns:1fr 1fr;}.summary-big{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>🏦 월간 <span>손익 리포트</span></h1>
+    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-daily.html">📈 일별매출</a><a href="order-ads.html">📢 광고비</a></div>
+</div>
+<div class="container">
+    <div class="month-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button class="nav-btn" onclick="changeMonth(1)">다음달 ▶</button>
+        <button class="current-btn" onclick="goCurrentMonth()">이번달</button>
+    </div>
+    <div class="summary-big" id="summaryBig"></div>
+    <!-- 플랫폼별 카드 -->
+    <div class="platform-grid" id="platformGrid"></div>
+    <!-- 손익표 -->
+    <div class="report-card">
+        <div class="report-title" id="reportTitle">📊 월간 손익 리포트</div>
+        <table class="pnl-table" id="pnlTable">
+            <tbody><tr><td colspan="2" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
+const PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
+const PLATFORMS=["네이버","쿠팡","오늘의집","아이디어스"];
+
+let currentDate=new Date();
+function updateMonthLabel(){document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;}
+function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);updateMonthLabel();loadReport();}
+function goCurrentMonth(){currentDate=new Date();updateMonthLabel();loadReport();}
+function getMonthRange(){
+    const y=currentDate.getFullYear(),m=currentDate.getMonth();
+    const start=`${y}-${String(m+1).padStart(2,'0')}-01`;
+    const lastDay=new Date(y,m+1,0).getDate();
+    return{start,end:`${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,lastDay};
+}
+function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
+
+async function loadReport(){
+    const {start,end,lastDay}=getMonthRange();
+    const m=currentDate.getMonth()+1;
+    document.getElementById('reportTitle').textContent=`📊 ${currentDate.getFullYear()}년 ${m}월 손익 리포트`;
+
+    // 주문
+    const {data:orders}=await db.from('orders').select('platform,product,option,quantity,price').gte('order_date',start).lte('order_date',end);
+    // 원가
+    const {data:costs}=await db.from('product_costs').select('platform,product,option,cost');
+    const costMap={};
+    (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
+    // 광고비 - 일별
+    const {data:dailyAds}=await db.from('ad_costs').select('*').gte('ad_date',start).lte('ad_date',end);
+    const dailyAdTotal=(dailyAds||[]).reduce((s,d)=>s+(d.cost||0),0);
+    // 광고비 - 기간
+    const {data:periodAds}=await db.from('product_ad_costs').select('*').lte('start_date',end).gte('end_date',start);
+    let periodAdTotal=0;
+    (periodAds||[]).forEach(d=>{
+        const pS=new Date(d.start_date),pE=new Date(d.end_date),mS=new Date(start),mE=new Date(end);
+        const oS=new Date(Math.max(pS,mS)),oE=new Date(Math.min(pE,mE));
+        const oDays=Math.max(0,Math.ceil((oE-oS)/86400000)+1);
+        const tDays=Math.max(1,Math.ceil((pE-pS)/86400000)+1);
+        periodAdTotal+=(d.total_cost/tDays)*oDays;
+    });
+    const totalAd=dailyAdTotal+periodAdTotal;
+
+    // 플랫폼별 집계
+    const pfData={};
+    PLATFORMS.forEach(p=>{pfData[p]={sales:0,cost:0,qty:0,orderCount:0};});
+    (orders||[]).forEach(o=>{
+        const p=o.platform;if(!pfData[p])return;
+        const amt=(o.price||0)*(o.quantity||1);
+        const ck=`${p}|${o.product}|${o.option||''}`;
+        pfData[p].sales+=amt;
+        pfData[p].cost+=(costMap[ck]||0)*(o.quantity||1);
+        pfData[p].qty+=(o.quantity||1);
+        pfData[p].orderCount++;
+    });
+
+    let totalSales=0,totalCommission=0,totalCost=0;
+    PLATFORMS.forEach(p=>{
+        const d=pfData[p];
+        const comm=d.sales*CR[p]+(p==='아이디어스'?d.orderCount*2500:0);
+        pfData[p].commission=comm;
+        pfData[p].profit=d.sales-comm-d.cost;
+        totalSales+=d.sales;totalCommission+=comm;totalCost+=d.cost;
+    });
+
+    const grossProfit=totalSales-totalCommission-totalCost-totalAd;
+    const taxRate=10,emergencyRate=5;
+    const taxReserve=totalSales*(taxRate/100);
+    const emergencyReserve=totalSales*(emergencyRate/100);
+    const netProfit=grossProfit-taxReserve-emergencyReserve;
+
+    // ── 요약 카드 ──
+    document.getElementById('summaryBig').innerHTML=`
+        <div class="sb-card"><div class="sb-label">${m}월 총 매출</div><div class="sb-value" style="color:#4285f4">${fmt(totalSales)}원</div></div>
+        <div class="sb-card"><div class="sb-label">${m}월 영업이익</div><div class="sb-value" style="color:${grossProfit>=0?'#0f9b58':'#e94560'}">${fmt(grossProfit)}원</div></div>
+        <div class="sb-card"><div class="sb-label">${m}월 실수익</div><div class="sb-value" style="color:${netProfit>=0?'#0f9b58':'#e94560'}">${fmt(netProfit)}원</div></div>
+    `;
+
+    // ── 플랫폼 카드 ──
+    document.getElementById('platformGrid').innerHTML=PLATFORMS.map(p=>{
+        const d=pfData[p];
+        if(d.sales===0) return `<div class="pf-card" style="background:${PFC[p]};opacity:0.5;"><div class="pf-name">${p}</div><div style="text-align:center;padding:20px 0;opacity:0.7;">매출 없음</div></div>`;
+        return `<div class="pf-card" style="background:${PFC[p]};">
+            <div class="pf-name">${p}</div>
+            <div class="pf-row"><span>매출</span><span>${fmt(d.sales)}원</span></div>
+            <div class="pf-row"><span>수수료 (${(CR[p]*100).toFixed(1)}%)</span><span>-${fmt(d.commission)}원</span></div>
+            <div class="pf-row"><span>원가</span><span>-${fmt(d.cost)}원</span></div>
+            <div class="pf-row total"><span>순익</span><span>${fmt(d.profit)}원</span></div>
+        </div>`;
+    }).join('');
+
+    // ── 손익표 ──
+    document.getElementById('pnlTable').innerHTML=`
+        <tr class="section-head"><td>📈 매출</td><td></td></tr>
+        ${PLATFORMS.filter(p=>pfData[p].sales>0).map(p=>`<tr><td>　${p} 매출</td><td>${fmt(pfData[p].sales)}원</td></tr>`).join('')}
+        <tr class="subtotal"><td>총 매출</td><td>${fmt(totalSales)}원</td></tr>
+        
+        <tr class="section-head"><td>📉 차감 항목</td><td></td></tr>
+        ${PLATFORMS.filter(p=>pfData[p].commission>0).map(p=>`<tr class="deduct"><td>　${p} 수수료</td><td>-${fmt(pfData[p].commission)}원</td></tr>`).join('')}
+        <tr class="deduct"><td>　총 수수료</td><td>-${fmt(totalCommission)}원</td></tr>
+        <tr class="deduct"><td>　총 원가/자재비</td><td>-${fmt(totalCost)}원</td></tr>
+        <tr class="deduct"><td>　총 광고비</td><td>-${fmt(totalAd)}원</td></tr>
+        ${totalAd>0?`<tr><td style="padding-left:40px;font-size:12px;color:#999;">　일별: ${fmt(dailyAdTotal)}원 / 기간: ${fmt(periodAdTotal)}원</td><td></td></tr>`:''}
+        
+        <tr class="subtotal ${grossProfit>=0?'positive':''}"><td>💼 영업이익</td><td>${fmt(grossProfit)}원</td></tr>
+        
+        <tr class="section-head"><td>🏦 적립금</td><td></td></tr>
+        <tr class="deduct"><td>　세금 준비 (${taxRate}%)</td><td>-${fmt(taxReserve)}원</td></tr>
+        <tr class="deduct"><td>　비상금 (${emergencyRate}%)</td><td>-${fmt(emergencyReserve)}원</td></tr>
+        
+        <tr class="grand-total"><td>💵 실수익</td><td>${fmt(netProfit)}원</td></tr>
+    `;
+}
+
+function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
+
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
+
+document.addEventListener('DOMContentLoaded',()=>{updateMonthLabel();loadReport();});
+</script>
+</body>
+</html>
