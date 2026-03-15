@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>견적서 - 디유 스페이스</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .logo {
+            width: 150px;
+            margin-bottom: 15px;
+        }
+        
+        .form-section {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #8B4513;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .radio-group, .checkbox-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .radio-group label, .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            cursor: pointer;
+        }
+        
+        .radio-group input, .checkbox-group input {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(139, 69, 19, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .quotation {
+            display: none;
+            padding: 50px;
+            background: white;
+        }
+        
+        .quotation.active {
+            display: block;
+        }
+        
+        .quotation-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #8B4513;
+        }
+        
+        .quotation-header h2 {
+            font-size: 32px;
+            color: #8B4513;
+            margin-bottom: 10px;
+        }
+        
+        .company-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .quotation-date {
+            text-align: right;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .customer-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        .info-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            width: 120px;
+            color: #333;
+        }
+        
+        .info-value {
+            color: #666;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+        }
+        
+        table th {
+            background: #8B4513;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .total-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+            text-align: right;
+        }
+        
+        .total-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .total-amount {
+            font-size: 28px;
+            font-weight: bold;
+            color: #8B4513;
+            margin-top: 10px;
+        }
+        
+        .details-section {
+            margin: 30px 0;
+        }
+        
+        .details-section h3 {
+            color: #8B4513;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .detail-item {
+            padding: 8px 0;
+            color: #666;
+        }
+        
+        .footer-note {
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+            
+            .form-section {
+                display: none;
+            }
+            
+            .button-group {
+                display: none;
+            }
+            
+            .quotation {
+                display: block !important;
+            }
+        }
+        
+        @page {
+            margin: 2cm;
+        }
+        
+        .history-section {
+            padding: 20px 40px 40px;
+            border-top: 2px solid #e0e0e0;
+        }
+        .history-title {
+            font-size: 18px; font-weight: bold; color: #8B4513; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .history-list { max-height: 300px; overflow-y: auto; }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; border: 1px solid #e0e0e0; border-radius: 8px;
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .history-item:hover { background: #f8f5f0; border-color: #8B4513; }
+        .history-left { display: flex; flex-direction: column; gap: 4px; }
+        .history-customer { font-weight: bold; font-size: 15px; color: #333; }
+        .history-products { font-size: 12px; color: #888; }
+        .history-right { text-align: right; }
+        .history-amount { font-size: 16px; font-weight: bold; color: #8B4513; }
+        .history-date { font-size: 11px; color: #aaa; margin-top: 4px; }
+        .history-empty { text-align: center; padding: 30px; color: #bbb; font-size: 14px; }
+        .history-actions { display: flex; gap: 6px; margin-top: 6px; }
+        .history-del-btn { padding: 3px 10px; font-size: 11px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .history-del-btn:hover { background: #c82333; }
+        .cloud-status { font-size: 12px; color: #27ae60; margin-left: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 입력 폼 -->
+        <div class="form-section" id="formSection">
+            <div class="header">
+                <h1>디유 스페이스</h1>
+                <p>Du, Design Your Space</p>
+            </div>
+            
+            <form id="quotationForm">
+                <div class="form-group">
+                    <label>고객명 *</label>
+                    <input type="text" id="customerName" required placeholder="고객명 입력">
+                </div>
+                
+                <div class="form-group">
+                    <label>제품 목록 *</label>
+                    <div id="productList">
+                        <div class="product-item" data-index="0">
+                            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">제품명</label>
+                                    <input type="text" class="product-name" required placeholder="제품명 입력" style="width: 100%;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">수량</label>
+                                    <input type="number" class="product-qty" value="1" required min="1" placeholder="수량" style="width: 100%;" onchange="calculateSubtotal(0)">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">단가(원)</label>
+                                    <input type="number" class="product-price" required placeholder="단가" style="width: 100%;" onchange="calculateSubtotal(0)">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">금액(원)</label>
+                                    <input type="text" class="product-subtotal" readonly style="width: 100%; background: #f8f9fa; font-weight: bold; color: #8B4513;" value="0">
+                                </div>
+                                <div>
+                                    <label style="font-size: 12px; color: transparent; margin-bottom: 5px; display: block;">.</label>
+                                    <button type="button" class="btn-remove" onclick="removeProduct(0)" style="display: none; padding: 12px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">삭제</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="addProduct()" style="margin-top: 10px;">제품 추가</button>
+                </div>
+                
+                <div class="form-group">
+                    <label>납기</label>
+                    <input type="text" id="deliveryDate" value="입금 확인 후 7영업일">
+                </div>
+                
+                <div class="form-group">
+                    <label>입금 계좌</label>
+                    <input type="text" id="bankAccount" placeholder="은행명 계좌번호 예금주">
+                </div>
+                
+                <div class="form-group">
+                    <label>특이사항</label>
+                    <textarea id="specialNote" placeholder="추가 안내사항"></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">견적서 생성</button>
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">초기화</button>
+                </div>
+            </form>
+            
+            <!-- 견적 이력 -->
+            <div class="history-section">
+                <div class="history-title">📋 견적 이력 <span class="cloud-status" id="cloudStatus"></span></div>
+                <div class="history-list" id="historyList">
+                    <div class="history-empty">아직 생성된 견적서가 없습니다</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 생성된 견적서 -->
+        <div class="quotation" id="quotationResult">
+            <div class="quotation-header">
+                <h2>견 적 서</h2>
+                <div class="company-info">
+                    <strong>디유 스페이스 (Du, Design Your Space)</strong><br>
+                    연락처: 010-4579-6867
+                </div>
+            </div>
+            
+            <div class="quotation-date" id="quotationDate"></div>
+            
+            <div class="customer-info">
+                <div class="info-row">
+                    <span class="info-label">고객명:</span>
+                    <span class="info-value" id="resultCustomerName"></span>
+                </div>
+            </div>
+            
+            <h3 style="color: #8B4513; margin-bottom: 15px;">제품 정보</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>제품명</th>
+                        <th style="text-align: center;">수량</th>
+                        <th style="text-align: right;">단가</th>
+                        <th style="text-align: right;">금액</th>
+                    </tr>
+                </thead>
+                <tbody id="productTable">
+                </tbody>
+            </table>
+            
+            <div class="info-row" style="margin: 20px 0;">
+                <span class="info-label">납기:</span>
+                <span class="info-value" id="resultDelivery"></span>
+            </div>
+            
+            <div class="total-section">
+                <div class="total-label">총 금액</div>
+                <div class="total-amount" id="totalAmount"></div>
+            </div>
+            
+            <div class="info-row" id="bankInfo" style="margin: 20px 0; display: none;">
+                <span class="info-label">입금 계좌:</span>
+                <span class="info-value" id="resultBankAccount"></span>
+            </div>
+            
+            <div class="details-section" id="specialSection" style="display: none;">
+                <h3>특이사항</h3>
+                <div id="resultSpecialNote"></div>
+            </div>
+            
+            <div class="footer-note">
+                본 견적서는 발행일로부터 7일간 유효합니다.<br>
+                디유 스페이스 | 010-4579-6867
+            </div>
+            
+            <div class="button-group" style="margin-top: 30px;">
+                <button class="btn btn-primary" onclick="window.print()">인쇄 / PDF 저장</button>
+                <button class="btn btn-secondary" onclick="backToForm()">돌아가기</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://hayfpcuacwkytbjwjdhm.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let productIndex = 1;
+        
+        // 페이지 로드 시 이력 불러오기
+        document.addEventListener('DOMContentLoaded', () => { loadHistory(); });
+        
+        async function loadHistory() {
+            const el = document.getElementById('cloudStatus');
+            try {
+                const { data, error } = await sb.from('quotations').select('*').order('created_at', { ascending: false });
+                if (!error && data) {
+                    renderHistory(data);
+                    el.textContent = '☁ 클라우드 연결됨';
+                }
+            } catch(e) {
+                el.textContent = '⚠ 오프라인';
+                console.error(e);
+            }
+        }
+        
+        function renderHistory(list) {
+            const el = document.getElementById('historyList');
+            if (!list || list.length === 0) {
+                el.innerHTML = '<div class="history-empty">아직 생성된 견적서가 없습니다</div>';
+                return;
+            }
+            el.innerHTML = list.map(q => {
+                const d = new Date(q.created_at);
+                const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+                const products = q.products || [];
+                const productNames = products.map(p => p.name).join(', ');
+                return `<div class="history-item" onclick="viewQuotation(${q.id})">
+                    <div class="history-left">
+                        <div class="history-customer">${q.customer_name}</div>
+                        <div class="history-products">${productNames}</div>
+                        <div class="history-actions">
+                            <button class="history-del-btn" onclick="event.stopPropagation();deleteQuotation(${q.id})">삭제</button>
+                        </div>
+                    </div>
+                    <div class="history-right">
+                        <div class="history-amount">${q.total_price.toLocaleString()}원</div>
+                        <div class="history-date">${dateStr}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        async function viewQuotation(id) {
+            try {
+                const { data, error } = await sb.from('quotations').select('*').eq('id', id).single();
+                if (error || !data) return;
+                
+                const d = new Date(data.created_at);
+                const dateStr = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`;
+                document.getElementById('quotationDate').textContent = dateStr;
+                document.getElementById('resultCustomerName').textContent = data.customer_name;
+                
+                let tableHTML = '';
+                (data.products || []).forEach(p => {
+                    tableHTML += `<tr><td>${p.name}</td><td style="text-align:center;">${p.quantity.toLocaleString()}개</td><td style="text-align:right;">${p.unitPrice.toLocaleString()}원</td><td style="text-align:right;"><strong>${p.subtotal.toLocaleString()}원</strong></td></tr>`;
+                });
+                document.getElementById('productTable').innerHTML = tableHTML;
+                document.getElementById('resultDelivery').textContent = data.delivery_date || '';
+                document.getElementById('totalAmount').textContent = data.total_price.toLocaleString() + '원';
+                
+                if (data.bank_account) {
+                    document.getElementById('bankInfo').style.display = 'flex';
+                    document.getElementById('resultBankAccount').textContent = data.bank_account;
+                } else { document.getElementById('bankInfo').style.display = 'none'; }
+                
+                if (data.special_note) {
+                    document.getElementById('specialSection').style.display = 'block';
+                    document.getElementById('resultSpecialNote').innerHTML = data.special_note.split('\n').map(l => `<div class="detail-item">${l}</div>`).join('');
+                } else { document.getElementById('specialSection').style.display = 'none'; }
+                
+                document.getElementById('formSection').style.display = 'none';
+                document.getElementById('quotationResult').classList.add('active');
+                window.scrollTo(0, 0);
+            } catch(e) { console.error(e); }
+        }
+        
+        async function deleteQuotation(id) {
+            if (!confirm('이 견적서를 삭제할까요?')) return;
+            try {
+                await sb.from('quotations').delete().eq('id', id);
+                loadHistory();
+            } catch(e) { console.error(e); }
+        }
+        
+        async function saveQuotationToCloud(customerName, products, totalPrice, deliveryDate, bankAccount, specialNote) {
+            try {
+                await sb.from('quotations').insert({
+                    customer_name: customerName,
+                    products: products,
+                    total_price: totalPrice,
+                    delivery_date: deliveryDate,
+                    bank_account: bankAccount,
+                    special_note: specialNote
+                });
+                loadHistory();
+            } catch(e) { console.error('견적서 저장 실패:', e); }
+        }
+        
+        function calculateSubtotal(index) {
+            const product = document.querySelector(`.product-item[data-index="${index}"]`);
+            if (!product) return;
+            const qty = parseInt(product.querySelector('.product-qty').value) || 0;
+            const price = parseInt(product.querySelector('.product-price').value) || 0;
+            product.querySelector('.product-subtotal').value = (qty * price).toLocaleString();
+        }
+        
+        function addProduct() {
+            const productList = document.getElementById('productList');
+            const newProduct = document.createElement('div');
+            newProduct.className = 'product-item';
+            newProduct.setAttribute('data-index', productIndex);
+            newProduct.innerHTML = `
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 10px;">
+                    <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">제품명</label><input type="text" class="product-name" required placeholder="제품명 입력" style="width: 100%;"></div>
+                    <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">수량</label><input type="number" class="product-qty" value="1" required min="1" placeholder="수량" style="width: 100%;" onchange="calculateSubtotal(${productIndex})"></div>
+                    <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">단가(원)</label><input type="number" class="product-price" required placeholder="단가" style="width: 100%;" onchange="calculateSubtotal(${productIndex})"></div>
+                    <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">금액(원)</label><input type="text" class="product-subtotal" readonly style="width: 100%; background: #f8f9fa; font-weight: bold; color: #8B4513;" value="0"></div>
+                    <div><label style="font-size: 12px; color: transparent; margin-bottom: 5px; display: block;">.</label><button type="button" class="btn-remove" onclick="removeProduct(${productIndex})" style="padding: 12px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">삭제</button></div>
+                </div>`;
+            productList.appendChild(newProduct);
+            productIndex++;
+            updateRemoveButtons();
+        }
+        
+        function removeProduct(index) {
+            const product = document.querySelector(`.product-item[data-index="${index}"]`);
+            if (product) { product.remove(); updateRemoveButtons(); }
+        }
+        
+        function updateRemoveButtons() {
+            const products = document.querySelectorAll('.product-item');
+            products.forEach(p => {
+                const btn = p.querySelector('.btn-remove');
+                btn.style.display = products.length === 1 ? 'none' : 'block';
+            });
+        }
+        
+        document.getElementById('quotationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            generateQuotation();
+        });
+        
+        function generateQuotation() {
+            const customerName = document.getElementById('customerName').value;
+            const deliveryDate = document.getElementById('deliveryDate').value;
+            const bankAccount = document.getElementById('bankAccount').value;
+            const specialNote = document.getElementById('specialNote').value;
+            
+            const products = [];
+            const productItems = document.querySelectorAll('.product-item');
+            let totalPrice = 0;
+            
+            productItems.forEach(item => {
+                const name = item.querySelector('.product-name').value;
+                const qty = parseInt(item.querySelector('.product-qty').value);
+                const price = parseInt(item.querySelector('.product-price').value);
+                const subtotal = qty * price;
+                products.push({ name, quantity: qty, unitPrice: price, subtotal });
+                totalPrice += subtotal;
+            });
+            
+            const today = new Date();
+            const dateStr = `${today.getFullYear()}년 ${today.getMonth() + 1}월 ${today.getDate()}일`;
+            document.getElementById('quotationDate').textContent = dateStr;
+            document.getElementById('resultCustomerName').textContent = customerName;
+            
+            let tableHTML = '';
+            products.forEach(p => {
+                tableHTML += `<tr><td>${p.name}</td><td style="text-align:center;">${p.quantity.toLocaleString()}개</td><td style="text-align:right;">${p.unitPrice.toLocaleString()}원</td><td style="text-align:right;"><strong>${p.subtotal.toLocaleString()}원</strong></td></tr>`;
+            });
+            document.getElementById('productTable').innerHTML = tableHTML;
+            document.getElementById('resultDelivery').textContent = deliveryDate;
+            document.getElementById('totalAmount').textContent = totalPrice.toLocaleString() + '원';
+            
+            if (bankAccount) {
+                document.getElementById('bankInfo').style.display = 'flex';
+                document.getElementById('resultBankAccount').textContent = bankAccount;
+            } else { document.getElementById('bankInfo').style.display = 'none'; }
+            
+            if (specialNote) {
+                document.getElementById('specialSection').style.display = 'block';
+                document.getElementById('resultSpecialNote').innerHTML = specialNote.split('\n').map(l => `<div class="detail-item">${l}</div>`).join('');
+            } else { document.getElementById('specialSection').style.display = 'none'; }
+            
+            // Supabase에 저장
+            saveQuotationToCloud(customerName, products, totalPrice, deliveryDate, bankAccount, specialNote);
+            
+            document.getElementById('formSection').style.display = 'none';
+            document.getElementById('quotationResult').classList.add('active');
+            window.scrollTo(0, 0);
+        }
+        
+        function backToForm() {
+            document.getElementById('formSection').style.display = 'block';
+            document.getElementById('quotationResult').classList.remove('active');
+            window.scrollTo(0, 0);
+        }
+        
+        function resetForm() {
+            document.getElementById('quotationForm').reset();
+            const productList = document.getElementById('productList');
+            productList.innerHTML = `
+                <div class="product-item" data-index="0">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 10px;">
+                        <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">제품명</label><input type="text" class="product-name" required placeholder="제품명 입력" style="width: 100%;"></div>
+                        <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">수량</label><input type="number" class="product-qty" value="1" required min="1" placeholder="수량" style="width: 100%;" onchange="calculateSubtotal(0)"></div>
+                        <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">단가(원)</label><input type="number" class="product-price" required placeholder="단가" style="width: 100%;" onchange="calculateSubtotal(0)"></div>
+                        <div><label style="font-size: 12px; color: #666; margin-bottom: 5px; display: block;">금액(원)</label><input type="text" class="product-subtotal" readonly style="width: 100%; background: #f8f9fa; font-weight: bold; color: #8B4513;" value="0"></div>
+                        <div><label style="font-size: 12px; color: transparent; margin-bottom: 5px; display: block;">.</label><button type="button" class="btn-remove" onclick="removeProduct(0)" style="display: none; padding: 12px 15px; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">삭제</button></div>
+                    </div>
+                </div>`;
+            productIndex = 1;
+        }
+    </script>
+</body>
+</html>

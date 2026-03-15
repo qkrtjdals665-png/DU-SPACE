@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>거래명세서 생성기</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: '맑은 고딕', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; }
+        
+        .input-section { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .row { display: flex; gap: 20px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        .col label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .col input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        h3 { margin: 0 0 15px 0; color: #333; border-bottom: 2px solid #4a90d9; padding-bottom: 5px; }
+        
+        .item-input { display: flex; gap: 10px; align-items: end; margin-bottom: 15px; }
+        .item-input > div { display: flex; flex-direction: column; }
+        .item-input label { font-size: 12px; margin-bottom: 3px; }
+        .item-input input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .item-input button { padding: 8px 20px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; height: 36px; }
+        .item-input button:hover { background: #357abd; }
+        
+        #item-list { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        #item-list th, #item-list td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        #item-list th { background: #4a90d9; color: white; }
+        #item-list td:nth-child(2) { text-align: left; }
+        #item-list td:nth-child(4), #item-list td:nth-child(5), #item-list td:nth-child(6) { text-align: right; }
+        .delete-btn { background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; }
+        
+        .sum-row { font-size: 16px; margin: 10px 0; }
+        .btn-area { text-align: center; margin: 20px 0; }
+        .btn-area button { padding: 12px 40px; font-size: 16px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 0 10px; }
+        .btn-area button:hover { background: #1e8449; }
+        
+        /* 인쇄용 거래명세서 */
+        #print-area { display: none; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; }
+            .input-section, .btn-area { display: none !important; }
+        }
+        
+        /* 거래명세서 스타일 */
+        .invoice { width: 210mm; padding: 15mm; font-family: '맑은 고딕', sans-serif; }
+        .invoice-title { text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 10px; }
+        .invoice-line { border-top: 3px solid #000; margin-bottom: 20px; }
+        .invoice-date { text-align: right; margin-bottom: 15px; }
+        .invoice-parties { display: flex; gap: 20px; margin-bottom: 20px; }
+        .invoice-party { flex: 1; border: 1px solid #000; padding: 10px; }
+        .invoice-party-title { font-weight: bold; margin-bottom: 10px; font-size: 14px; }
+        .invoice-party p { margin: 5px 0; font-size: 12px; }
+        .invoice-condition { margin-bottom: 15px; font-size: 13px; }
+        .invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .invoice-table th, .invoice-table td { border: 1px solid #000; padding: 6px 8px; font-size: 12px; }
+        .invoice-table th { background: #d9e1f2; }
+        .invoice-table td.num { text-align: right; }
+        .invoice-table td.center { text-align: center; }
+        .invoice-total { background: #fff2cc; font-weight: bold; }
+        .invoice-summary { margin: 15px 0; font-size: 14px; }
+        .invoice-summary .big { font-size: 18px; font-weight: bold; margin-top: 10px; }
+        .invoice-note { margin-top: 15px; font-size: 12px; }
+        .invoice-footer { text-align: center; margin-top: 30px; color: #666; font-size: 11px; }
+        
+        .history-section { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .history-title { font-size: 16px; font-weight: bold; color: #4a90d9; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #4a90d9; padding-bottom: 5px; }
+        .history-list { max-height: 300px; overflow-y: auto; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: white; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+        .history-item:hover { border-color: #4a90d9; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .history-left { display: flex; flex-direction: column; gap: 3px; }
+        .history-buyer { font-weight: bold; font-size: 14px; color: #333; }
+        .history-items { font-size: 12px; color: #888; }
+        .history-right { text-align: right; }
+        .history-amount { font-size: 16px; font-weight: bold; color: #4a90d9; }
+        .history-date { font-size: 11px; color: #aaa; margin-top: 3px; }
+        .history-empty { text-align: center; padding: 30px; color: #bbb; font-size: 14px; }
+        .history-del-btn { padding: 3px 10px; font-size: 11px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 4px; }
+        .history-del-btn:hover { background: #c82333; }
+        .cloud-status { font-size: 12px; color: #27ae60; margin-left: auto; font-weight: normal; }
+    </style>
+</head>
+<body>
+
+<div class="input-section">
+    <h3>공급자 / 공급받는자</h3>
+    <div class="row">
+        <div class="col">
+            <label>공급자 상호</label>
+            <input type="text" id="s-company">
+        </div>
+        <div class="col">
+            <label>공급자 대표자</label>
+            <input type="text" id="s-ceo">
+        </div>
+        <div class="col">
+            <label>공급자 사업자번호</label>
+            <input type="text" id="s-bizno">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <label>공급자 주소</label>
+            <input type="text" id="s-addr">
+        </div>
+        <div class="col">
+            <label>공급자 연락처</label>
+            <input type="text" id="s-tel">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <label>공급받는자 상호</label>
+            <input type="text" id="b-company">
+        </div>
+        <div class="col">
+            <label>공급받는자 대표자</label>
+            <input type="text" id="b-ceo">
+        </div>
+        <div class="col">
+            <label>공급받는자 사업자번호</label>
+            <input type="text" id="b-bizno">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <label>공급받는자 주소</label>
+            <input type="text" id="b-addr">
+        </div>
+        <div class="col">
+            <label>공급받는자 연락처</label>
+            <input type="text" id="b-tel">
+        </div>
+    </div>
+</div>
+
+<div class="input-section">
+    <h3>거래 정보</h3>
+    <div class="row">
+        <div class="col">
+            <label>거래일자</label>
+            <input type="date" id="trade-date">
+        </div>
+        <div class="col">
+            <label>결제조건</label>
+            <input type="text" id="payment">
+        </div>
+        <div class="col">
+            <label>부가세 (빈칸이면 표시안함)</label>
+            <input type="text" id="vat" placeholder="숫자만 입력">
+        </div>
+    </div>
+</div>
+
+<div class="input-section">
+    <h3>품목 추가</h3>
+    <div class="item-input">
+        <div>
+            <label>품목명</label>
+            <input type="text" id="item-name" style="width:180px">
+        </div>
+        <div>
+            <label>규격</label>
+            <input type="text" id="item-spec" style="width:80px">
+        </div>
+        <div>
+            <label>수량</label>
+            <input type="number" id="item-qty" style="width:80px">
+        </div>
+        <div>
+            <label>단가</label>
+            <input type="number" id="item-price" style="width:100px">
+        </div>
+        <button onclick="addItem()">추가</button>
+    </div>
+    
+    <table id="item-list">
+        <thead>
+            <tr>
+                <th style="width:40px">No</th>
+                <th>품목명</th>
+                <th style="width:80px">규격</th>
+                <th style="width:70px">수량</th>
+                <th style="width:90px">단가</th>
+                <th style="width:100px">금액</th>
+                <th style="width:50px">삭제</th>
+            </tr>
+        </thead>
+        <tbody id="item-body"></tbody>
+    </table>
+    
+    <div class="sum-row">
+        <strong>합계: <span id="total-sum">0</span>원</strong>
+    </div>
+</div>
+
+<div class="input-section">
+    <h3>비고</h3>
+    <input type="text" id="note" style="width:100%" placeholder="비고 내용 입력 (선택사항)">
+</div>
+
+<div class="history-section">
+    <div class="history-title">📋 거래 이력 <span class="cloud-status" id="cloudStatus"></span></div>
+    <div class="history-list" id="historyList">
+        <div class="history-empty">아직 생성된 거래명세서가 없습니다</div>
+    </div>
+</div>
+
+<div class="btn-area">
+    <button onclick="printInvoice()">인쇄 / PDF 저장</button>
+</div>
+
+<!-- 인쇄용 거래명세서 -->
+<div id="print-area">
+    <div class="invoice" id="invoice-content"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let items = [];
+
+document.getElementById('trade-date').valueAsDate = new Date();
+document.addEventListener('DOMContentLoaded', () => { loadHistory(); });
+
+// ─── Supabase 이력 ───
+async function loadHistory() {
+    const el = document.getElementById('cloudStatus');
+    try {
+        const { data, error } = await sb.from('transactions').select('*').order('created_at', { ascending: false });
+        if (!error && data) { renderHistory(data); el.textContent = '☁ 클라우드 연결됨'; }
+    } catch(e) { el.textContent = '⚠ 오프라인'; }
+}
+
+function renderHistory(list) {
+    const el = document.getElementById('historyList');
+    if (!list || list.length === 0) { el.innerHTML = '<div class="history-empty">아직 생성된 거래명세서가 없습니다</div>'; return; }
+    el.innerHTML = list.map(t => {
+        const d = new Date(t.created_at);
+        const dateStr = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+        const buyer = t.buyer || {};
+        const itemNames = (t.items || []).map(i => i.name).join(', ');
+        return `<div class="history-item" onclick="viewTransaction(${t.id})">
+            <div class="history-left">
+                <div class="history-buyer">${buyer.company || '(미입력)'} ${buyer.ceo ? '/ '+buyer.ceo : ''}</div>
+                <div class="history-items">${itemNames}</div>
+                <button class="history-del-btn" onclick="event.stopPropagation();deleteTransaction(${t.id})">삭제</button>
+            </div>
+            <div class="history-right">
+                <div class="history-amount">${t.total_amount.toLocaleString()}원</div>
+                <div class="history-date">${dateStr}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function deleteTransaction(id) {
+    if (!confirm('이 거래명세서를 삭제할까요?')) return;
+    try { await sb.from('transactions').delete().eq('id', id); loadHistory(); } catch(e) {}
+}
+
+async function viewTransaction(id) {
+    try {
+        const { data, error } = await sb.from('transactions').select('*').eq('id', id).single();
+        if (error || !data) return;
+        // 인쇄 화면 생성
+        const total = data.total_amount;
+        const vat = data.vat;
+        const s = data.supplier || {};
+        const b = data.buyer || {};
+        const dateStr = data.trade_date ? new Date(data.trade_date).toLocaleDateString('ko-KR') : '';
+        const fmtInfo = (label, val) => val ? `<p>${label}: ${val}</p>` : '';
+        
+        let itemRows = '';
+        (data.items || []).forEach((item, i) => {
+            itemRows += `<tr><td class="center">${i+1}</td><td>${item.name}</td><td class="center">${item.spec||''}</td><td class="num">${item.qty.toLocaleString()}</td><td class="num">${item.price.toLocaleString()}</td><td class="num">${item.amount.toLocaleString()}</td></tr>`;
+        });
+        for (let i = (data.items||[]).length; i < 5; i++) itemRows += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+        
+        let summaryHtml = '';
+        if (vat !== null && vat !== undefined) {
+            summaryHtml = `<div class="invoice-summary">공급가액: ${total.toLocaleString()}원 &nbsp;&nbsp;&nbsp; 부가세: ${vat.toLocaleString()}원<div class="big">총 금 액: ${(total+vat).toLocaleString()}원</div></div>`;
+        } else {
+            summaryHtml = `<div class="invoice-summary big">총 금 액: ${total.toLocaleString()}원</div>`;
+        }
+        
+        document.getElementById('invoice-content').innerHTML = `
+            <div class="invoice-title">거 래 명 세 서</div><div class="invoice-line"></div>
+            ${dateStr ? `<div class="invoice-date">거래일자: ${dateStr}</div>` : ''}
+            <div class="invoice-parties">
+                <div class="invoice-party"><div class="invoice-party-title">공 급 자</div>${fmtInfo('상호',s.company)}${fmtInfo('대표자',s.ceo)}${fmtInfo('사업자번호',s.bizno)}${fmtInfo('주소',s.addr)}${fmtInfo('연락처',s.tel)}</div>
+                <div class="invoice-party"><div class="invoice-party-title">공 급 받 는 자</div>${fmtInfo('상호',b.company)}${fmtInfo('대표자',b.ceo)}${fmtInfo('사업자번호',b.bizno)}${fmtInfo('주소',b.addr)}${fmtInfo('연락처',b.tel)}</div>
+            </div>
+            ${data.payment_condition ? `<div class="invoice-condition">결제조건: ${data.payment_condition}</div>` : ''}
+            <table class="invoice-table"><thead><tr><th style="width:30px">No</th><th>품목명</th><th style="width:60px">규격</th><th style="width:50px">수량</th><th style="width:70px">단가</th><th style="width:80px">금액</th></tr></thead>
+            <tbody>${itemRows}<tr class="invoice-total"><td colspan="5" class="center">합 계</td><td class="num">${total.toLocaleString()}</td></tr></tbody></table>
+            ${summaryHtml}${data.note ? `<div class="invoice-note">비고: ${data.note}</div>` : ''}
+            <div class="invoice-footer">위와 같이 거래명세서를 발행합니다.</div>`;
+        window.print();
+    } catch(e) { console.error(e); }
+}
+
+async function saveTransactionToCloud() {
+    const getValue = (id) => document.getElementById(id).value.trim();
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+    const vatInput = getValue('vat').replace(/,/g, '');
+    const vat = vatInput ? parseInt(vatInput) : null;
+    
+    try {
+        await sb.from('transactions').insert({
+            supplier: { company: getValue('s-company'), ceo: getValue('s-ceo'), bizno: getValue('s-bizno'), addr: getValue('s-addr'), tel: getValue('s-tel') },
+            buyer: { company: getValue('b-company'), ceo: getValue('b-ceo'), bizno: getValue('b-bizno'), addr: getValue('b-addr'), tel: getValue('b-tel') },
+            trade_date: getValue('trade-date') || null,
+            payment_condition: getValue('payment'),
+            items: items,
+            total_amount: total,
+            vat: vat,
+            note: getValue('note')
+        });
+        loadHistory();
+    } catch(e) { console.error('거래명세서 저장 실패:', e); }
+}
+
+// ─── 기존 기능 ───
+function addItem() {
+    const name = document.getElementById('item-name').value.trim();
+    const spec = document.getElementById('item-spec').value.trim();
+    const qty = parseInt(document.getElementById('item-qty').value) || 0;
+    const price = parseInt(document.getElementById('item-price').value) || 0;
+    if (!name) { alert('품목명을 입력하세요'); return; }
+    if (qty <= 0 || price <= 0) { alert('수량과 단가를 입력하세요'); return; }
+    items.push({ name, spec, qty, price, amount: qty * price });
+    renderItems();
+    document.getElementById('item-name').value = '';
+    document.getElementById('item-spec').value = '';
+    document.getElementById('item-qty').value = '';
+    document.getElementById('item-price').value = '';
+    document.getElementById('item-name').focus();
+}
+
+function deleteItem(idx) { items.splice(idx, 1); renderItems(); }
+
+function renderItems() {
+    const tbody = document.getElementById('item-body');
+    let html = '', total = 0;
+    items.forEach((item, i) => {
+        total += item.amount;
+        html += `<tr><td>${i+1}</td><td>${item.name}</td><td>${item.spec}</td><td class="num">${item.qty.toLocaleString()}</td><td class="num">${item.price.toLocaleString()}</td><td class="num">${item.amount.toLocaleString()}</td><td><button class="delete-btn" onclick="deleteItem(${i})">X</button></td></tr>`;
+    });
+    tbody.innerHTML = html;
+    document.getElementById('total-sum').textContent = total.toLocaleString();
+}
+
+function printInvoice() {
+    if (items.length === 0) { alert('품목을 1개 이상 추가하세요'); return; }
+    const total = items.reduce((sum, item) => sum + item.amount, 0);
+    const vatInput = document.getElementById('vat').value.trim().replace(/,/g, '');
+    const vat = vatInput ? parseInt(vatInput) : null;
+    
+    let itemRows = '';
+    items.forEach((item, i) => { itemRows += `<tr><td class="center">${i+1}</td><td>${item.name}</td><td class="center">${item.spec}</td><td class="num">${item.qty.toLocaleString()}</td><td class="num">${item.price.toLocaleString()}</td><td class="num">${item.amount.toLocaleString()}</td></tr>`; });
+    for (let i = items.length; i < 5; i++) itemRows += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    
+    let summaryHtml = '';
+    if (vat !== null && !isNaN(vat)) {
+        summaryHtml = `<div class="invoice-summary">공급가액: ${total.toLocaleString()}원 &nbsp;&nbsp;&nbsp; 부가세: ${vat.toLocaleString()}원<div class="big">총 금 액: ${(total+vat).toLocaleString()}원</div></div>`;
+    } else { summaryHtml = `<div class="invoice-summary big">총 금 액: ${total.toLocaleString()}원</div>`; }
+    
+    const note = document.getElementById('note').value.trim();
+    const getValue = (id) => document.getElementById(id).value.trim();
+    const fmtInfo = (label, value) => value ? `<p>${label}: ${value}</p>` : '';
+    const dateVal = document.getElementById('trade-date').value;
+    const dateStr = dateVal ? new Date(dateVal).toLocaleDateString('ko-KR') : '';
+    
+    document.getElementById('invoice-content').innerHTML = `
+        <div class="invoice-title">거 래 명 세 서</div><div class="invoice-line"></div>
+        ${dateStr ? `<div class="invoice-date">거래일자: ${dateStr}</div>` : ''}
+        <div class="invoice-parties">
+            <div class="invoice-party"><div class="invoice-party-title">공 급 자</div>${fmtInfo('상호',getValue('s-company'))}${fmtInfo('대표자',getValue('s-ceo'))}${fmtInfo('사업자번호',getValue('s-bizno'))}${fmtInfo('주소',getValue('s-addr'))}${fmtInfo('연락처',getValue('s-tel'))}</div>
+            <div class="invoice-party"><div class="invoice-party-title">공 급 받 는 자</div>${fmtInfo('상호',getValue('b-company'))}${fmtInfo('대표자',getValue('b-ceo'))}${fmtInfo('사업자번호',getValue('b-bizno'))}${fmtInfo('주소',getValue('b-addr'))}${fmtInfo('연락처',getValue('b-tel'))}</div>
+        </div>
+        ${getValue('payment') ? `<div class="invoice-condition">결제조건: ${getValue('payment')}</div>` : ''}
+        <table class="invoice-table"><thead><tr><th style="width:30px">No</th><th>품목명</th><th style="width:60px">규격</th><th style="width:50px">수량</th><th style="width:70px">단가</th><th style="width:80px">금액</th></tr></thead>
+        <tbody>${itemRows}<tr class="invoice-total"><td colspan="5" class="center">합 계</td><td class="num">${total.toLocaleString()}</td></tr></tbody></table>
+        ${summaryHtml}${note ? `<div class="invoice-note">비고: ${note}</div>` : ''}
+        <div class="invoice-footer">위와 같이 거래명세서를 발행합니다.</div>`;
+    
+    // Supabase에 저장
+    saveTransactionToCloud();
+    window.print();
+}
+
+document.querySelectorAll('.item-input input').forEach(input => {
+    input.addEventListener('keypress', (e) => { if (e.key === 'Enter') addItem(); });
+});
+</script>
+
+</body>
+</html>

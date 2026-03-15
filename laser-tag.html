@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>레이저 각인 태그 생성기</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e8e8e8;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        
+        .left-panel {
+            flex: 0 0 700px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-height: 95vh;
+            overflow-y: auto;
+        }
+        
+        .right-panel {
+            flex: 1;
+            background: rgba(255,255,255,0.95);
+            border-radius: 16px;
+            padding: 20px;
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-size: 1.8rem;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .section {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .section-title {
+            font-size: 0.9rem;
+            color: #f39c12;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+        
+        .row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .label {
+            width: 80px;
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        
+        .radio-group label:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .radio-group input[type="radio"] {
+            accent-color: #f39c12;
+        }
+        
+        .radio-group input[type="radio"]:checked + span {
+            color: #f39c12;
+        }
+        
+        input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 0.9rem;
+            width: 180px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #f39c12;
+        }
+        
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+        
+        .btn-add {
+            margin-left: auto;
+        }
+        
+        .quick-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        
+        .quick-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+        }
+        
+        .quick-btn.single { background: #3498db; color: #fff; }
+        .quick-btn.front { background: #27ae60; color: #fff; }
+        .quick-btn.back { background: #f1c40f; color: #333; }
+        .quick-btn.fook { background: #e67e22; color: #fff; font-size: 1rem; }
+        
+        .quick-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+        
+        .separator {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            margin: 20px 0;
+        }
+        
+        .section-header {
+            text-align: center;
+            color: #f39c12;
+            font-weight: 600;
+            margin: 16px 0 12px;
+        }
+        
+        .tag-list {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 120px;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+        }
+        
+        .tag-item {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .tag-item:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .tag-item.selected {
+            background: rgba(243, 156, 18, 0.3);
+            border: 1px solid #f39c12;
+        }
+        
+        .tag-item .delete-btn {
+            color: #e74c3c;
+            cursor: pointer;
+            padding: 2px 6px;
+            opacity: 0.7;
+        }
+        
+        .tag-item .delete-btn:hover {
+            opacity: 1;
+        }
+        
+        .action-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .btn-danger {
+            background: #c0392b;
+            color: #fff;
+        }
+        
+        .btn-danger:hover {
+            background: #e74c3c;
+        }
+        
+        .btn-generate {
+            width: 100%;
+            padding: 14px;
+            font-size: 1rem;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+        }
+        
+        .btn-generate:hover {
+            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.5);
+        }
+        
+        .status {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 0.9rem;
+            color: #888;
+        }
+        
+        .status.success { color: #27ae60; }
+        
+        /* Preview Canvas */
+        #preview {
+            display: block;
+        }
+        
+        .preview-title {
+            font-size: 1rem;
+            color: #333;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        
+        .preview-container {
+            flex: 1;
+            overflow: auto;
+            background: #f8f8f8;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 날짜/시간 */
+        .datetime-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+        }
+        
+        .datetime-bar .date { color: #aaa; }
+        .datetime-bar .time { color: #f39c12; font-weight: 700; font-size: 1rem; }
+        
+        .save-indicator {
+            font-size: 0.75rem;
+            color: #27ae60;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .save-indicator.saving { color: #f39c12; }
+        
+        /* 통계 패널 */
+        .stats-panel {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        .stats-title {
+            font-size: 0.9rem;
+            color: #f39c12;
+            margin-bottom: 12px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stats-clear-btn {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            background: rgba(231,76,60,0.3);
+            border: 1px solid rgba(231,76,60,0.5);
+            color: #e74c3c;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .stats-category {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .stats-category-title {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            font-weight: 600;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3px 0;
+            font-size: 0.82rem;
+        }
+        
+        .stats-item .phrase { color: #e8e8e8; }
+        
+        .stats-item .count {
+            background: #f39c12;
+            color: #000;
+            border-radius: 10px;
+            padding: 1px 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            min-width: 28px;
+            text-align: center;
+        }
+        
+        .stats-empty { color: #666; font-size: 0.8rem; text-align: center; padding: 8px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <h1>🏷️ 레이저 각인 태그 생성기</h1>
+            
+            <!-- 날짜/시간 바 -->
+            <div class="datetime-bar">
+                <span class="date" id="currentDate"></span>
+                <span class="time" id="currentTime"></span>
+                <span class="save-indicator" id="saveIndicator">✓ 저장됨</span>
+            </div>
+            
+            <div class="section">
+                <div class="section-title">📋 기본 설정</div>
+                
+                <div class="row">
+                    <span class="label">팬던트:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="pendant" value="태그" checked><span>태그</span></label>
+                        <label><input type="radio" name="pendant" value="복주머니"><span>복주머니</span></label>
+                        <label><input type="radio" name="pendant" value="차량용"><span>차량용</span></label>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">재질:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="material" value="월넛" checked><span>월넛</span></label>
+                        <label><input type="radio" name="material" value="메이플"><span>메이플</span></label>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">각인:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="side" value="단면" checked><span>단면</span></label>
+                        <label><input type="radio" name="side" value="양면"><span>양면</span></label>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">앞면 크기:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="frontSize" value="2글자"><span>2글자</span></label>
+                        <label><input type="radio" name="frontSize" value="3글자"><span>3글자</span></label>
+                        <label><input type="radio" name="frontSize" value="4글자" checked><span>4글자</span></label>
+                        <label><input type="radio" name="frontSize" value="5글자"><span>5글자</span></label>
+                    </div>
+                </div>
+                
+                <div class="row" id="backSizeRow">
+                    <span class="label">뒷면 크기:</span>
+                    <div class="radio-group">
+                        <label><input type="radio" name="backSize" value="2글자"><span>2글자</span></label>
+                        <label><input type="radio" name="backSize" value="3글자"><span>3글자</span></label>
+                        <label><input type="radio" name="backSize" value="4글자" checked><span>4글자</span></label>
+                        <label><input type="radio" name="backSize" value="5글자"><span>5글자</span></label>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">앞면:</span>
+                    <input type="text" id="frontText" placeholder="텍스트 입력">
+                </div>
+                
+                <div class="row">
+                    <span class="label">뒷면:</span>
+                    <input type="text" id="backText" placeholder="텍스트 입력">
+                    <button class="btn btn-primary btn-add" onclick="addTag()">추가</button>
+                </div>
+            </div>
+            
+            <!-- 단면 빠른 버튼 -->
+            <div class="section">
+                <div class="section-title">⚡ 단면 빠른 추가</div>
+                
+                <div class="row">
+                    <span class="label">福 (37pt):</span>
+                    <button class="quick-btn fook" onclick="quickAddSingle('福', '福')">福</button>
+                </div>
+                
+                <div class="row" style="align-items: flex-start;">
+                    <span class="label">4글자:</span>
+                    <div class="quick-btns" id="single4Btns"></div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">5글자:</span>
+                    <div class="quick-btns">
+                        <button class="quick-btn single" onclick="quickAddSingle('가화만사성', '5글자')">가화만사성</button>
+                        <button class="quick-btn single" onclick="quickAddSingle('백년해로♡', '5글자')">백년해로♡</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="separator"></div>
+            <div class="section-header">[ 양면 각인 ]</div>
+            
+            <!-- 양면 앞면 -->
+            <div class="section">
+                <div class="section-title">🟢 앞면 선택</div>
+                
+                <div class="row">
+                    <span class="label">福:</span>
+                    <button class="quick-btn fook" onclick="setFrontText('福', '福')">福</button>
+                </div>
+                
+                <div class="row" style="align-items: flex-start;">
+                    <span class="label">4글자:</span>
+                    <div class="quick-btns" id="front4Btns"></div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">5글자:</span>
+                    <div class="quick-btns">
+                        <button class="quick-btn front" onclick="setFrontText('가화만사성', '5글자')">가화만사성</button>
+                        <button class="quick-btn front" onclick="setFrontText('백년해로♡', '5글자')">백년해로♡</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 양면 뒷면 -->
+            <div class="section">
+                <div class="section-title">🟡 뒷면 선택</div>
+                
+                <div class="row">
+                    <span class="label">福:</span>
+                    <button class="quick-btn fook" onclick="setBackText('福', '福')">福</button>
+                </div>
+                
+                <div class="row" style="align-items: flex-start;">
+                    <span class="label">4글자:</span>
+                    <div class="quick-btns" id="back4Btns"></div>
+                </div>
+                
+                <div class="row">
+                    <span class="label">5글자:</span>
+                    <div class="quick-btns">
+                        <button class="quick-btn back" onclick="setBackText('가화만사성', '5글자')">가화만사성</button>
+                        <button class="quick-btn back" onclick="setBackText('백년해로♡', '5글자')">백년해로♡</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 태그 목록 -->
+            <div class="section">
+                <div class="section-title">📦 추가된 태그</div>
+                <div class="tag-list" id="tagList"></div>
+                
+                <div class="action-btns">
+                    <button class="btn btn-secondary" onclick="copyTag()">복사</button>
+                    <button class="btn btn-secondary" onclick="removeTag()">삭제</button>
+                    <button class="btn btn-danger" onclick="clearAllTags()">전체삭제</button>
+                </div>
+                
+                <button class="btn btn-primary btn-generate" onclick="generateJSX()">📥 JSX 파일 다운로드</button>
+                <div class="status" id="status">태그를 추가해주세요</div>
+            </div>
+            
+            <!-- 각인 통계 (하단) -->
+            <div class="stats-panel">
+                <div class="stats-title">
+                    📊 누적 각인 통계
+                    <button class="stats-clear-btn" onclick="clearStats()">전체 초기화</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stats-category">
+                        <div class="stats-category-title">🟤 월넛-태그</div>
+                        <div id="stats-월넛-태그"><span class="stats-empty">없음</span></div>
+                    </div>
+                    <div class="stats-category">
+                        <div class="stats-category-title">🟡 메이플-태그</div>
+                        <div id="stats-메이플-태그"><span class="stats-empty">없음</span></div>
+                    </div>
+                    <div class="stats-category">
+                        <div class="stats-category-title">🔵 월넛-복주머니</div>
+                        <div id="stats-월넛-복주머니"><span class="stats-empty">없음</span></div>
+                    </div>
+                    <div class="stats-category">
+                        <div class="stats-category-title">🟢 메이플-복주머니</div>
+                        <div id="stats-메이플-복주머니"><span class="stats-empty">없음</span></div>
+                    </div>
+                </div>
+                <div style="margin-top: 8px; font-size: 0.78rem; color: #666; text-align: center;">문구 클릭 시 해당 날짜별 상세 내역 확인</div>
+                
+                <!-- 상세 내역 팝업 -->
+                <div id="statsDetail" style="display:none; margin-top:12px; background:rgba(0,0,0,0.3); border-radius:8px; padding:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span id="statsDetailTitle" style="color:#f39c12; font-weight:600; font-size:0.9rem;"></span>
+                        <button onclick="document.getElementById('statsDetail').style.display='none'" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:1rem;">✕</button>
+                    </div>
+                    <div id="statsDetailContent" style="font-size:0.85rem; max-height:200px; overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="preview-title">👁️ 미리보기</div>
+            <div class="preview-container">
+                <canvas id="preview"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ── Supabase 연결 ─────────────────────────
+        const SUPABASE_URL = 'https://hayfpcuacwkytbjwjdhm.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // 설정값
+        const tagSettings = {
+            width: 16.27, height: 38.00, holeRadius: 1.78, holeTopMargin: 4.16,
+            topCutH: 3.31, topCutV: 5.73, spacing: 2.5, tagsPerRow: 5
+        };
+        
+        const pouchSettings = {
+            width: 17.14, height: 38.70, holeRadius: 1.78, holeTopMargin: 4.19,
+            cornerRadius: 2.67, bottomCircleOffset: 4.16, spacing: 2.5, tagsPerRow: 5
+        };
+        
+        const carSettings = {
+            width: 13.75, height: 32.02, holeRadius: 1.50, holeTopMargin: 3.51,
+            topCutH: 2.84, topCutV: 4.82, spacing: 2.5, tagsPerRow: 5
+        };
+        
+        const phrases4 = [
+            "가화평안", "건강기원", "건강만땅", "건강행복",
+            "대박기원", "로또1등", "로또당첨", "만사형통",
+            "무병장수", "무사안녕", "부자되자", "백년해로",
+            "백억부자", "복받는중", "사업번창", "소원성취",
+            "수복강녕", "액막는중", "운수대통", "입춘대길",
+            "재물가득", "행복가득", "행복만땅", "행운가득"
+        ];
+        
+        let tags = [];
+        let selectedIndex = -1;
+        let allTimeStats = {};  // 누적 통계 { "월넛-태그": { "만사형통": 3, ... }, ... }
+        
+        // ── 날짜/시간 ──────────────────────────────
+        function updateClock() {
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${['일','월','화','수','목','금','토'][now.getDay()]})`;
+            const timeStr = now.toTimeString().slice(0,8);
+            document.getElementById('currentDate').textContent = dateStr;
+            document.getElementById('currentTime').textContent = timeStr;
+        }
+        
+        // ── 자동저장 (Supabase + localStorage 캐시) ───────────────────────────────
+        let saveTimer = null;
+        
+        function saveData() {
+            // 즉시 localStorage 캐시 저장 (빠른 반응)
+            try {
+                localStorage.setItem('laser_tags', JSON.stringify(tags));
+                localStorage.setItem('laser_stats', JSON.stringify(allTimeStats));
+            } catch(e) {}
+            
+            // Supabase 저장은 디바운스 (0.5초 후)
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => saveToSupabase(), 500);
+        }
+        
+        async function saveToSupabase() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.className = 'save-indicator saving';
+            indicator.textContent = '↻ 클라우드 저장 중...';
+            
+            try {
+                // 태그 저장: 전체 삭제 후 다시 삽입
+                await sb.from('laser_tags').delete().gte('id', 0);
+                if (tags.length > 0) {
+                    const rows = tags.map(t => ({
+                        front: t.front,
+                        back: t.back,
+                        material: t.material,
+                        side: t.side,
+                        font_preset_front: t.fontPresetFront,
+                        font_preset_back: t.fontPresetBack,
+                        pendant_type: t.pendantType
+                    }));
+                    await sb.from('laser_tags').insert(rows);
+                }
+                
+                // 통계 저장: __all_stats__ 키로 통째 저장
+                await sb.from('laser_stats').delete().eq('category', '__all_stats__');
+                await sb.from('laser_stats').insert({
+                    category: '__all_stats__',
+                    phrase: '__all_stats__',
+                    count: 0,
+                    history: allTimeStats
+                });
+                
+                indicator.className = 'save-indicator';
+                indicator.textContent = '☁ 클라우드 저장됨';
+            } catch(e) {
+                indicator.className = 'save-indicator';
+                indicator.textContent = '⚠ 로컬만 저장됨';
+                console.error('Supabase 저장 실패:', e);
+            }
+        }
+        
+        async function loadData() {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.className = 'save-indicator saving';
+            indicator.textContent = '↻ 불러오는 중...';
+            
+            try {
+                // Supabase에서 태그 불러오기
+                const { data: tagRows, error: tagErr } = await sb.from('laser_tags').select('*').order('id');
+                if (!tagErr && tagRows && tagRows.length > 0) {
+                    tags = tagRows.map(r => ({
+                        front: r.front,
+                        back: r.back,
+                        material: r.material,
+                        side: r.side,
+                        fontPresetFront: r.font_preset_front,
+                        fontPresetBack: r.font_preset_back,
+                        pendantType: r.pendant_type
+                    }));
+                }
+                
+                // Supabase에서 통계 불러오기
+                const { data: statsRows, error: statsErr } = await sb.from('laser_stats').select('*').eq('category', '__all_stats__');
+                if (!statsErr && statsRows && statsRows.length > 0) {
+                    allTimeStats = statsRows[0].history || {};
+                }
+                
+                indicator.className = 'save-indicator';
+                indicator.textContent = '☁ 클라우드 연결됨';
+            } catch(e) {
+                // Supabase 실패 시 localStorage에서 불러오기
+                console.error('Supabase 로드 실패, localStorage 사용:', e);
+                try {
+                    const savedTags = localStorage.getItem('laser_tags');
+                    const savedStats = localStorage.getItem('laser_stats');
+                    if (savedTags) tags = JSON.parse(savedTags);
+                    if (savedStats) allTimeStats = JSON.parse(savedStats);
+                } catch(e2) {
+                    tags = [];
+                    allTimeStats = {};
+                }
+                indicator.className = 'save-indicator';
+                indicator.textContent = '⚠ 오프라인 모드';
+            }
+        }
+        
+        // ── 통계 ───────────────────────────────────
+        function addToStats(tag) {
+            const type = tag.pendantType === '복주머니' ? '복주머니' : tag.pendantType === '차량용' ? '차량용' : '태그';
+            const key = `${tag.material}-${type}`;
+            
+            if (!allTimeStats[key]) allTimeStats[key] = {};
+            
+            // 오늘 날짜
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+            
+            // 수량 카운트
+            allTimeStats[key][tag.front] = (allTimeStats[key][tag.front] || 0) + 1;
+            if (tag.back) {
+                allTimeStats[key][tag.back] = (allTimeStats[key][tag.back] || 0) + 1;
+            }
+            
+            // 날짜별 히스토리
+            if (!allTimeStats[key]['__history__']) allTimeStats[key]['__history__'] = [];
+            allTimeStats[key]['__history__'].push({ phrase: tag.front, date: dateStr });
+            if (tag.back) {
+                allTimeStats[key]['__history__'].push({ phrase: tag.back, date: dateStr });
+            }
+        }
+        
+        function renderStats() {
+            const categories = ['월넛-태그', '메이플-태그', '월넛-복주머니', '메이플-복주머니'];
+            
+            categories.forEach(cat => {
+                const el = document.getElementById(`stats-${cat}`);
+                if (!el) return;
+                
+                const data = allTimeStats[cat];
+                if (!data || Object.keys(data).length === 0) {
+                    el.innerHTML = '<span class="stats-empty">없음</span>';
+                    return;
+                }
+                
+                // 수량 내림차순 정렬
+                const sorted = Object.entries(data)
+                    .filter(([k]) => k !== '__history__')
+                    .sort((a, b) => b[1] - a[1]);
+                    
+                el.innerHTML = sorted.map(([phrase, count]) => 
+                    `<div class="stats-item" onclick="showPhraseDetail('${cat}','${phrase}')" style="cursor:pointer;" title="클릭하면 날짜별 상세 확인">
+                        <span class="phrase">${phrase}</span>
+                        <span class="count">${count}</span>
+                    </div>`
+                ).join('');
+            });
+        }
+        
+        function showPhraseDetail(cat, phrase) {
+            const history = (allTimeStats[cat] && allTimeStats[cat]['__history__']) || [];
+            const filtered = history.filter(h => h.phrase === phrase);
+            
+            const detailDiv = document.getElementById('statsDetail');
+            const titleEl = document.getElementById('statsDetailTitle');
+            const contentEl = document.getElementById('statsDetailContent');
+            
+            titleEl.textContent = `${cat} - "${phrase}" 작업 내역`;
+            
+            if (filtered.length === 0) {
+                contentEl.innerHTML = '<span style="color:#666">내역 없음 (이전 데이터)</span>';
+            } else {
+                // 날짜별 그룹
+                const byDate = {};
+                filtered.forEach(h => {
+                    const date = h.date || '날짜 없음';
+                    byDate[date] = (byDate[date] || 0) + 1;
+                });
+                
+                contentEl.innerHTML = Object.entries(byDate)
+                    .sort((a,b) => b[0].localeCompare(a[0]))
+                    .map(([date, cnt]) => 
+                        `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <span style="color:#ccc;">${date}</span>
+                            <span style="color:#f39c12; font-weight:700;">${cnt}개</span>
+                        </div>`
+                    ).join('');
+            }
+            
+            detailDiv.style.display = 'block';
+        }
+        
+        function clearStats() {
+            if (!confirm('누적 통계를 모두 초기화할까요?')) return;
+            allTimeStats = {};
+            saveData();
+            renderStats();
+        }
+        
+        // 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            initButtons();
+            updateSideVisibility();
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            await loadData();          // Supabase에서 데이터 불러오기
+            updateTagList();
+            updatePreview();
+            renderStats();
+            setInterval(saveData, 60000);      // 60초마다 자동저장
+            
+            document.querySelectorAll('input[name="side"]').forEach(r => {
+                r.addEventListener('change', updateSideVisibility);
+            });
+        });
+        
+        function initButtons() {
+            // 단면 4글자
+            const single4 = document.getElementById('single4Btns');
+            phrases4.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-btn single';
+                btn.textContent = p;
+                btn.onclick = () => quickAddSingle(p, '4글자');
+                single4.appendChild(btn);
+            });
+            
+            // 앞면 4글자
+            const front4 = document.getElementById('front4Btns');
+            phrases4.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-btn front';
+                btn.textContent = p;
+                btn.onclick = () => setFrontText(p, '4글자');
+                front4.appendChild(btn);
+            });
+            
+            // 뒷면 4글자
+            const back4 = document.getElementById('back4Btns');
+            phrases4.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'quick-btn back';
+                btn.textContent = p;
+                btn.onclick = () => setBackText(p, '4글자');
+                back4.appendChild(btn);
+            });
+        }
+        
+        function updateSideVisibility() {
+            const side = document.querySelector('input[name="side"]:checked').value;
+            document.getElementById('backSizeRow').classList.toggle('hidden', side === '단면');
+        }
+        
+        function getFormValues() {
+            return {
+                pendant: document.querySelector('input[name="pendant"]:checked').value,
+                material: document.querySelector('input[name="material"]:checked').value,
+                side: document.querySelector('input[name="side"]:checked').value,
+                frontSize: document.querySelector('input[name="frontSize"]:checked').value,
+                backSize: document.querySelector('input[name="backSize"]:checked').value,
+                frontText: document.getElementById('frontText').value.trim(),
+                backText: document.getElementById('backText').value.trim()
+            };
+        }
+        
+        function quickAddSingle(phrase, preset) {
+            const v = getFormValues();
+            if (v.pendant === '차량용' && phrase === '福') {
+                alert('차량용 팬던트는 福 한자를 지원하지 않습니다!');
+                return;
+            }
+            
+            tags.push({
+                front: phrase, back: null, material: v.material, side: '단면',
+                fontPresetFront: preset, fontPresetBack: null, pendantType: v.pendant
+            });
+            
+            // 통계 기록
+            addToStats(tags[tags.length - 1]);
+            renderStats();
+            
+            updateTagList();
+            updatePreview();
+            saveData();
+        }
+        
+        function setFrontText(phrase, preset) {
+            const pendant = document.querySelector('input[name="pendant"]:checked').value;
+            if (pendant === '차량용' && phrase === '福') {
+                alert('차량용 팬던트는 福 한자를 지원하지 않습니다!');
+                return;
+            }
+            
+            document.getElementById('frontText').value = phrase;
+            document.querySelector(`input[name="frontSize"][value="${preset}"]`).checked = true;
+            document.querySelector('input[name="side"][value="양면"]').checked = true;
+            updateSideVisibility();
+        }
+        
+        function setBackText(phrase, preset) {
+            const pendant = document.querySelector('input[name="pendant"]:checked').value;
+            if (pendant === '차량용' && phrase === '福') {
+                alert('차량용 팬던트는 福 한자를 지원하지 않습니다!');
+                return;
+            }
+            
+            document.getElementById('backText').value = phrase;
+            document.querySelector(`input[name="backSize"][value="${preset}"]`).checked = true;
+            document.querySelector('input[name="side"][value="양면"]').checked = true;
+            updateSideVisibility();
+        }
+        
+        function addTag() {
+            const v = getFormValues();
+            
+            if (!v.frontText) {
+                alert('앞면 텍스트를 입력해주세요!');
+                return;
+            }
+            
+            if (v.side === '양면' && !v.backText) {
+                alert('양면은 뒷면도 입력해주세요!');
+                return;
+            }
+            
+            tags.push({
+                front: v.frontText,
+                back: v.side === '양면' ? v.backText : null,
+                material: v.material,
+                side: v.side,
+                fontPresetFront: v.frontSize,
+                fontPresetBack: v.side === '양면' ? v.backSize : null,
+                pendantType: v.pendant
+            });
+            
+            // 통계 기록
+            addToStats(tags[tags.length - 1]);
+            renderStats();
+            
+            document.getElementById('frontText').value = '';
+            document.getElementById('backText').value = '';
+            
+            updateTagList();
+            updatePreview();
+            saveData();
+        }
+        
+        function updateTagList() {
+            const list = document.getElementById('tagList');
+            list.innerHTML = '';
+            
+            tags.forEach((tag, i) => {
+                const div = document.createElement('div');
+                div.className = 'tag-item' + (i === selectedIndex ? ' selected' : '');
+                
+                let text = `[${tag.pendantType}/${tag.material}] ${tag.front}(${tag.fontPresetFront})`;
+                if (tag.side === '양면') {
+                    text += ` / ${tag.back}(${tag.fontPresetBack})`;
+                }
+                text += ` (${tag.side})`;
+                
+                div.innerHTML = `<span>${text}</span><span class="delete-btn" onclick="removeTagAt(${i})">✕</span>`;
+                div.onclick = (e) => {
+                    if (!e.target.classList.contains('delete-btn')) {
+                        selectedIndex = i;
+                        updateTagList();
+                    }
+                };
+                list.appendChild(div);
+            });
+            
+            const status = document.getElementById('status');
+            if (tags.length === 0) {
+                status.textContent = '태그를 추가해주세요';
+                status.className = 'status';
+            } else {
+                status.textContent = `총 ${tags.length}개 추가`;
+                status.className = 'status success';
+            }
+        }
+        
+        function copyTag() {
+            if (selectedIndex < 0 || selectedIndex >= tags.length) {
+                alert('복사할 태그를 선택해주세요!');
+                return;
+            }
+            tags.push({...tags[selectedIndex]});
+            updateTagList();
+            updatePreview();
+        }
+        
+        function removeTag() {
+            if (selectedIndex < 0 || selectedIndex >= tags.length) {
+                alert('삭제할 태그를 선택해주세요!');
+                return;
+            }
+            tags.splice(selectedIndex, 1);
+            selectedIndex = -1;
+            updateTagList();
+            updatePreview();
+        }
+        
+        function removeTagAt(index) {
+            tags.splice(index, 1);
+            if (selectedIndex === index) selectedIndex = -1;
+            else if (selectedIndex > index) selectedIndex--;
+            updateTagList();
+            updatePreview();
+            saveData();
+        }
+        
+        function clearAllTags() {
+            if (tags.length === 0) return;
+            if (confirm('모든 태그를 삭제하시겠습니까?')) {
+                tags = [];
+                selectedIndex = -1;
+                updateTagList();
+                updatePreview();
+                saveData();
+            }
+        }
+        
+        function updatePreview() {
+            const canvas = document.getElementById('preview');
+            const ctx = canvas.getContext('2d');
+            const scale = 2.2;  // 스케일 약간 축소
+            
+            // 카테고리별 분류
+            const categories = {
+                '월넛-단면': [], '월넛-양면': [], '메이플-단면': [], '메이플-양면': [],
+                '월넛-차량용-단면': [], '월넛-차량용-양면': [], '메이플-차량용-단면': [], '메이플-차량용-양면': []
+            };
+            
+            tags.forEach(tag => {
+                let key;
+                if (tag.pendantType === '차량용') {
+                    key = `${tag.material}-차량용-${tag.side}`;
+                } else {
+                    key = `${tag.material}-${tag.side}`;
+                }
+                categories[key].push(tag);
+            });
+            
+            // 캔버스 크기 계산
+            const tagsPerRow = 5;
+            const tagW = tagSettings.width * scale;
+            const tagH = tagSettings.height * scale;
+            const spacingX = 4;
+            const spacingY = 8;
+            const sectionGap = 20;
+            const sectionWidth = tagsPerRow * (tagW + spacingX) + sectionGap;
+            
+            // 최대 행 수 계산
+            let maxRows = 1;
+            Object.values(categories).forEach(list => {
+                if (list.length === 0) return;
+                const isDouble = list[0].side === '양면';
+                const rows = isDouble 
+                    ? Math.ceil(list.length / tagsPerRow) * 2 
+                    : Math.ceil(list.length / tagsPerRow);
+                maxRows = Math.max(maxRows, rows);
+            });
+            
+            const canvasWidth = sectionWidth * 8 + 40;
+            const canvasHeight = Math.max(300, 40 + maxRows * (tagH + spacingY) + 20);
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            if (tags.length === 0) {
+                ctx.fillStyle = '#999';
+                ctx.font = '16px "Noto Sans KR"';
+                ctx.textAlign = 'center';
+                ctx.fillText('태그 추가 후 미리보기 표시', canvas.width/2, canvas.height/2);
+                return;
+            }
+            
+            let sectionX = 20;
+            const sectionNames = ['월넛-단면', '월넛-양면', '메이플-단면', '메이플-양면', '월넛-차량용-단면', '월넛-차량용-양면', '메이플-차량용-단면', '메이플-차량용-양면'];
+            
+            sectionNames.forEach(name => {
+                const list = categories[name] || [];
+                
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 11px "Noto Sans KR"';
+                ctx.textAlign = 'left';
+                ctx.fillText(name, sectionX, 20);
+                
+                if (list.length === 0) {
+                    ctx.fillStyle = '#999';
+                    ctx.font = '10px "Noto Sans KR"';
+                    ctx.fillText('(없음)', sectionX, 40);
+                } else {
+                    drawSectionTags(ctx, list, sectionX, 35, scale, tagsPerRow, spacingX, spacingY);
+                }
+                
+                sectionX += sectionWidth;
+            });
+        }
+        
+        function drawSectionTags(ctx, list, startX, startY, scale, tagsPerRow, spacingX, spacingY) {
+            let row = 0;
+            const isDouble = list[0].side === '양면';
+            
+            if (isDouble) {
+                const chunks = [];
+                for (let i = 0; i < list.length; i += tagsPerRow) {
+                    chunks.push(list.slice(i, i + tagsPerRow));
+                }
+                
+                chunks.forEach(chunk => {
+                    // 앞면
+                    chunk.forEach((tag, col) => {
+                        const settings = getSettingsForPendant(tag.pendantType);
+                        const w = settings.width * scale;
+                        const h = settings.height * scale;
+                        const x = startX + col * (w + spacingX);
+                        const y = startY + row * (h + spacingY);
+                        drawSingleTag(ctx, x, y, tag.front, tag.pendantType, false, scale, tag.fontPresetFront);
+                    });
+                    row++;
+                    
+                    // 뒷면
+                    chunk.forEach((tag, col) => {
+                        if (!tag.back) return;
+                        const settings = getSettingsForPendant(tag.pendantType);
+                        const w = settings.width * scale;
+                        const h = settings.height * scale;
+                        const x = startX + col * (w + spacingX);
+                        const y = startY + row * (h + spacingY);
+                        drawSingleTag(ctx, x, y, tag.back, tag.pendantType, true, scale, tag.fontPresetBack);
+                    });
+                    row++;
+                });
+            } else {
+                list.forEach((tag, i) => {
+                    const col = i % tagsPerRow;
+                    if (col === 0 && i > 0) row++;
+                    
+                    const settings = getSettingsForPendant(tag.pendantType);
+                    const w = settings.width * scale;
+                    const h = settings.height * scale;
+                    const x = startX + col * (w + spacingX);
+                    const y = startY + row * (h + spacingY);
+                    drawSingleTag(ctx, x, y, tag.front, tag.pendantType, false, scale, tag.fontPresetFront);
+                });
+            }
+        }
+        
+        function getSettingsForPendant(type) {
+            if (type === '복주머니') return pouchSettings;
+            if (type === '차량용') return carSettings;
+            return tagSettings;
+        }
+        
+        function drawSingleTag(ctx, x, y, text, pendantType, isBack, scale, preset) {
+            const settings = getSettingsForPendant(pendantType);
+            const w = settings.width * scale;
+            const h = settings.height * scale;
+            const holeR = settings.holeRadius * scale;
+            const holeMargin = settings.holeTopMargin * scale;
+            
+            const outlineColor = isBack ? '#999' : (pendantType === '복주머니' ? '#3498db' : (pendantType === '차량용' ? '#27ae60' : '#333'));
+            const holeColor = isBack ? '#999' : '#e74c3c';
+            const textColor = isBack ? '#999' : '#333';
+            
+            ctx.strokeStyle = outlineColor;
+            ctx.lineWidth = 1;
+            
+            if (pendantType === '복주머니') {
+                // 둥근 사각형
+                const r = settings.cornerRadius * scale;
+                ctx.beginPath();
+                ctx.roundRect(x, y, w, h, r);
+                ctx.stroke();
+                
+                // 상단 구멍
+                ctx.beginPath();
+                ctx.arc(x + w/2, y + holeMargin, holeR, 0, Math.PI * 2);
+                ctx.strokeStyle = holeColor;
+                ctx.stroke();
+                
+                // 하단 원
+                const bottomY = y + h - settings.bottomCircleOffset * scale;
+                ctx.beginPath();
+                ctx.arc(x + w/2, bottomY, holeR, 0, Math.PI * 2);
+                ctx.stroke();
+            } else {
+                // 태그/차량용 (육각형)
+                const cutH = settings.topCutH * scale;
+                const cutV = settings.topCutV * scale;
+                
+                ctx.beginPath();
+                ctx.moveTo(x + cutH, y);
+                ctx.lineTo(x + w - cutH, y);
+                ctx.lineTo(x + w, y + cutV);
+                ctx.lineTo(x + w, y + h);
+                ctx.lineTo(x, y + h);
+                ctx.lineTo(x, y + cutV);
+                ctx.closePath();
+                ctx.stroke();
+                
+                // 구멍
+                ctx.beginPath();
+                ctx.arc(x + w/2, y + holeMargin, holeR, 0, Math.PI * 2);
+                ctx.strokeStyle = holeColor;
+                ctx.stroke();
+            }
+            
+            // 텍스트
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            
+            const fontSize = text.length <= 3 ? 11 : 10;
+            ctx.font = `${fontSize}px "Noto Sans KR"`;
+            
+            const chars = text.split('');
+            const charSpacing = fontSize * 1.3;
+            const totalHeight = (chars.length - 1) * charSpacing;
+            const startY = y + h/2 - totalHeight/2 + fontSize/3;
+            
+            chars.forEach((char, i) => {
+                ctx.fillText(char, x + w/2, startY + i * charSpacing);
+            });
+        }
+        
+        function generateJSX() {
+            if (tags.length === 0) {
+                alert('태그가 없습니다!');
+                return;
+            }
+            
+            const mmToPt = 2.83465;
+            
+            // 파일명 생성
+            const pendantTexts = { '태그': [], '복주머니': [], '차량용': [] };
+            tags.forEach(tag => {
+                if (!pendantTexts[tag.pendantType].includes(tag.front)) {
+                    pendantTexts[tag.pendantType].push(tag.front);
+                }
+            });
+            
+            let filenameParts = [];
+            if (pendantTexts['태그'].length) filenameParts.push(`중형 - ${pendantTexts['태그'].slice(0,5).join(', ')}`);
+            if (pendantTexts['복주머니'].length) filenameParts.push(`복주머니 - ${pendantTexts['복주머니'].slice(0,5).join(', ')}`);
+            if (pendantTexts['차량용'].length) filenameParts.push(`차량용 - ${pendantTexts['차량용'].slice(0,5).join(', ')}`);
+            
+            let filename = filenameParts.join(' ').replace(/[\\/:*?"<>|]/g, '') || 'laser_tags';
+            if (filename.length > 100) filename = filename.substring(0, 100);
+            
+            // 태그 데이터 분류
+            const categories = {
+                '월넛-단면': [], '월넛-양면': [], '메이플-단면': [], '메이플-양면': [],
+                '월넛-차량용-단면': [], '월넛-차량용-양면': [], '메이플-차량용-단면': [], '메이플-차량용-양면': []
+            };
+            
+            tags.forEach(tag => {
+                let key;
+                if (tag.pendantType === '차량용') {
+                    key = `${tag.material}-차량용-${tag.side}`;
+                } else {
+                    key = `${tag.material}-${tag.side}`;
+                }
+                categories[key].push(tag);
+            });
+            
+            const tagsData = [];
+            ['월넛-단면', '월넛-양면', '메이플-단면', '메이플-양면', '월넛-차량용-단면', '월넛-차량용-양면', '메이플-차량용-단면', '메이플-차량용-양면'].forEach(key => {
+                if (!categories[key]) return;
+                categories[key].forEach(tag => {
+                    tagsData.push([
+                        tag.front, tag.back || '', tag.side, key,
+                        tag.fontPresetFront, tag.pendantType, tag.fontPresetBack || ''
+                    ]);
+                });
+            });
+            
+            // JSX 스크립트 생성
+            const jsx = generateJSXScript(tagsData, mmToPt, filename);
+            
+            // 다운로드
+            const blob = new Blob([jsx], { type: 'text/javascript;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${filename}.jsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('status').textContent = 'JSX 파일 다운로드 완료!';
+            document.getElementById('status').className = 'status success';
+        }
+        
+        function generateJSXScript(tagsData, mmToPt, filename) {
+            return `
+var doc = app.documents.add(DocumentColorSpace.RGB, (${tagSettings.tagsPerRow} * (${tagSettings.width} + ${tagSettings.spacing}) + 100) * 6 * ${mmToPt}, 500 * ${mmToPt});
+var tags = ${JSON.stringify(tagsData)};
+
+var tagWidth = ${tagSettings.width * mmToPt};
+var tagHeight = ${tagSettings.height * mmToPt};
+var holeRadius = ${tagSettings.holeRadius * mmToPt};
+var holeTopMargin = ${tagSettings.holeTopMargin * mmToPt};
+var topCutH = ${tagSettings.topCutH * mmToPt};
+var topCutV = ${tagSettings.topCutV * mmToPt};
+var spacing = ${tagSettings.spacing * mmToPt};
+var tagsPerRow = ${tagSettings.tagsPerRow};
+
+var pouchWidth = ${pouchSettings.width * mmToPt};
+var pouchHeight = ${pouchSettings.height * mmToPt};
+var pouchHoleRadius = ${pouchSettings.holeRadius * mmToPt};
+var pouchHoleTopMargin = ${pouchSettings.holeTopMargin * mmToPt};
+var pouchCornerRadius = ${pouchSettings.cornerRadius * mmToPt};
+var pouchBottomCircleOffset = ${pouchSettings.bottomCircleOffset * mmToPt};
+
+var carWidth = ${carSettings.width * mmToPt};
+var carHeight = ${carSettings.height * mmToPt};
+var carHoleRadius = ${carSettings.holeRadius * mmToPt};
+var carHoleTopMargin = ${carSettings.holeTopMargin * mmToPt};
+var carTopCutH = ${carSettings.topCutH * mmToPt};
+var carTopCutV = ${carSettings.topCutV * mmToPt};
+
+var sections = {"월넛-단면": [], "월넛-양면": [], "메이플-단면": [], "메이플-양면": [], "월넛-차량용-단면": [], "월넛-차량용-양면": [], "메이플-차량용-단면": [], "메이플-차량용-양면": []};
+
+for (var i = 0; i < tags.length; i++) {
+    sections[tags[i][3]].push(tags[i]);
+}
+
+var sectionNames = ["월넛-단면", "월넛-양면", "메이플-단면", "메이플-양면", "월넛-차량용-단면", "월넛-차량용-양면", "메이플-차량용-단면", "메이플-차량용-양면"];
+var sectionX = 50;
+var sectionWidth = (tagWidth + spacing) * tagsPerRow + 100;
+
+for (var s = 0; s < sectionNames.length; s++) {
+    var sectionName = sectionNames[s];
+    var sectionTags = sections[sectionName];
+    
+    if (sectionTags.length === 0) continue;
+    
+    var title = doc.textFrames.add();
+    title.contents = sectionName;
+    title.textRange.characterAttributes.size = 20;
+    title.top = doc.height - 50;
+    title.left = sectionX;
+    
+    var rowIdx = 0;
+    var colIdx = 0;
+    // 섹션 이름이 아닌 실제 태그의 side 값으로 판단
+    var isDoubleSided = sectionTags[0][2] === "양면";
+    var pendantType = sectionTags[0][5];
+    
+    // 팬던트 타입에 따른 높이 결정
+    var rowHeight = tagHeight;
+    if (pendantType === "복주머니") rowHeight = pouchHeight;
+    else if (pendantType === "차량용") rowHeight = carHeight;
+    
+    if (isDoubleSided) {
+        var numChunks = Math.ceil(sectionTags.length / tagsPerRow);
+        
+        for (var chunkIdx = 0; chunkIdx < numChunks; chunkIdx++) {
+            var startIdx = chunkIdx * tagsPerRow;
+            var endIdx = Math.min(startIdx + tagsPerRow, sectionTags.length);
+            
+            for (var i = startIdx; i < endIdx; i++) {
+                var tag = sectionTags[i];
+                colIdx = i - startIdx;
+                var xPos = sectionX + colIdx * (tagWidth + spacing);
+                var yPos = doc.height - 100 - rowIdx * (rowHeight + 2.5 * ${mmToPt});
+                
+                var settings = getTextSettings(tag[0], tag[4], tag[5]);
+                if (tag[5] === "복주머니") {
+                    createPouch(xPos, yPos, tag[0], settings.fontSize, settings.charSpacing, settings.textDistance);
+                } else if (tag[5] === "차량용") {
+                    createCar(xPos, yPos, tag[0], settings.fontSize, settings.charSpacing, settings.textDistance);
+                } else {
+                    createTag(xPos, yPos, tag[0], settings.fontSize, settings.charSpacing, settings.textDistance);
+                }
+            }
+            rowIdx++;
+            
+            for (var i = startIdx; i < endIdx; i++) {
+                var tag = sectionTags[i];
+                if (!tag[1]) continue;
+                colIdx = i - startIdx;
+                var xPos = sectionX + colIdx * (tagWidth + spacing);
+                var yPos = doc.height - 100 - rowIdx * (rowHeight + 2.5 * ${mmToPt});
+                
+                var settings = getTextSettings(tag[1], tag[6], tag[5]);
+                if (tag[5] === "복주머니") {
+                    createPouch(xPos, yPos, tag[1], settings.fontSize, settings.charSpacing, settings.textDistance);
+                } else if (tag[5] === "차량용") {
+                    createCar(xPos, yPos, tag[1], settings.fontSize, settings.charSpacing, settings.textDistance);
+                } else {
+                    createTag(xPos, yPos, tag[1], settings.fontSize, settings.charSpacing, settings.textDistance);
+                }
+            }
+            rowIdx++;
+        }
+    } else {
+        for (var i = 0; i < sectionTags.length; i++) {
+            var tag = sectionTags[i];
+            if (colIdx >= tagsPerRow) { colIdx = 0; rowIdx++; }
+            
+            var xPos = sectionX + colIdx * (tagWidth + spacing);
+            var yPos = doc.height - 100 - rowIdx * (rowHeight + 2.5 * ${mmToPt}) - 2.5 * ${mmToPt};
+            
+            var settings = getTextSettings(tag[0], tag[4], tag[5]);
+            if (tag[5] === "복주머니") {
+                createPouch(xPos, yPos, tag[0], settings.fontSize, settings.charSpacing, settings.textDistance);
+            } else if (tag[5] === "차량용") {
+                createCar(xPos, yPos, tag[0], settings.fontSize, settings.charSpacing, settings.textDistance);
+            } else {
+                createTag(xPos, yPos, tag[0], settings.fontSize, settings.charSpacing, settings.textDistance);
+            }
+            colIdx++;
+        }
+    }
+    sectionX += sectionWidth;
+}
+
+function getTextSettings(text, preset, pendantType) {
+    if (text === "福") {
+        return { fontSize: pendantType === "복주머니" ? 32 : 37, charSpacing: 0, textDistance: 0 };
+    }
+    if (pendantType === "복주머니") {
+        if (preset === "2글자") return { fontSize: 17, charSpacing: 180, textDistance: "center" };
+        if (preset === "3글자") return { fontSize: 17, charSpacing: 155, textDistance: "center" };
+        return { fontSize: 17, charSpacing: 103, textDistance: 0 };
+    }
+    if (pendantType === "차량용") return { fontSize: 15, charSpacing: 110, textDistance: 1.5 };
+    if (preset === "2글자") return { fontSize: 17, charSpacing: 180, textDistance: 5.0 };
+    if (preset === "3글자") return { fontSize: 17, charSpacing: 160, textDistance: 2.5274 };
+    if (preset === "4글자") return { fontSize: 17, charSpacing: 110, textDistance: 2.5274 };
+    return { fontSize: 16, charSpacing: 104, textDistance: 1.5 };
+}
+
+function createTag(x, y, text, fontSize, charSpacingPercent, textDistance) {
+    var pendant = doc.pathItems.add();
+    pendant.setEntirePath([[x, y - topCutV], [x + topCutH, y], [x + tagWidth - topCutH, y], [x + tagWidth, y - topCutV], [x + tagWidth, y - tagHeight], [x, y - tagHeight]]);
+    pendant.closed = true;
+    pendant.filled = false;
+    pendant.stroked = true;
+    pendant.strokeWidth = 0.5;
+    var blueColor = new RGBColor(); blueColor.red = 0; blueColor.green = 0; blueColor.blue = 255;
+    pendant.strokeColor = blueColor;
+    
+    var holeX = x + tagWidth / 2;
+    var holeY = y - holeTopMargin;
+    var circle = doc.pathItems.ellipse(holeY + holeRadius, holeX - holeRadius, holeRadius * 2, holeRadius * 2);
+    circle.filled = false; circle.stroked = true; circle.strokeWidth = 0.5;
+    var redColor = new RGBColor(); redColor.red = 255; redColor.green = 0; redColor.blue = 0;
+    circle.strokeColor = redColor;
+    
+    var yellowColor = new RGBColor(); yellowColor.red = 255; yellowColor.green = 255; yellowColor.blue = 0;
+    
+    if (text === "福") {
+        var tf = doc.textFrames.add();
+        tf.contents = text;
+        try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Dotum"); } catch(e) { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("ArialMT"); }
+        tf.textRange.characterAttributes.size = fontSize;
+        tf.textRange.characterAttributes.fillColor = yellowColor;
+        tf.top = y - tagHeight / 2 + tf.height / 2 - 4;
+        tf.left = holeX - tf.width / 2;
+        tf.createOutline();
+    } else {
+        var chars = text.split('');
+        var charSpacing = fontSize * (charSpacingPercent / 100);
+        var textY = holeY - holeRadius - textDistance * ${mmToPt};
+        for (var j = 0; j < chars.length; j++) {
+            var tf = doc.textFrames.add();
+            tf.contents = chars[j];
+            try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Dotum"); } catch(e) { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("ArialMT"); }
+            tf.textRange.characterAttributes.size = fontSize;
+            tf.textRange.characterAttributes.fillColor = yellowColor;
+            tf.top = textY - j * charSpacing;
+            tf.left = holeX - tf.width / 2;
+            tf.createOutline();
+        }
+    }
+}
+
+function createPouch(x, y, text, fontSize, charSpacingPercent, textDistance) {
+    var pouch = doc.pathItems.roundedRectangle(y, x, pouchWidth, pouchHeight, pouchCornerRadius, pouchCornerRadius);
+    pouch.filled = false; pouch.stroked = true; pouch.strokeWidth = 0.5;
+    var blueColor = new RGBColor(); blueColor.red = 0; blueColor.green = 0; blueColor.blue = 255;
+    pouch.strokeColor = blueColor;
+    
+    var holeX = x + pouchWidth / 2;
+    var holeY = y - pouchHoleTopMargin;
+    var circle = doc.pathItems.ellipse(holeY + pouchHoleRadius, holeX - pouchHoleRadius, pouchHoleRadius * 2, pouchHoleRadius * 2);
+    circle.filled = false; circle.stroked = true; circle.strokeWidth = 0.5;
+    var redColor = new RGBColor(); redColor.red = 255; redColor.green = 0; redColor.blue = 0;
+    circle.strokeColor = redColor;
+    
+    var bottomCircleY = y - pouchHeight + pouchBottomCircleOffset;
+    var bottomCircle = doc.pathItems.ellipse(bottomCircleY + pouchHoleRadius, holeX - pouchHoleRadius, pouchHoleRadius * 2, pouchHoleRadius * 2);
+    bottomCircle.filled = false; bottomCircle.stroked = true; bottomCircle.strokeWidth = 0.5;
+    bottomCircle.strokeColor = redColor;
+    
+    var yellowColor = new RGBColor(); yellowColor.red = 255; yellowColor.green = 255; yellowColor.blue = 0;
+    
+    if (text === "福") {
+        var tf = doc.textFrames.add();
+        tf.contents = text;
+        try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Dotum"); } catch(e) { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("ArialMT"); }
+        tf.textRange.characterAttributes.size = fontSize;
+        tf.textRange.characterAttributes.fillColor = yellowColor;
+        tf.top = y - pouchHeight / 2 + tf.height / 2;
+        tf.left = holeX - tf.width / 2;
+        tf.createOutline();
+    } else if (textDistance === "center") {
+        var chars = text.split('');
+        var charSpacing = fontSize * (charSpacingPercent / 100);
+        var totalTextHeight = (chars.length - 1) * charSpacing + fontSize;
+        var pouchCenterY = y - pouchHeight / 2;
+        var textStartY = pouchCenterY + totalTextHeight / 2;
+        for (var j = 0; j < chars.length; j++) {
+            var tf = doc.textFrames.add();
+            tf.contents = chars[j];
+            try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Dotum"); } catch(e) { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("ArialMT"); }
+            tf.textRange.characterAttributes.size = fontSize;
+            tf.textRange.characterAttributes.fillColor = yellowColor;
+            tf.top = textStartY - j * charSpacing;
+            tf.left = holeX - tf.width / 2;
+            tf.createOutline();
+        }
+    } else {
+        var chars = text.split('');
+        var charSpacing = fontSize * (charSpacingPercent / 100);
+        var totalTextHeight = (chars.length - 1) * charSpacing + fontSize;
+        var pouchCenterY = y - pouchHeight / 2;
+        var textStartY = pouchCenterY + totalTextHeight / 2;
+        for (var j = 0; j < chars.length; j++) {
+            var tf = doc.textFrames.add();
+            tf.contents = chars[j];
+            try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Dotum"); } catch(e) { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("ArialMT"); }
+            tf.textRange.characterAttributes.size = fontSize;
+            tf.textRange.characterAttributes.fillColor = yellowColor;
+            tf.top = textStartY - j * charSpacing;
+            tf.left = holeX - tf.width / 2;
+            tf.createOutline();
+        }
+    }
+}
+
+function createCar(x, y, text, fontSize, charSpacingPercent, textDistance) {
+    var carPath = doc.pathItems.add();
+    carPath.setEntirePath([[x + carTopCutH, y], [x + carWidth - carTopCutH, y], [x + carWidth, y - carTopCutV], [x + carWidth, y - carHeight], [x, y - carHeight], [x, y - carTopCutV]]);
+    carPath.closed = true;
+    carPath.filled = false; carPath.stroked = true; carPath.strokeWidth = 0.5;
+    var greenColor = new RGBColor(); greenColor.red = 0; greenColor.green = 200; greenColor.blue = 0;
+    carPath.strokeColor = greenColor;
+    
+    var holeX = x + carWidth / 2;
+    var holeY = y - carHoleTopMargin;
+    var circle = doc.pathItems.ellipse(holeY + carHoleRadius, holeX - carHoleRadius, carHoleRadius * 2, carHoleRadius * 2);
+    circle.filled = false; circle.stroked = true; circle.strokeWidth = 0.5;
+    var redColor = new RGBColor(); redColor.red = 255; redColor.green = 0; redColor.blue = 0;
+    circle.strokeColor = redColor;
+    
+    var chars = text.split('');
+    var charSpacing = fontSize * (charSpacingPercent / 100);
+    var textY = holeY - carHoleRadius - textDistance * ${mmToPt};
+    var yellowColor = new RGBColor(); yellowColor.red = 255; yellowColor.green = 255; yellowColor.blue = 0;
+    
+    for (var j = 0; j < chars.length; j++) {
+        var tf = doc.textFrames.add();
+        tf.contents = chars[j];
+        try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Dotum"); } catch(e) { tf.textRange.characterAttributes.textFont = app.textFonts.getByName("ArialMT"); }
+        tf.textRange.characterAttributes.size = fontSize;
+        tf.textRange.characterAttributes.fillColor = yellowColor;
+        tf.top = textY - j * charSpacing;
+        tf.left = holeX - tf.width / 2;
+        tf.createOutline();
+    }
+}
+
+alert("생성 완료! 파일 > 다른 이름으로 저장에서 AI 파일로 저장하세요.");
+`;
+        }
+    </script>
+</body>
+</html>

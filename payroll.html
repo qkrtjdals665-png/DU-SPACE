@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프리랜서 급여내역서 (원천징수 3.3%)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Noto Sans KR',sans-serif; background:#f0f2f5; color:#1a1a2e; min-height:100vh; padding:24px; }
+  .container { max-width:1280px; margin:0 auto; }
+  .header { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); color:white; padding:28px 36px; border-radius:16px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  .header h1 { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+  .header .subtitle { font-size:13px; opacity:0.7; margin-top:4px; font-weight:300; }
+  .header-right { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .excel-status { font-size:11px; padding:6px 14px; border-radius:20px; font-weight:600; }
+  .excel-status.connected { background:#e8f5e9; color:#2e7d32; }
+  .excel-status.disconnected { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.7); }
+  .btn { padding:10px 20px; border:none; border-radius:8px; font-family:'Noto Sans KR',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:6px; }
+  .btn:hover { transform:translateY(-1px); }
+  .btn-export { background:#0f9b58; color:white; }
+  .btn-load { background:#4285f4; color:white; }
+  .btn-link { background:#e94560; color:white; }
+  .btn-clear { background:rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.3); }
+  .btn-clear:hover { background:rgba(255,255,255,0.25); }
+  .info-banner { background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:14px 20px; margin-bottom:20px; font-size:12.5px; color:#6d5600; display:flex; align-items:center; gap:10px; }
+  .info-banner.success { background:#e8f5e9; border-color:#a5d6a7; color:#2e7d32; }
+  .info-banner .close-banner { margin-left:auto; cursor:pointer; font-size:16px; opacity:0.5; background:none; border:none; color:inherit; }
+
+  /* 탭 */
+  .tab-bar { display:flex; gap:0; margin-bottom:0; }
+  .tab-btn { padding:14px 28px; background:#e0e3e8; border:none; font-family:'Noto Sans KR',sans-serif; font-size:14px; font-weight:600; cursor:pointer; border-radius:12px 12px 0 0; color:#666; transition:all 0.2s; position:relative; bottom:-1px; }
+  .tab-btn.active { background:white; color:#1a1a2e; box-shadow:0 -2px 8px rgba(0,0,0,0.06); }
+  .tab-btn:hover:not(.active) { background:#d5d8dd; }
+
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* 입력/테이블 섹션 */
+  .input-section { background:white; border-radius:14px; padding:28px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+  .section-title { font-size:15px; font-weight:700; color:#1a1a2e; margin-bottom:20px; padding-bottom:10px; border-bottom:2px solid #e94560; display:inline-block; }
+  .form-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:20px; }
+  .form-group { display:flex; flex-direction:column; gap:6px; }
+  .form-group label { font-size:12px; font-weight:600; color:#555; }
+  .form-group input { padding:10px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:'Noto Sans KR',sans-serif; font-size:14px; transition:border-color 0.2s; }
+  .form-group input:focus { outline:none; border-color:#0f3460; box-shadow:0 0 0 3px rgba(15,52,96,0.1); }
+  .calculated-fields { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; background:#f8f9fc; padding:16px; border-radius:10px; margin-top:16px; }
+  .calc-item { text-align:center; }
+  .calc-item .label { font-size:11px; color:#888; margin-bottom:4px; }
+  .calc-item .value { font-size:18px; font-weight:700; }
+  .calc-item .value.tax { color:#e94560; }
+  .calc-item .value.net { color:#0f9b58; }
+  .btn-add { background:#1a1a2e; color:white; width:100%; padding:12px; margin-top:16px; font-size:14px; border-radius:10px; justify-content:center; }
+  .table-section { background:white; border-radius:0 14px 14px 14px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+  .table-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px; }
+  .summary-bar { display:flex; gap:24px; font-size:13px; flex-wrap:wrap; }
+  .summary-bar strong { color:#1a1a2e; margin-left:4px; }
+  .filter-bar { display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+  .filter-bar input[type="date"] { padding:8px 12px; border:1.5px solid #ddd; border-radius:8px; font-family:'Noto Sans KR',sans-serif; font-size:13px; }
+  .filter-bar label { font-size:12px; font-weight:600; color:#555; display:flex; align-items:center; gap:6px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  thead th { background:#1a1a2e; color:white; padding:12px 10px; text-align:center; font-weight:600; font-size:12px; white-space:nowrap; }
+  thead th:first-child { border-radius:8px 0 0 0; }
+  thead th:last-child { border-radius:0 8px 0 0; }
+  tbody td { padding:10px; text-align:center; border-bottom:1px solid #f0f0f0; }
+  tbody tr:hover { background:#f8f9fc; }
+  tbody tr.reported td { background:#f0faf4; }
+  tbody tr.editing td { background:#fff8e1; }
+  .amount-cell { text-align:right; font-variant-numeric:tabular-nums; font-weight:500; }
+  .tax-cell { color:#e94560; font-weight:600; }
+  .net-cell { color:#0f9b58; font-weight:700; }
+  .report-check { width:18px; height:18px; cursor:pointer; accent-color:#0f9b58; }
+  .report-status { font-size:11px; padding:4px 10px; border-radius:20px; font-weight:600; display:inline-block; margin-left:4px; }
+  .status-done { background:#e8f5e9; color:#2e7d32; }
+  .status-pending { background:#fff3e0; color:#e65100; }
+  .action-cell { white-space:nowrap; display:flex; gap:2px; justify-content:center; }
+  .btn-delete { background:none; border:none; color:#ccc; cursor:pointer; font-size:16px; padding:4px 8px; border-radius:4px; }
+  .btn-delete:hover { color:#e94560; background:#fef0f3; }
+  .btn-edit { background:none; border:none; color:#aaa; cursor:pointer; font-size:14px; padding:4px 8px; border-radius:4px; }
+  .btn-edit:hover { color:#4285f4; background:#e8f0fe; }
+  .btn-edit-save { background:#0f9b58; border:none; color:white; cursor:pointer; font-size:11px; padding:5px 10px; border-radius:6px; font-weight:600; font-family:'Noto Sans KR',sans-serif; }
+  .btn-edit-cancel { background:#888; border:none; color:white; cursor:pointer; font-size:11px; padding:5px 10px; border-radius:6px; font-weight:600; font-family:'Noto Sans KR',sans-serif; }
+  .edit-input { padding:5px 8px; border:1.5px solid #4285f4; border-radius:6px; font-family:'Noto Sans KR',sans-serif; font-size:12px; text-align:center; background:#fff; }
+  .edit-input:focus { outline:none; box-shadow:0 0 0 2px rgba(66,133,244,0.2); }
+  .edit-input.amount { text-align:right; }
+  .no-data { text-align:center; padding:48px; color:#bbb; font-size:14px; }
+
+  /* 인별 탭 스타일 */
+  .person-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:20px; margin-bottom:24px; }
+  .person-card { background:white; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden; transition:box-shadow 0.2s; cursor:pointer; }
+  .person-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+  .person-card-header { background:linear-gradient(135deg,#1a1a2e,#0f3460); color:white; padding:18px 22px; display:flex; justify-content:space-between; align-items:center; }
+  .person-card-header .person-name { font-size:17px; font-weight:700; }
+  .person-card-header .person-count { font-size:12px; opacity:0.7; }
+  .person-card-body { padding:18px 22px; }
+  .person-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .person-stat { }
+  .person-stat .ps-label { font-size:11px; color:#888; margin-bottom:3px; }
+  .person-stat .ps-value { font-size:15px; font-weight:700; color:#1a1a2e; }
+  .person-stat .ps-value.tax { color:#e94560; }
+  .person-stat .ps-value.net { color:#0f9b58; }
+  .person-stat-full { grid-column:1/-1; margin-top:8px; padding-top:12px; border-top:1px solid #f0f0f0; }
+  .person-progress { margin-top:12px; }
+  .person-progress .progress-label { font-size:11px; color:#888; margin-bottom:6px; display:flex; justify-content:space-between; }
+  .progress-bar-bg { height:6px; background:#f0f0f0; border-radius:3px; overflow:hidden; }
+  .progress-bar-fill { height:100%; border-radius:3px; transition:width 0.3s; }
+  .progress-bar-fill.good { background:#0f9b58; }
+  .progress-bar-fill.warn { background:#f4a900; }
+  .progress-bar-fill.bad { background:#e94560; }
+
+  /* 인별 상세 */
+  .person-detail-section { background:white; border-radius:14px; padding:28px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+  .person-detail-back { background:none; border:1px solid #ddd; color:#555; padding:8px 16px; border-radius:8px; font-family:'Noto Sans KR',sans-serif; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:16px; }
+  .person-detail-back:hover { background:#f5f5f5; }
+  .person-detail-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+  .person-detail-name { font-size:20px; font-weight:700; }
+  .person-detail-stats { display:flex; gap:24px; font-size:13px; flex-wrap:wrap; }
+
+  .toast { position:fixed; bottom:30px; right:30px; padding:14px 24px; border-radius:10px; color:white; font-size:13px; font-weight:600; opacity:0; transform:translateY(20px); transition:all 0.3s; z-index:1000; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.success { background:#0f9b58; }
+  .toast.info { background:#4285f4; }
+  .toast.warning { background:#f4a900; color:#333; }
+  .hidden-file { display:none; }
+  @media(max-width:768px) { body{padding:12px;} .header{flex-direction:column;padding:20px;} .form-grid{grid-template-columns:1fr 1fr;} .calculated-fields{grid-template-columns:1fr;} .table-section,.person-detail-section{overflow-x:auto;padding:16px;} .person-cards{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>프리랜서 급여내역서</h1>
+      <div class="subtitle">원천징수 3.3% (소득세 3% + 지방소득세 0.3%) 자동 계산</div>
+    </div>
+    <div class="header-right">
+      <span class="excel-status disconnected" id="excelStatus">⚪ 엑셀 미연결</span>
+      <button class="btn btn-link" onclick="linkExcelFile()">📁 엑셀 파일 연결</button>
+      <input type="file" id="fileLoad" class="hidden-file" accept=".xlsx,.xls">
+      <button class="btn btn-load" onclick="document.getElementById('fileLoad').click()">📂 엑셀 불러오기</button>
+      <button class="btn btn-export" onclick="exportToExcel()">💾 엑셀 수동저장</button>
+      <button class="btn btn-clear" onclick="clearAll()">🗑 초기화</button>
+    </div>
+  </div>
+
+  <div class="info-banner" id="infoBanner">
+    💡 <strong>엑셀 자동저장:</strong>&nbsp;[엑셀 파일 연결] 버튼으로 파일 위치 지정 → 이후 자동 덮어쓰기 (크롬/엣지)
+    <button class="close-banner" onclick="this.parentElement.style.display='none'">✕</button>
+  </div>
+
+  <!-- 입력 섹션 -->
+  <div class="input-section">
+    <div class="section-title">📝 급여 입력</div>
+    <div class="form-grid">
+      <div class="form-group"><label>지급일</label><input type="date" id="payDate"></div>
+      <div class="form-group"><label>성명</label><input type="text" id="name" placeholder="홍길동"></div>
+      <div class="form-group"><label>주민등록번호</label><input type="text" id="residentNo" placeholder="000000-0000000" maxlength="14" oninput="formatResidentNo(this)"></div>
+      <div class="form-group"><label>업무내용</label><input type="text" id="workDesc" placeholder="디자인 외주"></div>
+      <div class="form-group"><label>총 지급액 (원)</label><input type="text" id="grossPay" placeholder="1,000,000" oninput="formatNumber(this);calcPreview()" onkeydown="if(event.key==='Enter')addEntry()"></div>
+    </div>
+    <div class="calculated-fields">
+      <div class="calc-item"><div class="label">소득세 (3%)</div><div class="value tax" id="previewIncomeTax">0원</div></div>
+      <div class="calc-item"><div class="label">지방소득세 (0.3%)</div><div class="value tax" id="previewLocalTax">0원</div></div>
+      <div class="calc-item"><div class="label">실수령액</div><div class="value net" id="previewNetPay">0원</div></div>
+    </div>
+    <button class="btn btn-add" onclick="addEntry()">＋ 내역 추가</button>
+  </div>
+
+  <!-- 탭 바 -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('list')">📋 전체 내역</button>
+    <button class="tab-btn" onclick="switchTab('person')">👤 인별 현황</button>
+  </div>
+
+  <!-- 탭1: 전체 내역 -->
+  <div class="tab-content active" id="tab-list">
+    <div class="table-section">
+      <div class="table-header">
+        <div class="section-title" style="margin-bottom:0">급여내역 목록</div>
+        <div class="summary-bar">
+          <div>총 건수: <strong id="totalCount">0건</strong></div>
+          <div>총 지급액: <strong id="totalGross">0원</strong></div>
+          <div>총 원천징수: <strong id="totalTax">0원</strong></div>
+          <div>총 실수령: <strong id="totalNet">0원</strong></div>
+          <div>미신고: <strong id="unreportedCount" style="color:#e65100">0건</strong></div>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <label>조회기간:</label>
+        <input type="date" id="filterFrom" onchange="renderTable()">
+        <span>~</span>
+        <input type="date" id="filterTo" onchange="renderTable()">
+        <label style="margin-left:12px"><input type="checkbox" id="filterUnreported" onchange="renderTable()"> 미신고만 보기</label>
+      </div>
+      <table>
+        <thead><tr>
+          <th>No</th><th>지급일</th><th>성명</th><th>주민등록번호</th><th>업무내용</th>
+          <th>총 지급액</th><th>소득세(3%)</th><th>지방소득세(0.3%)</th><th>실수령액</th>
+          <th>신고여부</th><th>신고일</th><th>관리</th>
+        </tr></thead>
+        <tbody id="tableBody"><tr><td colspan="12" class="no-data">등록된 내역이 없습니다</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 탭2: 인별 현황 -->
+  <div class="tab-content" id="tab-person">
+    <div class="table-section">
+      <div id="personView"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let entries=[], nextId=1, fileHandle=null, editingId=null;
+let selectedPerson=null; // 인별 상세 보기
+
+document.addEventListener('DOMContentLoaded',async ()=>{
+  document.getElementById('payDate').value=new Date().toISOString().slice(0,10);
+  await loadFromStorage();
+});
+
+// ─── 유틸 ───
+function formatNumber(el){let v=el.value.replace(/[^\d]/g,'');el.value=v?parseInt(v).toLocaleString('ko-KR'):'';}
+function formatResidentNo(el){let v=el.value.replace(/[^\d]/g,'');if(v.length>6)v=v.slice(0,6)+'-'+v.slice(6,13);el.value=v;}
+function parseNumber(s){return parseInt((s||'0').replace(/[^\d]/g,''))||0;}
+function formatDateKR(d){if(!d)return'-';const p=d.split('-');return p[0]+'.'+p[1]+'.'+p[2];}
+function formatEditNumber(el){let v=el.value.replace(/[^\d]/g,'');el.value=v?parseInt(v).toLocaleString('ko-KR'):'';}
+
+function calcPreview(){
+  const g=parseNumber(document.getElementById('grossPay').value);
+  const it=Math.floor(g*0.03),lt=Math.floor(it*0.1);
+  document.getElementById('previewIncomeTax').textContent=it.toLocaleString('ko-KR')+'원';
+  document.getElementById('previewLocalTax').textContent=lt.toLocaleString('ko-KR')+'원';
+  document.getElementById('previewNetPay').textContent=(g-it-lt).toLocaleString('ko-KR')+'원';
+}
+
+function onDataChanged(){saveToStorage();autoSaveExcel();}
+
+// ─── 탭 전환 ───
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(tab==='list'?0:1)));
+  document.getElementById('tab-list').classList.toggle('active',tab==='list');
+  document.getElementById('tab-person').classList.toggle('active',tab==='person');
+  if(tab==='person'){selectedPerson=null;renderPersonView();}
+}
+
+// ─── CRUD ───
+function addEntry(){
+  const pd=document.getElementById('payDate').value,nm=document.getElementById('name').value.trim();
+  const rn=document.getElementById('residentNo').value.trim(),wd=document.getElementById('workDesc').value.trim();
+  const g=parseNumber(document.getElementById('grossPay').value);
+  if(!pd||!nm||!g){showToast('지급일, 성명, 지급액은 필수입니다.','warning');return;}
+  const it=Math.floor(g*0.03),lt=Math.floor(it*0.1);
+  entries.push({id:nextId++,payDate:pd,name:nm,residentNo:rn,workDesc:wd,gross:g,incomeTax:it,localTax:lt,net:g-it-lt,reported:false,reportDate:''});
+  document.getElementById('residentNo').value='';document.getElementById('workDesc').value='';document.getElementById('grossPay').value='';
+  calcPreview();renderTable();onDataChanged();showToast('급여 내역이 추가되었습니다.','success');
+}
+
+function toggleReport(id){
+  const e=entries.find(x=>x.id===id);
+  if(e){e.reported=!e.reported;e.reportDate=e.reported?new Date().toISOString().slice(0,10):'';renderTable();renderPersonView();onDataChanged();
+    showToast(e.reported?'신고 완료':'미신고로 변경','info');}
+}
+
+function deleteEntry(id){
+  if(!confirm('삭제하시겠습니까?'))return;
+  entries=entries.filter(x=>x.id!==id);if(editingId===id)editingId=null;
+  renderTable();renderPersonView();onDataChanged();showToast('삭제되었습니다.','info');
+}
+
+function startEdit(id){editingId=id;renderTable();}
+function cancelEdit(){editingId=null;renderTable();}
+function saveEdit(id){
+  const e=entries.find(x=>x.id===id);if(!e)return;
+  const pd=document.getElementById('edit-date-'+id).value,nm=document.getElementById('edit-name-'+id).value.trim();
+  const rn=document.getElementById('edit-rno-'+id).value.trim(),wd=document.getElementById('edit-work-'+id).value.trim();
+  const g=parseNumber(document.getElementById('edit-gross-'+id).value);
+  if(!pd||!nm||!g){showToast('지급일, 성명, 지급액은 필수입니다.','warning');return;}
+  const it=Math.floor(g*0.03),lt=Math.floor(it*0.1);
+  e.payDate=pd;e.name=nm;e.residentNo=rn;e.workDesc=wd;e.gross=g;e.incomeTax=it;e.localTax=lt;e.net=g-it-lt;
+  editingId=null;renderTable();renderPersonView();onDataChanged();showToast('수정 완료','success');
+}
+
+// ─── 필터 & 렌더 ───
+function getFilteredEntries(){
+  let f=[...entries];
+  const from=document.getElementById('filterFrom').value,to=document.getElementById('filterTo').value;
+  if(from)f=f.filter(e=>e.payDate>=from);if(to)f=f.filter(e=>e.payDate<=to);
+  if(document.getElementById('filterUnreported').checked)f=f.filter(e=>!e.reported);
+  return f.sort((a,b)=>b.payDate.localeCompare(a.payDate)||b.id-a.id);
+}
+
+function renderTable(){
+  const f=getFilteredEntries(),tb=document.getElementById('tableBody');
+  if(!f.length){tb.innerHTML='<tr><td colspan="12" class="no-data">등록된 내역이 없습니다</td></tr>';}
+  else{
+    tb.innerHTML=f.map((e,i)=>{
+      if(editingId===e.id) return `<tr class="editing">
+        <td>${i+1}</td>
+        <td><input type="date" class="edit-input" id="edit-date-${e.id}" value="${e.payDate}"></td>
+        <td><input type="text" class="edit-input" id="edit-name-${e.id}" value="${e.name}" style="width:70px"></td>
+        <td><input type="text" class="edit-input" id="edit-rno-${e.id}" value="${e.residentNo}" style="width:120px" maxlength="14"></td>
+        <td><input type="text" class="edit-input" id="edit-work-${e.id}" value="${e.workDesc}" style="width:100px"></td>
+        <td><input type="text" class="edit-input amount" id="edit-gross-${e.id}" value="${e.gross.toLocaleString()}" style="width:110px" oninput="formatEditNumber(this)"></td>
+        <td style="font-size:11px;color:#999">자동</td><td style="font-size:11px;color:#999">자동</td><td style="font-size:11px;color:#999">자동</td>
+        <td><input type="checkbox" class="report-check" ${e.reported?'checked':''} onchange="toggleReport(${e.id})"><span class="report-status ${e.reported?'status-done':'status-pending'}">${e.reported?'완료':'미신고'}</span></td>
+        <td style="font-size:11px;color:#888">${e.reportDate?formatDateKR(e.reportDate):'-'}</td>
+        <td><div class="action-cell"><button class="btn-edit-save" onclick="saveEdit(${e.id})">저장</button><button class="btn-edit-cancel" onclick="cancelEdit()">취소</button></div></td></tr>`;
+      return `<tr class="${e.reported?'reported':''}">
+        <td>${i+1}</td><td>${formatDateKR(e.payDate)}</td><td><strong>${e.name}</strong></td>
+        <td style="font-size:12px">${e.residentNo||'-'}</td><td>${e.workDesc||'-'}</td>
+        <td class="amount-cell">${e.gross.toLocaleString()}</td>
+        <td class="amount-cell tax-cell">${e.incomeTax.toLocaleString()}</td>
+        <td class="amount-cell tax-cell">${e.localTax.toLocaleString()}</td>
+        <td class="amount-cell net-cell">${e.net.toLocaleString()}</td>
+        <td><input type="checkbox" class="report-check" ${e.reported?'checked':''} onchange="toggleReport(${e.id})"><span class="report-status ${e.reported?'status-done':'status-pending'}">${e.reported?'완료':'미신고'}</span></td>
+        <td style="font-size:11px;color:#888">${e.reportDate?formatDateKR(e.reportDate):'-'}</td>
+        <td><div class="action-cell"><button class="btn-edit" onclick="startEdit(${e.id})" title="수정">✏️</button><button class="btn-delete" onclick="deleteEntry(${e.id})" title="삭제">✕</button></div></td></tr>`;
+    }).join('');
+  }
+  const tg=entries.reduce((s,e)=>s+e.gross,0),tt=entries.reduce((s,e)=>s+e.incomeTax+e.localTax,0);
+  const tn=entries.reduce((s,e)=>s+e.net,0),ur=entries.filter(e=>!e.reported).length;
+  document.getElementById('totalCount').textContent=entries.length+'건';
+  document.getElementById('totalGross').textContent=tg.toLocaleString()+'원';
+  document.getElementById('totalTax').textContent=tt.toLocaleString()+'원';
+  document.getElementById('totalNet').textContent=tn.toLocaleString()+'원';
+  document.getElementById('unreportedCount').textContent=ur+'건';
+}
+
+// ─── 인별 현황 ───
+function getPersonStats(){
+  const map={};
+  entries.forEach(e=>{
+    if(!map[e.name]) map[e.name]={name:e.name,residentNo:e.residentNo,count:0,gross:0,incomeTax:0,localTax:0,net:0,reported:0,unreported:0,entries:[]};
+    const p=map[e.name];
+    p.count++;p.gross+=e.gross;p.incomeTax+=e.incomeTax;p.localTax+=e.localTax;p.net+=e.net;
+    if(e.reported)p.reported++;else p.unreported++;
+    if(e.residentNo&&!p.residentNo)p.residentNo=e.residentNo;
+    p.entries.push(e);
+  });
+  return Object.values(map).sort((a,b)=>b.gross-a.gross);
+}
+
+function renderPersonView(){
+  const pv=document.getElementById('personView');
+  if(selectedPerson) return renderPersonDetail(pv);
+  const stats=getPersonStats();
+  if(!stats.length){pv.innerHTML='<div class="no-data">등록된 내역이 없습니다</div>';return;}
+  pv.innerHTML=`<div class="person-cards">${stats.map(p=>{
+    const reportRate=p.count?Math.round(p.reported/p.count*100):0;
+    const barClass=reportRate===100?'good':reportRate>=50?'warn':'bad';
+    return `<div class="person-card" onclick="showPersonDetail('${p.name.replace(/'/g,"\\'")}')">
+      <div class="person-card-header">
+        <div><div class="person-name">${p.name}</div><div class="person-count">${p.residentNo||''}</div></div>
+        <div style="text-align:right"><div style="font-size:12px;opacity:0.7">총 ${p.count}건</div></div>
+      </div>
+      <div class="person-card-body">
+        <div class="person-stat-grid">
+          <div class="person-stat"><div class="ps-label">총 지급액</div><div class="ps-value">${p.gross.toLocaleString()}원</div></div>
+          <div class="person-stat"><div class="ps-label">총 원천징수</div><div class="ps-value tax">${(p.incomeTax+p.localTax).toLocaleString()}원</div></div>
+          <div class="person-stat"><div class="ps-label">총 실수령액</div><div class="ps-value net">${p.net.toLocaleString()}원</div></div>
+          <div class="person-stat"><div class="ps-label">신고 현황</div><div class="ps-value">${p.reported}건 / ${p.count}건</div></div>
+        </div>
+        <div class="person-progress">
+          <div class="progress-label"><span>신고율</span><span>${reportRate}%</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill ${barClass}" style="width:${reportRate}%"></div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function showPersonDetail(name){
+  selectedPerson=name;
+  renderPersonView();
+}
+
+function backToPersonList(){
+  selectedPerson=null;
+  renderPersonView();
+}
+
+function renderPersonDetail(pv){
+  const pEntries=entries.filter(e=>e.name===selectedPerson).sort((a,b)=>b.payDate.localeCompare(a.payDate)||b.id-a.id);
+  const tg=pEntries.reduce((s,e)=>s+e.gross,0);
+  const tt=pEntries.reduce((s,e)=>s+e.incomeTax+e.localTax,0);
+  const tn=pEntries.reduce((s,e)=>s+e.net,0);
+  const ur=pEntries.filter(e=>!e.reported).length;
+
+  pv.innerHTML=`
+    <button class="person-detail-back" onclick="backToPersonList()">← 목록으로</button>
+    <div class="person-detail-header">
+      <div class="person-detail-name">👤 ${selectedPerson}</div>
+      <div class="person-detail-stats">
+        <div>총 ${pEntries.length}건</div>
+        <div>총 지급: <strong>${tg.toLocaleString()}원</strong></div>
+        <div>원천징수: <strong style="color:#e94560">${tt.toLocaleString()}원</strong></div>
+        <div>실수령: <strong style="color:#0f9b58">${tn.toLocaleString()}원</strong></div>
+        <div>미신고: <strong style="color:#e65100">${ur}건</strong></div>
+      </div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>No</th><th>지급일</th><th>업무내용</th><th>총 지급액</th><th>소득세(3%)</th><th>지방소득세(0.3%)</th><th>실수령액</th><th>신고여부</th><th>신고일</th>
+      </tr></thead>
+      <tbody>
+        ${pEntries.map((e,i)=>`<tr class="${e.reported?'reported':''}">
+          <td>${i+1}</td><td>${formatDateKR(e.payDate)}</td><td>${e.workDesc||'-'}</td>
+          <td class="amount-cell">${e.gross.toLocaleString()}</td>
+          <td class="amount-cell tax-cell">${e.incomeTax.toLocaleString()}</td>
+          <td class="amount-cell tax-cell">${e.localTax.toLocaleString()}</td>
+          <td class="amount-cell net-cell">${e.net.toLocaleString()}</td>
+          <td><input type="checkbox" class="report-check" ${e.reported?'checked':''} onchange="toggleReport(${e.id})"><span class="report-status ${e.reported?'status-done':'status-pending'}">${e.reported?'완료':'미신고'}</span></td>
+          <td style="font-size:11px;color:#888">${e.reportDate?formatDateKR(e.reportDate):'-'}</td>
+        </tr>`).join('')}
+        <tr style="background:#f8f9fc;font-weight:700">
+          <td colspan="3">합 계</td>
+          <td class="amount-cell">${tg.toLocaleString()}</td>
+          <td class="amount-cell tax-cell">${pEntries.reduce((s,e)=>s+e.incomeTax,0).toLocaleString()}</td>
+          <td class="amount-cell tax-cell">${pEntries.reduce((s,e)=>s+e.localTax,0).toLocaleString()}</td>
+          <td class="amount-cell net-cell">${tn.toLocaleString()}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+// ─── 엑셀 ───
+function buildExcelBuffer(){
+  const wb=XLSX.utils.book_new();
+  // 시트1: 전체 내역
+  const hdr=['No','지급일','성명','주민등록번호','업무내용','총 지급액','소득세(3%)','지방소득세(0.3%)','실수령액','원천징수 신고여부','신고일'];
+  const sorted=[...entries].sort((a,b)=>a.payDate.localeCompare(b.payDate)||a.id-b.id);
+  const data=sorted.map((e,i)=>[i+1,e.payDate,e.name,e.residentNo,e.workDesc,e.gross,e.incomeTax,e.localTax,e.net,e.reported?'완료':'미신고',e.reportDate||'']);
+  const tg=entries.reduce((s,e)=>s+e.gross,0),ti=entries.reduce((s,e)=>s+e.incomeTax,0);
+  const tl=entries.reduce((s,e)=>s+e.localTax,0),tn=entries.reduce((s,e)=>s+e.net,0);
+  data.push([]);data.push(['','','합 계','','',tg,ti,tl,tn,'','']);
+  const ws=XLSX.utils.aoa_to_sheet([hdr,...data]);
+  ws['!cols']=[{wch:5},{wch:12},{wch:10},{wch:16},{wch:16},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:12}];
+  for(let r=1;r<=data.length;r++){[5,6,7,8].forEach(c=>{const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell&&typeof cell.v==='number')cell.z='#,##0';});}
+  XLSX.utils.book_append_sheet(wb,ws,'전체내역');
+
+  // 시트2: 미신고
+  const ur=sorted.filter(e=>!e.reported);
+  if(ur.length){
+    const uh=['No','지급일','성명','주민등록번호','업무내용','총 지급액','소득세(3%)','지방소득세(0.3%)'];
+    const ud=ur.map((e,i)=>[i+1,e.payDate,e.name,e.residentNo,e.workDesc,e.gross,e.incomeTax,e.localTax]);
+    const ws2=XLSX.utils.aoa_to_sheet([uh,...ud]);
+    XLSX.utils.book_append_sheet(wb,ws2,'미신고 목록');
+  }
+
+  // 시트3: 인별 현황
+  const stats=getPersonStats();
+  if(stats.length){
+    const ph=['성명','주민등록번호','건수','총 지급액','소득세 합계','지방소득세 합계','실수령 합계','신고완료','미신고','신고율(%)'];
+    const pd=stats.map(p=>[p.name,p.residentNo,p.count,p.gross,p.incomeTax,p.localTax,p.net,p.reported,p.unreported,p.count?Math.round(p.reported/p.count*100):0]);
+    const ws3=XLSX.utils.aoa_to_sheet([ph,...pd]);
+    ws3['!cols']=[{wch:10},{wch:16},{wch:6},{wch:14},{wch:14},{wch:14},{wch:14},{wch:8},{wch:8},{wch:10}];
+    for(let r=1;r<=pd.length;r++){[3,4,5,6].forEach(c=>{const cell=ws3[XLSX.utils.encode_cell({r,c})];if(cell&&typeof cell.v==='number')cell.z='#,##0';});}
+    XLSX.utils.book_append_sheet(wb,ws3,'인별현황');
+  }
+
+  return XLSX.write(wb,{bookType:'xlsx',type:'array'});
+}
+
+async function linkExcelFile(){
+  if(!window.showSaveFilePicker){showToast('크롬 또는 엣지를 사용해주세요.','warning');return;}
+  try{
+    fileHandle=await window.showSaveFilePicker({suggestedName:'프리랜서_급여내역서.xlsx',types:[{description:'Excel',accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+    updateExcelStatus(true);if(entries.length>0)await writeToFileHandle();
+    showToast('엑셀 파일 연결됨. 자동 저장 활성화','success');
+    const b=document.getElementById('infoBanner');b.className='info-banner success';
+    b.innerHTML='✅ <strong>엑셀 자동저장 활성화</strong>&nbsp;— 변경 시 연결 파일에 자동 저장 <button class="close-banner" onclick="this.parentElement.style.display=\'none\'">✕</button>';
+  }catch(e){if(e.name!=='AbortError')showToast('파일 연결 실패','warning');}
+}
+function updateExcelStatus(c){const el=document.getElementById('excelStatus');el.className='excel-status '+(c?'connected':'disconnected');el.textContent=c?'🟢 엑셀 연결됨':'⚪ 엑셀 미연결';}
+async function writeToFileHandle(){if(!fileHandle||!entries.length)return;try{const w=await fileHandle.createWritable();await w.write(buildExcelBuffer());await w.close();}catch(e){fileHandle=null;updateExcelStatus(false);showToast('엑셀 권한 만료. 다시 연결해주세요.','warning');}}
+let autoSaveTimer=null;
+function autoSaveExcel(){if(!fileHandle)return;clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(async()=>{await writeToFileHandle();},500);}
+function exportToExcel(){
+  if(!entries.length){showToast('저장할 내역이 없습니다.','warning');return;}
+  const buf=buildExcelBuffer(),blob=new Blob([buf],{type:'application/octet-stream'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.href=url;a.download=`프리랜서_급여내역서_${ds}.xlsx`;a.click();URL.revokeObjectURL(url);
+  showToast(`엑셀 다운로드 완료 (${entries.length}건)`,'success');
+}
+
+// 불러오기
+document.getElementById('fileLoad').addEventListener('change',function(ev){
+  const file=ev.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(evt){
+    try{const data=new Uint8Array(evt.target.result),wb=XLSX.read(data,{type:'array'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});let imp=0;
+      for(let i=1;i<rows.length;i++){const r=rows[i];if(!r||!r[2]||!r[5]||r[2]==='합 계')continue;
+        const g=typeof r[5]==='number'?r[5]:parseNumber(String(r[5]));if(!g)continue;
+        const it=Math.floor(g*0.03),lt=Math.floor(it*0.1);
+        entries.push({id:nextId++,payDate:String(r[1]||''),name:String(r[2]||''),residentNo:String(r[3]||''),workDesc:String(r[4]||''),gross:g,incomeTax:it,localTax:lt,net:g-it-lt,reported:r[9]==='완료',reportDate:String(r[10]||'')});imp++;}
+      renderTable();onDataChanged();showToast(imp+'건 불러옴','success');
+    }catch(e){showToast('파일 형식 오류','warning');}};
+  reader.readAsArrayBuffer(file);this.value='';
+});
+
+function saveToStorage(){
+  // localStorage 캐시
+  try{localStorage.setItem('freelancerPayroll',JSON.stringify({entries,nextId}));}catch(e){}
+  // Supabase 저장 (디바운스)
+  clearTimeout(window._payrollSaveTimer);
+  window._payrollSaveTimer=setTimeout(async()=>{
+    try{
+      await sb.from('payroll_entries').delete().gte('id',0);
+      if(entries.length>0){
+        const rows=entries.map(e=>({
+          pay_date:e.payDate, name:e.name, resident_no:e.residentNo,
+          work_desc:e.workDesc, gross:e.gross, income_tax:e.incomeTax,
+          local_tax:e.localTax, net:e.net, reported:e.reported, report_date:e.reportDate||''
+        }));
+        await sb.from('payroll_entries').insert(rows);
+      }
+      showToast('☁ 클라우드 저장됨','success');
+    }catch(err){console.error('Supabase 저장 실패:',err);}
+  },500);
+}
+async function loadFromStorage(){
+  try{
+    const {data,error}=await sb.from('payroll_entries').select('*').order('id');
+    if(!error && data && data.length>0){
+      entries=data.map(r=>({
+        id:r.id, payDate:r.pay_date, name:r.name, residentNo:r.resident_no||'',
+        workDesc:r.work_desc||'', gross:r.gross, incomeTax:r.income_tax,
+        localTax:r.local_tax, net:r.net, reported:r.reported, reportDate:r.report_date||''
+      }));
+      nextId=Math.max(...entries.map(e=>e.id))+1;
+      renderTable();
+      showToast('☁ 클라우드 연결됨','success');
+      return;
+    }
+  }catch(e){console.error('Supabase 로드 실패:',e);}
+  // 실패 시 localStorage
+  try{const s=localStorage.getItem('freelancerPayroll');if(s){const d=JSON.parse(s);entries=d.entries||[];nextId=d.nextId||1;renderTable();}}catch(e){}
+}
+function clearAll(){if(!confirm('모든 데이터를 초기화하시겠습니까?\n(엑셀로 먼저 저장 권장)'))return;entries=[];nextId=1;editingId=null;selectedPerson=null;renderTable();renderPersonView();onDataChanged();showToast('초기화','info');}
+function showToast(m,t){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+t+' show';setTimeout(()=>e.classList.remove('show'),2500);}
+</script>
+</body>
+</html>
