@@ -115,6 +115,10 @@
     </div>
     <div class="nav-group">
       <div class="nav-group-label">주문 / 배송</div>
+      <div class="nav-item" data-page="order-dash"><span class="nav-icon">📊</span> 주문 대시보드 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-upload"><span class="nav-icon">📦</span> 주문서 업로드 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-list"><span class="nav-icon">📋</span> 주문 목록 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-daily"><span class="nav-icon">📈</span> 일별 매출/순익 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
     </div>
     <div class="nav-group">
@@ -125,7 +129,6 @@
     </div>
     <div class="nav-group">
       <div class="nav-group-label">개발 예정</div>
-      <div class="nav-item" data-page="orders"><span class="nav-icon">📦</span> 주문관리</div>
       <div class="nav-item" data-page="profit"><span class="nav-icon">💰</span> 수익 계산기</div>
       <div class="nav-item" data-page="ledger"><span class="nav-icon">🏦</span> 가계부</div>
     </div>
@@ -185,10 +188,11 @@
             <div class="tool-desc">쿠팡/오늘의집 → CJ/롯데 변환<br>운송장 매칭 · 오늘의집 업로드</div>
             <div class="tool-status">☁ LIVE</div>
           </div>
-          <div class="tool-card" data-color="blue" onclick="navigate('orders')" style="opacity:0.5">
+          <div class="tool-card" data-color="red" onclick="navigate('order-dash')">
             <span class="tool-emoji">📦</span>
             <div class="tool-name">주문관리</div>
-            <div class="tool-desc">4개 플랫폼 통합 관리<br>Python → 웹 전환 예정</div>
+            <div class="tool-desc">4개 플랫폼 통합 관리<br>대시보드 · 업로드 · 일별분석</div>
+            <div class="tool-status">☁ LIVE</div>
           </div>
         </div>
       </div>
@@ -202,8 +206,13 @@
 
     <div class="subpage" id="page-invoice"></div>
 
+    <!-- 주문관리 (iframe) -->
+    <div class="subpage" id="page-order-dash"></div>
+    <div class="subpage" id="page-order-upload"></div>
+    <div class="subpage" id="page-order-list"></div>
+    <div class="subpage" id="page-order-daily"></div>
+
     <!-- 개발 예정 -->
-    <div class="subpage" id="page-orders"><div class="placeholder-box"><div class="placeholder-icon">📦</div><div class="placeholder-title">주문관리 시스템</div><div class="placeholder-desc">쿠팡 · 네이버 · 아이디어스 · 오늘의집<br>4개 플랫폼 통합 관리 — 웹 전환 예정</div></div></div>
     <div class="subpage" id="page-profit"><div class="placeholder-box"><div class="placeholder-icon">💰</div><div class="placeholder-title">수익 계산기</div><div class="placeholder-desc">손익분기점 시뮬레이션 · 가구매 계산기<br>개발 예정</div></div></div>
     <div class="subpage" id="page-ledger"><div class="placeholder-box"><div class="placeholder-icon">🏦</div><div class="placeholder-title">가계부</div><div class="placeholder-desc">은행 입출금 엑셀 업로드 → 자동 분류<br>개발 예정</div></div></div>
   </div>
@@ -215,7 +224,11 @@
     freelancer: 'payroll.html',
     quotation: 'quote.html',
     transaction: 'transaction.html',
-    invoice: 'invoice-converter.html'
+    invoice: 'invoice-converter.html',
+    'order-dash': 'order-dashboard.html',
+    'order-upload': 'order-upload.html',
+    'order-list': 'order-list.html',
+    'order-daily': 'order-daily.html'
   };
 
   const pageInfo = {
@@ -224,7 +237,10 @@
     freelancer: ['👤', '프리랜서 급여'],
     quotation: ['📝', '견적서'],
     transaction: ['📄', '거래명세서'],
-    orders: ['📦', '주문관리'],
+    'order-dash': ['📊', '주문 대시보드'],
+    'order-upload': ['📦', '주문서 업로드'],
+    'order-list': ['📋', '주문 목록'],
+    'order-daily': ['📈', '일별 매출/순익'],
     invoice: ['🚚', '송장 변환기'],
     profit: ['💰', '수익 계산기'],
     ledger: ['🏦', '가계부']
