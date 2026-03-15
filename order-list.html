@@ -289,6 +289,16 @@ async function deleteSelected(){
 function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
 
 document.addEventListener('DOMContentLoaded',()=>{initDates();loadOrders();});
+
+// iframe 안이면 자체 헤더/네비 숨기기
+if(window.self !== window.top){
+    document.querySelectorAll('.header').forEach(el=>el.style.display='none');
+    document.querySelectorAll('[style*="background:#16162a"]').forEach(el=>el.style.display='none');
+    // container 상단 패딩 조정
+    const c=document.querySelector('.container');
+    if(c) c.style.paddingTop='12px';
+}
+
 </script>
 </body>
 </html>

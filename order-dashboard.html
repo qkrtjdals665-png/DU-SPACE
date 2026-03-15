@@ -879,6 +879,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadDashboard();
 });
+
+// iframe 안이면 자체 헤더/네비 숨기기
+if(window.self !== window.top){
+    document.querySelectorAll('.header').forEach(el=>el.style.display='none');
+    // 네비게이션 바 숨기기 (header 바로 다음 형제)
+    const hdr=document.querySelector('.header');
+    if(hdr&&hdr.nextElementSibling&&hdr.nextElementSibling.tagName==='DIV'&&!hdr.nextElementSibling.classList.contains('container')){
+        hdr.nextElementSibling.style.display='none';
+    }
+    const c=document.querySelector('.container');
+    if(c) c.style.paddingTop='12px';
+}
+
 </script>
 </body>
 </html>
