@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 제품별 판매량</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:1300px;margin:0 auto;padding:24px;}
+.filter-bar{background:#fff;border-radius:14px;padding:16px 24px;border:1px solid #D9D4CA;margin-bottom:20px;display:flex;gap:16px;align-items:end;flex-wrap:wrap;}
+.filter-bar label{font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:4px;}
+.filter-bar input,.filter-bar select{padding:8px 12px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;}
+.btn{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-primary{background:#1a1a2e;color:white;}
+.table-section{background:#fff;border-radius:14px;padding:20px;border:1px solid #D9D4CA;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:#f5f0e8;padding:10px 8px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;white-space:nowrap;cursor:pointer;}
+thead th:hover{background:#ede7db;}
+tbody td{padding:10px 8px;border-bottom:1px solid #f0ebe3;text-align:center;}
+tbody tr:hover td{background:#faf8f4;}
+.text-left{text-align:left;}
+.text-right{text-align:right;}
+.amount{font-variant-numeric:tabular-nums;font-weight:600;}
+.total-row td{background:#1a1a2e !important;color:white !important;font-weight:700;}
+.bar-cell{position:relative;}
+.bar-bg{position:absolute;left:0;top:2px;bottom:2px;border-radius:4px;opacity:0.15;}
+.bar-val{position:relative;z-index:1;}
+/* 플랫폼 색 */
+.naver-col{color:#00C73C;font-weight:700;}
+.coupang-col{color:#E31837;font-weight:700;}
+.ohouse-col{color:#35C5F0;font-weight:700;}
+.idus-col{color:#FF6F61;font-weight:700;}
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.sc{background:#fff;border-radius:14px;padding:18px;border:1px solid #D9D4CA;text-align:center;}
+.sc .sc-label{font-size:12px;color:#888;font-weight:600;margin-bottom:4px;}
+.sc .sc-value{font-size:20px;font-weight:800;}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}
+@media(max-width:768px){.summary-cards{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📦 제품별 <span>판매량</span></h1>
+    <div class="nav-links">
+        <a href="order-dashboard.html">📊 대시보드</a>
+        <a href="order-costs.html">💰 원가관리</a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="summary-cards" id="summaryCards"></div>
+
+    <div class="filter-bar">
+        <div><label>시작일</label><input type="date" id="startDate"></div>
+        <div><label>종료일</label><input type="date" id="endDate"></div>
+        <div>
+            <label>정렬</label>
+            <select id="sortBy">
+                <option value="qty-desc">판매량 많은순</option>
+                <option value="qty-asc">판매량 적은순</option>
+                <option value="revenue-desc">매출액 높은순</option>
+                <option value="revenue-asc">매출액 낮은순</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" onclick="loadSales()">🔍 조회</button>
+    </div>
+
+    <div class="table-section">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:30px">No</th>
+                    <th class="text-left" style="min-width:280px">상품명</th>
+                    <th>네이버</th>
+                    <th>쿠팡</th>
+                    <th>오늘의집</th>
+                    <th>아이디어스</th>
+                    <th>총 판매량</th>
+                    <th>총 매출액</th>
+                </tr>
+            </thead>
+            <tbody id="salesBody">
+                <tr><td colspan="8" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const PLATFORMS=["네이버","쿠팡","오늘의집","아이디어스"];
+
+function initDates(){
+    const now=new Date();
+    const y=now.getFullYear(),m=now.getMonth();
+    document.getElementById('startDate').value=`${y}-${String(m+1).padStart(2,'0')}-01`;
+    document.getElementById('endDate').value=`${y}-${String(m+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+}
+
+async function loadSales(){
+    const start=document.getElementById('startDate').value;
+    const end=document.getElementById('endDate').value;
+    const sortBy=document.getElementById('sortBy').value;
+
+    const {data:orders,error}=await db.from('orders')
+        .select('platform,product,quantity,price')
+        .gte('order_date',start).lte('order_date',end);
+
+    if(error){console.error(error);return;}
+
+    // 상품별 집계
+    const productMap={};
+    (orders||[]).forEach(o=>{
+        const name=o.product||'(이름없음)';
+        if(!productMap[name]){
+            productMap[name]={name,네이버:0,쿠팡:0,오늘의집:0,아이디어스:0,totalQty:0,totalRevenue:0};
+        }
+        const qty=o.quantity||1;
+        const revenue=(o.price||0)*qty;
+        productMap[name][o.platform]=(productMap[name][o.platform]||0)+qty;
+        productMap[name].totalQty+=qty;
+        productMap[name].totalRevenue+=revenue;
+    });
+
+    let items=Object.values(productMap);
+
+    // 정렬
+    if(sortBy==='qty-desc') items.sort((a,b)=>b.totalQty-a.totalQty);
+    else if(sortBy==='qty-asc') items.sort((a,b)=>a.totalQty-b.totalQty);
+    else if(sortBy==='revenue-desc') items.sort((a,b)=>b.totalRevenue-a.totalRevenue);
+    else items.sort((a,b)=>a.totalRevenue-b.totalRevenue);
+
+    // 최대값 (바 차트용)
+    const maxQty=Math.max(...items.map(x=>x.totalQty),1);
+
+    // 렌더
+    const tbody=document.getElementById('salesBody');
+    
+    if(items.length===0){
+        tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#ccc;padding:40px;">해당 기간 판매 데이터 없음</td></tr>';
+        return;
+    }
+
+    let grandQty=0,grandRevenue=0;
+    let grandPlatform={네이버:0,쿠팡:0,오늘의집:0,아이디어스:0};
+
+    let html=items.map((item,i)=>{
+        grandQty+=item.totalQty;
+        grandRevenue+=item.totalRevenue;
+        PLATFORMS.forEach(p=>grandPlatform[p]+=item[p]);
+        
+        const barPct=Math.round((item.totalQty/maxQty)*100);
+        
+        return `<tr>
+            <td style="color:#aaa">${i+1}</td>
+            <td class="text-left" title="${item.name}">${item.name.substring(0,45)}</td>
+            <td class="naver-col">${item.네이버>0?item.네이버.toLocaleString():'-'}</td>
+            <td class="coupang-col">${item.쿠팡>0?item.쿠팡.toLocaleString():'-'}</td>
+            <td class="ohouse-col">${item.오늘의집>0?item.오늘의집.toLocaleString():'-'}</td>
+            <td class="idus-col">${item.아이디어스>0?item.아이디어스.toLocaleString():'-'}</td>
+            <td class="amount">${item.totalQty.toLocaleString()}개</td>
+            <td class="text-right amount">${Math.round(item.totalRevenue).toLocaleString()}원</td>
+        </tr>`;
+    }).join('');
+
+    // 합계 행
+    html+=`<tr class="total-row">
+        <td></td><td class="text-left">[전체 합계]</td>
+        <td>${grandPlatform.네이버.toLocaleString()}</td>
+        <td>${grandPlatform.쿠팡.toLocaleString()}</td>
+        <td>${grandPlatform.오늘의집.toLocaleString()}</td>
+        <td>${grandPlatform.아이디어스.toLocaleString()}</td>
+        <td>${grandQty.toLocaleString()}개</td>
+        <td class="text-right">${Math.round(grandRevenue).toLocaleString()}원</td>
+    </tr>`;
+
+    tbody.innerHTML=html;
+
+    // 요약
+    document.getElementById('summaryCards').innerHTML=`
+        <div class="sc"><div class="sc-label">상품 종류</div><div class="sc-value">${items.length}개</div></div>
+        <div class="sc"><div class="sc-label">총 판매량</div><div class="sc-value" style="color:#9b59b6">${grandQty.toLocaleString()}개</div></div>
+        <div class="sc"><div class="sc-label">총 매출액</div><div class="sc-value" style="color:#4285f4">${Math.round(grandRevenue).toLocaleString()}원</div></div>
+        <div class="sc"><div class="sc-label">상품당 평균</div><div class="sc-value" style="color:#f4a900">${items.length>0?Math.round(grandRevenue/items.length).toLocaleString():0}원</div></div>
+    `;
+}
+
+// iframe 감지
+if(window.self!==window.top){
+    document.querySelectorAll('.header').forEach(el=>el.style.display='none');
+    const c=document.querySelector('.container');
+    if(c) c.style.paddingTop='12px';
+}
+
+document.addEventListener('DOMContentLoaded',()=>{initDates();loadSales();});
+</script>
+</body>
+</html>

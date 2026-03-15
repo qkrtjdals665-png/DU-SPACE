@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 상품 원가 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:1300px;margin:0 auto;padding:24px;}
+.filter-bar{background:#fff;border-radius:14px;padding:16px 24px;border:1px solid #D9D4CA;margin-bottom:20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+.filter-bar select,.filter-bar input{padding:8px 12px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;}
+.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:#f4a900;}
+.btn{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;}
+.btn:hover{transform:translateY(-1px);}
+.btn-primary{background:#1a1a2e;color:white;}
+.btn-success{background:#0f9b58;color:white;}
+.btn-danger{background:#e94560;color:white;}
+.btn-warn{background:#f4a900;color:#1a1a2e;}
+.table-section{background:#fff;border-radius:14px;padding:20px;border:1px solid #D9D4CA;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{background:#f5f0e8;padding:10px 8px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;white-space:nowrap;cursor:pointer;}
+thead th:hover{background:#ede7db;}
+tbody td{padding:8px;border-bottom:1px solid #f0ebe3;text-align:center;}
+tbody tr:hover td{background:#faf8f4;}
+.platform-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;color:white;}
+.editable{padding:6px 8px;border:1.5px solid #D9D4CA;border-radius:6px;font-family:'Noto Sans KR',sans-serif;font-size:13px;text-align:right;width:90px;transition:border-color 0.2s;}
+.editable:focus{outline:none;border-color:#f4a900;background:#fffbf0;}
+.editable.changed{border-color:#0f9b58;background:#f0faf4;}
+.text-left{text-align:left;}
+.text-right{text-align:right;}
+.amount{font-variant-numeric:tabular-nums;font-weight:600;}
+.no-cost{color:#e94560;font-weight:600;}
+.has-cost{color:#0f9b58;}
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.sc{background:#fff;border-radius:14px;padding:18px;border:1px solid #D9D4CA;text-align:center;}
+.sc .sc-label{font-size:12px;color:#888;font-weight:600;margin-bottom:4px;}
+.sc .sc-value{font-size:20px;font-weight:800;}
+.save-bar{position:sticky;bottom:0;background:#fff;border-top:2px solid #D9D4CA;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;border-radius:0 0 14px 14px;display:none;}
+.save-bar.active{display:flex;}
+.change-count{font-size:13px;color:#f4a900;font-weight:600;}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#4285f4;}
+@media(max-width:768px){.summary-cards{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>💰 상품 <span>원가 관리</span></h1>
+    <div class="nav-links">
+        <a href="order-dashboard.html">📊 대시보드</a>
+        <a href="order-daily.html">📈 일별매출</a>
+    </div>
+</div>
+
+<div class="container">
+    <!-- 요약 -->
+    <div class="summary-cards" id="summaryCards"></div>
+
+    <!-- 필터 -->
+    <div class="filter-bar">
+        <div>
+            <select id="filterPlatform" onchange="loadCosts()">
+                <option value="전체">전체 플랫폼</option>
+                <option value="네이버">네이버</option>
+                <option value="쿠팡">쿠팡</option>
+                <option value="오늘의집">오늘의집</option>
+                <option value="아이디어스">아이디어스</option>
+            </select>
+        </div>
+        <div>
+            <select id="filterCostStatus" onchange="loadCosts()">
+                <option value="전체">전체</option>
+                <option value="미입력">❌ 원가 미입력</option>
+                <option value="입력완료">✅ 입력 완료</option>
+            </select>
+        </div>
+        <div>
+            <input type="text" id="filterSearch" placeholder="상품명 검색" onkeydown="if(event.key==='Enter')loadCosts()">
+        </div>
+        <button class="btn btn-primary" onclick="loadCosts()">🔍 조회</button>
+        <button class="btn btn-success" onclick="saveAllChanges()">💾 변경사항 저장</button>
+        <div style="margin-left:auto;">
+            <span class="change-count" id="changeCount"></span>
+        </div>
+    </div>
+
+    <!-- 테이블 -->
+    <div class="table-section">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:30px">No</th>
+                    <th>플랫폼</th>
+                    <th class="text-left" style="min-width:250px;">상품명</th>
+                    <th class="text-left" style="min-width:150px;">옵션</th>
+                    <th>원가</th>
+                    <th>판매가</th>
+                    <th>이익률</th>
+                    <th>판매수량</th>
+                    <th>총매출</th>
+                    <th>총이익</th>
+                </tr>
+            </thead>
+            <tbody id="costBody">
+                <tr><td colspan="10" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const PLATFORM_COLORS={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
+const COMMISSION_RATES={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
+
+let allCosts=[];
+let changes={};  // {id: {cost, selling_price}}
+let salesData={}; // {"platform|product|option": {qty, revenue}}
+
+async function loadCosts(){
+    changes={};
+    updateChangeCount();
+
+    const platform=document.getElementById('filterPlatform').value;
+    const status=document.getElementById('filterCostStatus').value;
+    const search=document.getElementById('filterSearch').value.trim();
+
+    // 원가 데이터
+    let query=db.from('product_costs').select('*').order('platform').order('product');
+    if(platform!=='전체') query=query.eq('platform',platform);
+    if(search) query=query.ilike('product',`%${search}%`);
+    
+    const {data:costs,error}=await query;
+    if(error){showToast('로드 실패','error');return;}
+
+    // 판매 데이터 (이번달)
+    const now=new Date();
+    const monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    const {data:orders}=await db.from('orders')
+        .select('platform,product,option,quantity,price')
+        .gte('order_date',monthStart);
+
+    salesData={};
+    (orders||[]).forEach(o=>{
+        const key=`${o.platform}|${o.product}|${o.option||''}`;
+        if(!salesData[key]) salesData[key]={qty:0,revenue:0};
+        salesData[key].qty+=(o.quantity||1);
+        salesData[key].revenue+=(o.price||0)*(o.quantity||1);
+    });
+
+    // 필터: 원가 상태
+    let filtered=costs||[];
+    if(status==='미입력') filtered=filtered.filter(c=>!c.cost||c.cost===0);
+    else if(status==='입력완료') filtered=filtered.filter(c=>c.cost>0);
+
+    allCosts=filtered;
+    renderTable();
+    renderSummary(costs||[]);
+}
+
+function renderTable(){
+    const tbody=document.getElementById('costBody');
+    
+    if(allCosts.length===0){
+        tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#ccc;padding:40px;">상품이 없습니다</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML=allCosts.map((c,i)=>{
+        const key=`${c.platform}|${c.product}|${c.option||''}`;
+        const sales=salesData[key]||{qty:0,revenue:0};
+        const cost=c.cost||0;
+        const commission=sales.revenue*(COMMISSION_RATES[c.platform]||0);
+        const totalCost=cost*sales.qty;
+        const profit=sales.revenue-commission-totalCost;
+        const margin=sales.revenue>0?((profit/sales.revenue)*100).toFixed(1):'–';
+        const costClass=cost>0?'has-cost':'no-cost';
+
+        return `<tr>
+            <td style="color:#aaa">${i+1}</td>
+            <td><span class="platform-badge" style="background:${PLATFORM_COLORS[c.platform]||'#999'}">${c.platform}</span></td>
+            <td class="text-left" title="${c.product}">${(c.product||'').substring(0,40)}</td>
+            <td class="text-left" title="${c.option||''}">${(c.option||'').substring(0,25)||'-'}</td>
+            <td><input class="editable ${costClass}" type="text" value="${cost?Math.round(cost).toLocaleString():''}" 
+                placeholder="0" data-id="${c.id}" data-field="cost" onchange="onCostChange(this)" onfocus="this.select()"></td>
+            <td><input class="editable" type="text" value="${c.selling_price?Math.round(c.selling_price).toLocaleString():''}" 
+                placeholder="0" data-id="${c.id}" data-field="selling_price" onchange="onCostChange(this)" onfocus="this.select()"></td>
+            <td style="font-weight:600;color:${Number(margin)>30?'#0f9b58':Number(margin)>0?'#f4a900':'#e94560'}">${margin}%</td>
+            <td>${sales.qty>0?sales.qty.toLocaleString()+'개':'-'}</td>
+            <td class="text-right amount">${sales.revenue>0?Math.round(sales.revenue).toLocaleString()+'원':'-'}</td>
+            <td class="text-right amount" style="color:${profit>=0?'#0f9b58':'#e94560'}">${sales.qty>0?Math.round(profit).toLocaleString()+'원':'-'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function onCostChange(input){
+    const id=Number(input.dataset.id);
+    const field=input.dataset.field;
+    const rawVal=input.value.replace(/[^\d]/g,'');
+    const val=Number(rawVal)||0;
+    
+    // 포맷팅
+    input.value=val>0?val.toLocaleString():'';
+    input.classList.add('changed');
+    
+    if(!changes[id]) changes[id]={};
+    changes[id][field]=val;
+    
+    updateChangeCount();
+}
+
+function updateChangeCount(){
+    const cnt=Object.keys(changes).length;
+    document.getElementById('changeCount').textContent=cnt>0?`${cnt}개 변경됨`:'';
+}
+
+async function saveAllChanges(){
+    const ids=Object.keys(changes);
+    if(ids.length===0){showToast('변경사항이 없습니다','info');return;}
+    
+    let saved=0;
+    for(const id of ids){
+        const update=changes[id];
+        const {error}=await db.from('product_costs').update(update).eq('id',Number(id));
+        if(!error) saved++;
+    }
+    
+    changes={};
+    updateChangeCount();
+    document.querySelectorAll('.editable.changed').forEach(el=>el.classList.remove('changed'));
+    
+    showToast(`${saved}개 상품 원가 저장 완료!`,'success');
+    loadCosts();
+}
+
+function renderSummary(allData){
+    const total=allData.length;
+    const hasPrice=allData.filter(c=>c.cost>0).length;
+    const noPrice=total-hasPrice;
+    const rate=total>0?Math.round((hasPrice/total)*100):0;
+    
+    document.getElementById('summaryCards').innerHTML=`
+        <div class="sc"><div class="sc-label">전체 상품</div><div class="sc-value">${total}개</div></div>
+        <div class="sc"><div class="sc-label">원가 입력</div><div class="sc-value" style="color:#0f9b58">${hasPrice}개</div></div>
+        <div class="sc"><div class="sc-label">미입력</div><div class="sc-value" style="color:${noPrice>0?'#e94560':'#0f9b58'}">${noPrice}개</div></div>
+        <div class="sc"><div class="sc-label">입력률</div><div class="sc-value" style="color:#f4a900">${rate}%</div></div>
+    `;
+}
+
+function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
+
+// iframe 감지
+if(window.self!==window.top){
+    document.querySelectorAll('.header').forEach(el=>el.style.display='none');
+    const c=document.querySelector('.container');
+    if(c) c.style.paddingTop='12px';
+}
+
+document.addEventListener('DOMContentLoaded',()=>loadCosts());
+</script>
+</body>
+</html>
