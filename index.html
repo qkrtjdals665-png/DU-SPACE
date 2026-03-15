@@ -114,6 +114,10 @@
       <div class="nav-item" data-page="laser"><span class="nav-icon">🏷️</span> 레이저 각인 <span class="nav-badge">LIVE</span></div>
     </div>
     <div class="nav-group">
+      <div class="nav-group-label">주문 / 배송</div>
+      <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
+    </div>
+    <div class="nav-group">
       <div class="nav-group-label">재무 / 문서</div>
       <div class="nav-item" data-page="freelancer"><span class="nav-icon">👤</span> 프리랜서 급여 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="quotation"><span class="nav-icon">📝</span> 견적서 <span class="nav-badge">LIVE</span></div>
@@ -122,7 +126,6 @@
     <div class="nav-group">
       <div class="nav-group-label">개발 예정</div>
       <div class="nav-item" data-page="orders"><span class="nav-icon">📦</span> 주문관리</div>
-      <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기</div>
       <div class="nav-item" data-page="profit"><span class="nav-icon">💰</span> 수익 계산기</div>
       <div class="nav-item" data-page="ledger"><span class="nav-icon">🏦</span> 가계부</div>
     </div>
@@ -176,15 +179,16 @@
             <div class="tool-desc">품목 입력 → 인쇄/PDF<br>이력 저장 · 부가세 계산</div>
             <div class="tool-status">☁ 클라우드 연동</div>
           </div>
+          <div class="tool-card" data-color="blue" onclick="navigate('invoice')">
+            <span class="tool-emoji">🚚</span>
+            <div class="tool-name">송장 변환기</div>
+            <div class="tool-desc">쿠팡/오늘의집 → CJ/롯데 변환<br>운송장 매칭 · 오늘의집 업로드</div>
+            <div class="tool-status">☁ LIVE</div>
+          </div>
           <div class="tool-card" data-color="blue" onclick="navigate('orders')" style="opacity:0.5">
             <span class="tool-emoji">📦</span>
             <div class="tool-name">주문관리</div>
             <div class="tool-desc">4개 플랫폼 통합 관리<br>Python → 웹 전환 예정</div>
-          </div>
-          <div class="tool-card" data-color="blue" onclick="navigate('invoice')" style="opacity:0.5">
-            <span class="tool-emoji">🚚</span>
-            <div class="tool-name">송장 변환기</div>
-            <div class="tool-desc">쿠팡/오늘의집 → CJ/롯데<br>Python → 웹 전환 예정</div>
           </div>
         </div>
       </div>
@@ -196,9 +200,10 @@
     <div class="subpage" id="page-quotation"></div>
     <div class="subpage" id="page-transaction"></div>
 
+    <div class="subpage" id="page-invoice"></div>
+
     <!-- 개발 예정 -->
     <div class="subpage" id="page-orders"><div class="placeholder-box"><div class="placeholder-icon">📦</div><div class="placeholder-title">주문관리 시스템</div><div class="placeholder-desc">쿠팡 · 네이버 · 아이디어스 · 오늘의집<br>4개 플랫폼 통합 관리 — 웹 전환 예정</div></div></div>
-    <div class="subpage" id="page-invoice"><div class="placeholder-box"><div class="placeholder-icon">🚚</div><div class="placeholder-title">송장 변환기</div><div class="placeholder-desc">주문서 → CJ/롯데 택배 송장 변환<br>웹 전환 예정</div></div></div>
     <div class="subpage" id="page-profit"><div class="placeholder-box"><div class="placeholder-icon">💰</div><div class="placeholder-title">수익 계산기</div><div class="placeholder-desc">손익분기점 시뮬레이션 · 가구매 계산기<br>개발 예정</div></div></div>
     <div class="subpage" id="page-ledger"><div class="placeholder-box"><div class="placeholder-icon">🏦</div><div class="placeholder-title">가계부</div><div class="placeholder-desc">은행 입출금 엑셀 업로드 → 자동 분류<br>개발 예정</div></div></div>
   </div>
@@ -209,7 +214,8 @@
     laser: 'laser-tag.html',
     freelancer: 'payroll.html',
     quotation: 'quote.html',
-    transaction: 'transaction.html'
+    transaction: 'transaction.html',
+    invoice: 'invoice-converter.html'
   };
 
   const pageInfo = {

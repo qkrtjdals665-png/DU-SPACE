@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문서 → 송장 변환기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Noto Sans KR',sans-serif; background:#f0f2f5; min-height:100vh; padding:20px; color:#1a1a2e; }
+  .container { max-width:1200px; margin:0 auto; }
+  .header { background:linear-gradient(135deg,#1a1a2e,#0f3460); color:white; padding:24px 32px; border-radius:14px; margin-bottom:20px; }
+  .header h1 { font-size:22px; font-weight:700; }
+  .header .sub { font-size:13px; opacity:0.7; margin-top:4px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  .card-title { font-size:14px; font-weight:700; color:#0f3460; margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid #0f3460; display:inline-block; }
+  .full { grid-column:1/-1; }
+
+  .upload-zone { border:2px dashed #ccc; border-radius:10px; padding:24px; text-align:center; cursor:pointer; transition:all 0.2s; margin-bottom:12px; }
+  .upload-zone:hover { border-color:#0f3460; background:#f8f9fc; }
+  .upload-zone.dragover { border-color:#27ae60; background:#e8f5e9; }
+  .upload-zone .icon { font-size:28px; margin-bottom:8px; }
+  .upload-zone .text { font-size:13px; color:#888; }
+  .upload-zone input { display:none; }
+
+  .file-list { max-height:120px; overflow-y:auto; margin-bottom:12px; }
+  .file-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#f8f9fc; border-radius:6px; margin-bottom:4px; font-size:13px; }
+  .file-item .name { color:#333; }
+  .file-item .count { color:#0f3460; font-weight:600; }
+  .file-item .del { color:#e74c3c; cursor:pointer; padding:2px 6px; }
+
+  .btn { padding:10px 20px; border:none; border-radius:8px; font-family:'Noto Sans KR',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn:hover { transform:translateY(-1px); }
+  .btn-cj { background:#1a5276; color:white; }
+  .btn-lotte { background:#e74c3c; color:white; }
+  .btn-today { background:#27ae60; color:white; }
+  .btn-sm { padding:7px 14px; font-size:12px; }
+  .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+
+  .btn-group { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+
+  .sender-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .sender-form label { font-size:12px; font-weight:600; color:#555; display:block; margin-bottom:4px; }
+  .sender-form input { width:100%; padding:8px 10px; border:1.5px solid #ddd; border-radius:6px; font-size:13px; font-family:'Noto Sans KR',sans-serif; }
+  .sender-form input:focus { outline:none; border-color:#0f3460; }
+  .sender-full { grid-column:1/-1; }
+
+  .courier-row { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .courier-row select { padding:8px 12px; border:1.5px solid #ddd; border-radius:6px; font-size:13px; font-family:'Noto Sans KR',sans-serif; }
+
+  .log-box { background:#1a1a2e; color:#aaa; border-radius:10px; padding:16px; font-family:'JetBrains Mono',monospace; font-size:12px; max-height:200px; overflow-y:auto; line-height:1.8; }
+  .log-box .success { color:#3dd68c; }
+  .log-box .error { color:#e74c3c; }
+  .log-box .warn { color:#ffc84a; }
+  .log-box .info { color:#4a9eff; }
+
+  .preview-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:12px; }
+  .preview-table th { background:#0f3460; color:white; padding:8px 6px; text-align:center; font-size:11px; white-space:nowrap; }
+  .preview-table td { padding:6px; border-bottom:1px solid #eee; text-align:center; }
+  .preview-table tbody tr:hover { background:#f0f4ff; }
+  .preview-wrap { max-height:250px; overflow:auto; border:1px solid #e0e0e0; border-radius:8px; }
+
+  .stat-bar { display:flex; gap:16px; margin-bottom:14px; font-size:13px; }
+  .stat-bar strong { color:#0f3460; }
+
+  .note { background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:12px 16px; font-size:12px; color:#6d5600; margin-bottom:16px; }
+
+  @media(max-width:768px) { .grid{grid-template-columns:1fr;} .sender-form{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🚚 주문서 → 송장 자동 변환기</h1>
+    <div class="sub">쿠팡 / 오늘의집 주문서 → CJ대한통운 / 롯데택배 송장 변환 · 오늘의집 송장 업로드 양식 생성</div>
+  </div>
+
+  <div class="note">
+    💡 <strong>오늘의집 암호화 파일:</strong> 웹에서는 암호화된 엑셀을 직접 열 수 없습니다. 오늘의집에서 <strong>비밀번호 없이 다운로드</strong>하거나, 엑셀에서 열어서 <strong>다른 이름으로 저장</strong> 후 업로드해주세요.
+  </div>
+
+  <div class="grid">
+    <!-- 주문서 업로드 -->
+    <div class="card">
+      <div class="card-title">① 주문서 업로드</div>
+      
+      <div class="upload-zone" id="zoneOrder" onclick="document.getElementById('fileOrder').click()">
+        <div class="icon">📦</div>
+        <div class="text">쿠팡 / 오늘의집 주문서 (xlsx) 클릭 또는 드래그</div>
+        <input type="file" id="fileOrder" accept=".xlsx,.xls" multiple>
+      </div>
+      
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="btn btn-sm btn-cj" onclick="document.getElementById('fileOrder').dataset.type='coupang';document.getElementById('fileOrder').click()">쿠팡 추가</button>
+        <button class="btn btn-sm btn-today" onclick="document.getElementById('fileOrder').dataset.type='today';document.getElementById('fileOrder').click()">오늘의집 추가</button>
+        <button class="btn btn-sm" style="background:#ccc;color:#333" onclick="clearOrders()">전체삭제</button>
+      </div>
+      
+      <div class="file-list" id="orderList"></div>
+      <div class="stat-bar">
+        주문 합계: <strong id="orderTotal">0건 (0명)</strong>
+      </div>
+    </div>
+
+    <!-- 보내는 사람 설정 -->
+    <div class="card">
+      <div class="card-title">② 보내는 사람 정보</div>
+      <div class="sender-form">
+        <div><label>성명</label><input type="text" id="senderName" value="리리베"></div>
+        <div><label>전화번호</label><input type="text" id="senderPhone" value="010-4579-6867"></div>
+        <div class="sender-full"><label>주소</label><input type="text" id="senderAddr" value="경기도 고양시 덕양구 화정동 CJ화정대리점 리리베"></div>
+      </div>
+
+      <div class="card-title" style="margin-top:10px">③ 택배사 송장 생성</div>
+      <div class="btn-group">
+        <button class="btn btn-cj" onclick="convertTo('cj')" id="btnCJ" disabled>📋 CJ 송장 생성</button>
+        <button class="btn btn-lotte" onclick="convertTo('lotte')" id="btnLotte" disabled>📋 롯데 송장 생성</button>
+      </div>
+    </div>
+
+    <!-- 오늘의집 송장 업로드 -->
+    <div class="card">
+      <div class="card-title">④ 오늘의집 송장 업로드 양식</div>
+      
+      <div class="upload-zone" id="zoneCJ" onclick="document.getElementById('fileCJ').click()" style="padding:16px;">
+        <div class="text">📂 CJ 파일접수 상세내역 (운송장번호 매칭용)</div>
+        <input type="file" id="fileCJ" accept=".xlsx,.xls">
+      </div>
+      <div id="cjStatus" style="font-size:12px;color:#888;margin-bottom:10px;"></div>
+      
+      <div class="courier-row">
+        <label style="font-size:13px;font-weight:600;">택배사:</label>
+        <select id="courierSelect">
+          <option value="1">CJ대한통운</option>
+          <option value="2">롯데택배</option>
+          <option value="3">한진택배</option>
+        </select>
+        <button class="btn btn-today" onclick="generateTodayUpload()" id="btnToday" disabled>📄 오늘의집 양식 생성</button>
+      </div>
+    </div>
+
+    <!-- 미리보기 -->
+    <div class="card">
+      <div class="card-title">📋 주문 미리보기</div>
+      <div class="preview-wrap" id="previewWrap">
+        <div style="text-align:center;padding:40px;color:#bbb;font-size:13px;">주문서를 추가하면 여기에 표시됩니다</div>
+      </div>
+    </div>
+
+    <!-- 로그 -->
+    <div class="card full">
+      <div class="card-title">📝 변환 로그</div>
+      <div class="log-box" id="logBox">변환기 준비 완료. 주문서를 추가해주세요.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── 데이터 ─────────────────────────
+let orderData = []; // [{fileName, orderType, rows:[{...}]}, ...]
+let cjWaybillData = null;
+
+// ─── 로그 ───────────────────────────
+function log(msg, type='') {
+  const box = document.getElementById('logBox');
+  const time = new Date().toTimeString().slice(0,8);
+  const cls = type ? ` class="${type}"` : '';
+  box.innerHTML += `<div${cls}>[${time}] ${msg}</div>`;
+  box.scrollTop = box.scrollHeight;
+}
+
+// ─── 파일 업로드 ────────────────────
+document.getElementById('fileOrder').addEventListener('change', function(e) {
+  const type = this.dataset.type || 'coupang';
+  Array.from(e.target.files).forEach(f => loadOrderFile(f, type));
+  this.value = '';
+  this.dataset.type = '';
+});
+
+// 드래그 앤 드롭
+const zone = document.getElementById('zoneOrder');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('dragover');
+  Array.from(e.dataTransfer.files).forEach(f => {
+    if (f.name.match(/\.xlsx?$/i)) {
+      const type = detectPlatform(f.name);
+      loadOrderFile(f, type);
+    }
+  });
+});
+
+function detectPlatform(name) {
+  const n = name.toLowerCase();
+  if (n.includes('쿠팡') || n.includes('coupang') || n.includes('발주서')) return 'coupang';
+  if (n.includes('오늘의집') || n.includes('주문배송') || n.includes('bucketplace')) return 'today';
+  return 'coupang'; // 기본값
+}
+
+function loadOrderFile(file, type) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws);
+      
+      if (rows.length === 0) { log(`${file.name}: 데이터 없음`, 'warn'); return; }
+      
+      // 자동 플랫폼 감지 보정
+      if (rows[0]['수취인이름'] || rows[0]['등록상품명']) type = 'coupang';
+      if (rows[0]['수취인명'] || rows[0]['주문옵션번호']) type = 'today';
+      
+      const typeName = type === 'coupang' ? '쿠팡' : '오늘의집';
+      orderData.push({ fileName: file.name, orderType: type, rows });
+      
+      log(`${typeName} 주문서 추가: ${file.name} (${rows.length}건)`, 'success');
+      renderOrderList();
+      renderPreview();
+      updateButtons();
+    } catch(err) {
+      log(`파일 읽기 실패: ${file.name} — ${err.message}`, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function clearOrders() {
+  orderData = [];
+  renderOrderList();
+  renderPreview();
+  updateButtons();
+  log('주문서 전체 삭제', 'info');
+}
+
+function removeOrder(idx) {
+  orderData.splice(idx, 1);
+  renderOrderList();
+  renderPreview();
+  updateButtons();
+}
+
+function renderOrderList() {
+  const el = document.getElementById('orderList');
+  if (orderData.length === 0) { el.innerHTML = ''; document.getElementById('orderTotal').textContent = '0건 (0명)'; return; }
+  
+  el.innerHTML = orderData.map((d, i) => {
+    const t = d.orderType === 'coupang' ? '쿠팡' : '오늘의집';
+    return `<div class="file-item"><span class="name">[${t}] ${d.fileName}</span><span class="count">${d.rows.length}건</span><span class="del" onclick="removeOrder(${i})">✕</span></div>`;
+  }).join('');
+  
+  const total = orderData.reduce((s, d) => s + d.rows.length, 0);
+  document.getElementById('orderTotal').textContent = `${total}건`;
+}
+
+function updateButtons() {
+  const hasOrders = orderData.length > 0;
+  const hasToday = orderData.some(d => d.orderType === 'today');
+  document.getElementById('btnCJ').disabled = !hasOrders;
+  document.getElementById('btnLotte').disabled = !hasOrders;
+  document.getElementById('btnToday').disabled = !hasToday;
+}
+
+// ─── 미리보기 ───────────────────────
+function renderPreview() {
+  const el = document.getElementById('previewWrap');
+  if (orderData.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:#bbb;font-size:13px;">주문서를 추가하면 여기에 표시됩니다</div>';
+    return;
+  }
+  
+  let html = '<table class="preview-table"><thead><tr><th>구분</th><th>받는분</th><th>전화번호</th><th>상품명</th><th>옵션</th><th>수량</th></tr></thead><tbody>';
+  
+  orderData.forEach(d => {
+    const mark = d.orderType === 'coupang' ? '쿠)' : '오)';
+    d.rows.forEach(r => {
+      let name, phone, product, option, qty;
+      if (d.orderType === 'coupang') {
+        name = r['수취인이름'] || '';
+        phone = r['수취인전화번호'] || '';
+        product = r['등록상품명'] || '';
+        option = r['등록옵션명'] || '';
+        qty = r['구매수(수량)'] || 1;
+      } else {
+        name = r['수취인명'] || '';
+        phone = r['수취인 연락처'] || '';
+        product = r['상품명'] || '';
+        option = r['옵션명'] || '';
+        qty = r['수량'] || 1;
+      }
+      html += `<tr><td>${mark}</td><td>${name}</td><td>${phone}</td><td style="text-align:left;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${product}</td><td style="text-align:left;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${option}</td><td>${qty}</td></tr>`;
+    });
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ─── CJ/롯데 변환 ──────────────────
+function convertTo(courier) {
+  const sName = document.getElementById('senderName').value;
+  const sPhone = document.getElementById('senderPhone').value;
+  const sAddr = document.getElementById('senderAddr').value;
+  
+  let resultRows = [];
+  
+  orderData.forEach(d => {
+    d.rows.forEach(r => {
+      const isCoupang = d.orderType === 'coupang';
+      const mark = isCoupang ? '쿠) ' : '오) ';
+      
+      let name, zipcode, addr, phone, product, option, qty, memo, orderNo;
+      if (isCoupang) {
+        name = r['수취인이름'] || '';
+        zipcode = r['우편번호'] || '';
+        addr = r['수취인 주소'] || '';
+        phone = r['수취인전화번호'] || '';
+        product = r['등록상품명'] || '';
+        option = r['등록옵션명'] || '';
+        qty = r['구매수(수량)'] || 1;
+        memo = r['배송메세지'] || '';
+        orderNo = r['주문번호'] || '';
+      } else {
+        name = r['수취인명'] || '';
+        zipcode = r['수취인 우편번호'] || '';
+        addr = (r['수취인 주소'] || '') + ' ' + (r['수취인 주소상세'] || '');
+        phone = r['수취인 연락처'] || '';
+        product = r['상품명'] || '';
+        option = r['옵션명'] || '';
+        qty = r['수량'] || 1;
+        memo = r['배송메모'] || '';
+        orderNo = r['주문번호'] || '';
+      }
+      
+      if (courier === 'cj') {
+        resultRows.push({
+          '받는분성명': mark + name,
+          '받는분우편번호': zipcode,
+          '받는분주소(전체, 분할)': addr.trim(),
+          '받는분전화번호1': phone,
+          '받는분전화번호2': '',
+          '상품명(옵션명)': (product + ' ' + option).trim(),
+          '수량': qty,
+          '자동합계\n총 수량': '',
+          '사용안함\n주문번호 판매처등활용시\n씨엔플러스에만노출': '',
+          '배송메세지1': memo,
+          '운임구분': '',
+          '기본운임': '',
+          '보내는분성명': sName,
+          '보내는분전화번호1': sPhone,
+          '보내는분전화번호2': '',
+          '보내는분주소(전체,분할)': sAddr
+        });
+      } else {
+        resultRows.push({
+          '주문번호': orderNo,
+          '보내는사람(지정)': sName,
+          '전화번호1(지정)': sPhone,
+          '전화번호2(지정)': '',
+          '우편번호(지정)': '',
+          '주소(지정)': sAddr,
+          '받는사람': mark + name,
+          '전화번호1': phone,
+          '전화번호2': '',
+          '우편번호': zipcode,
+          '주소': addr.trim(),
+          '상품명1': product,
+          '상품상세1': option,
+          '수량(A타입)': qty,
+          '배송메시지': memo,
+          '운임구분': '',
+          '운임': '',
+          '운송장번호': ''
+        });
+      }
+    });
+  });
+  
+  if (resultRows.length === 0) { log('변환할 주문이 없습니다', 'warn'); return; }
+  
+  const courierName = courier === 'cj' ? 'CJ' : '롯데';
+  log(`${courierName} 송장 생성: ${resultRows.length}건`, 'success');
+  
+  // 엑셀 다운로드
+  const ws = XLSX.utils.json_to_sheet(resultRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '송장');
+  const now = new Date();
+  const ds = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `${courierName}송장_${ds}.xlsx`);
+  
+  log(`${courierName}송장_${ds}.xlsx 다운로드 완료!`, 'success');
+}
+
+// ─── CJ 발송내역 (운송장 매칭) ─────
+document.getElementById('fileCJ').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws);
+      
+      if (!rows[0] || !rows[0]['운송장번호']) {
+        log('CJ 파일접수 상세내역이 아닙니다 (운송장번호 컬럼 없음)', 'error');
+        return;
+      }
+      
+      cjWaybillData = rows;
+      const todayCount = rows.filter(r => String(r['받는분']||'').startsWith('오)')).length;
+      const coupangCount = rows.filter(r => String(r['받는분']||'').startsWith('쿠)')).length;
+      
+      document.getElementById('cjStatus').innerHTML = `✅ <strong>${file.name}</strong> — 오늘의집 ${todayCount}건, 쿠팡 ${coupangCount}건`;
+      document.getElementById('cjStatus').style.color = '#2e7d32';
+      
+      log(`CJ 발송내역 로드: 오늘의집 ${todayCount}건, 쿠팡 ${coupangCount}건`, 'success');
+    } catch(err) {
+      log(`CJ 파일 읽기 실패: ${err.message}`, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  this.value = '';
+});
+
+// ─── 오늘의집 송장 업로드 양식 ──────
+function generateTodayUpload() {
+  const todayOrders = orderData.filter(d => d.orderType === 'today');
+  if (todayOrders.length === 0) { log('오늘의집 주문서가 없습니다', 'warn'); return; }
+  
+  const courierCode = document.getElementById('courierSelect').value;
+  
+  // 운송장 매칭 딕셔너리
+  let waybillDict = {};
+  if (cjWaybillData && courierCode === '1') {
+    cjWaybillData.forEach(r => {
+      const name = String(r['받는분']||'');
+      if (!name.startsWith('오)')) return;
+      const cleanName = name.replace('오) ', '').replace('오)', '').trim();
+      const phone = String(r['받는분전화번호']||'').replace(/-/g, '').trim();
+      waybillDict[cleanName + '_' + phone] = String(r['운송장번호']||'').replace(/-/g, '');
+    });
+    log(`운송장 매칭 준비: ${Object.keys(waybillDict).length}명`, 'info');
+  }
+  
+  let resultRows = [];
+  let matched = 0, unmatched = 0;
+  
+  todayOrders.forEach(d => {
+    d.rows.forEach(r => {
+      const name = String(r['수취인명']||'').trim();
+      const phone = String(r['수취인 연락처']||'').replace(/-/g, '').trim();
+      const key = name + '_' + phone;
+      
+      const waybill = waybillDict[key] || '';
+      if (waybill) matched++; else unmatched++;
+      
+      resultRows.push({
+        '주문옵션번호': r['주문옵션번호'] || '',
+        '택배사': courierCode,
+        '송장번호': waybill,
+        '수취인(참고용)': name
+      });
+    });
+  });
+  
+  if (resultRows.length === 0) { log('생성할 데이터가 없습니다', 'warn'); return; }
+  
+  if (Object.keys(waybillDict).length > 0) {
+    log(`✅ 운송장 매칭: ${matched}건 성공, ${unmatched}건 미매칭`, matched > 0 ? 'success' : 'warn');
+  } else {
+    log('⚠️ CJ 발송내역 없음 — 송장번호가 비어있습니다', 'warn');
+  }
+  
+  const ws = XLSX.utils.json_to_sheet(resultRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '송장업로드');
+  const now = new Date();
+  const ds = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `오늘의집_송장업로드_${ds}.xlsx`);
+  
+  log(`오늘의집_송장업로드_${ds}.xlsx 다운로드 완료! (${resultRows.length}건)`, 'success');
+}
+</script>
+</body>
+</html>
