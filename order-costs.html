@@ -146,20 +146,54 @@ async function loadCosts(){
     const {data:costs,error}=await query;
     if(error){showToast('로드 실패','error');return;}
 
-    // 판매 데이터 (이번달)
+    // 판매 데이터 (전체 - 판매가 자동 입력용)
+    const {data:allOrders}=await db.from('orders')
+        .select('platform,product,option,quantity,price,order_date');
+
+    // 이번달 판매 데이터 (표시용)
     const now=new Date();
     const monthStart=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-    const {data:orders}=await db.from('orders')
-        .select('platform,product,option,quantity,price')
-        .gte('order_date',monthStart);
+    const monthOrders=(allOrders||[]).filter(o=>o.order_date>=monthStart);
 
     salesData={};
-    (orders||[]).forEach(o=>{
+    monthOrders.forEach(o=>{
         const key=`${o.platform}|${o.product}|${o.option||''}`;
         if(!salesData[key]) salesData[key]={qty:0,revenue:0};
         salesData[key].qty+=(o.quantity||1);
         salesData[key].revenue+=(o.price||0)*(o.quantity||1);
     });
+
+    // 전체 주문에서 가격 수집 (판매가 자동 입력용)
+    const allPriceData={};
+    (allOrders||[]).forEach(o=>{
+        const key=`${o.platform}|${o.product}|${o.option||''}`;
+        if(!allPriceData[key]) allPriceData[key]={prices:[]};
+        if(o.price>0) allPriceData[key].prices.push(o.price);
+    });
+
+    // 판매가 미입력 상품에 주문 데이터 기반 자동 입력
+    const autoUpdates=[];
+    (costs||[]).forEach(c=>{
+        if(!c.selling_price||c.selling_price===0){
+            const key=`${c.platform}|${c.product}|${c.option||''}`;
+            const sd=allPriceData[key];
+            if(sd&&sd.prices.length>0){
+                // 가장 많이 나온 가격 (최빈값) 사용
+                const priceCount={};
+                sd.prices.forEach(p=>{const rp=Math.round(p);priceCount[rp]=(priceCount[rp]||0)+1;});
+                const topPrice=Number(Object.entries(priceCount).sort((a,b)=>b[1]-a[1])[0][0]);
+                autoUpdates.push({id:c.id,selling_price:topPrice});
+                c.selling_price=topPrice; // 화면에도 반영
+            }
+        }
+    });
+    // 자동 입력된 판매가 DB 저장
+    if(autoUpdates.length>0){
+        for(const u of autoUpdates){
+            await db.from('product_costs').update({selling_price:u.selling_price}).eq('id',u.id);
+        }
+        if(autoUpdates.length>0) showToast(`판매가 ${autoUpdates.length}개 자동 입력됨!`,'success');
+    }
 
     // 필터: 원가 상태
     let filtered=costs||[];
