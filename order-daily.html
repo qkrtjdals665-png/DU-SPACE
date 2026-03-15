@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주문관리 - 일별 매출/순익</title>
+<title>주문관리 - 일별 매출/순익/ROAS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
@@ -13,255 +13,222 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
 .nav-links{display:flex;gap:8px;}
 .nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
-.nav-links a:hover{background:rgba(255,255,255,0.2);}
-.container{max-width:1400px;margin:0 auto;padding:24px;}
-/* 월 선택 */
-.month-nav{display:flex;align-items:center;gap:8px;background:#fff;padding:14px 20px;border-radius:14px;border:1px solid #D9D4CA;margin-bottom:20px;}
-.month-nav button{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;}
-.month-nav .nav-btn{background:#f5f0e8;color:#555;}.month-nav .nav-btn:hover{background:#ede7db;}
-.month-nav .current-btn{background:#f4a900;color:#1a1a2e;}
+.container{max-width:1500px;margin:0 auto;padding:24px;}
+.month-nav{display:flex;align-items:center;gap:8px;background:#fff;padding:14px 20px;border-radius:14px;border:1px solid #D9D4CA;margin-bottom:16px;}
+.month-nav button{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.month-nav .nav-btn{background:#f5f0e8;color:#555;}.month-nav .current-btn{background:#f4a900;color:#1a1a2e;}
 .month-label{font-size:18px;font-weight:700;min-width:140px;text-align:center;}
-/* 월간 요약 */
-.month-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
-.ms-card{background:#fff;border-radius:14px;padding:20px;border:1px solid #D9D4CA;text-align:center;}
-.ms-card .ms-label{font-size:12px;color:#888;margin-bottom:6px;font-weight:600;}
-.ms-card .ms-value{font-size:22px;font-weight:800;}
-/* 테이블 */
-.table-section{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;overflow-x:auto;}
-.daily-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1200px;}
-.daily-table thead th{padding:8px 6px;text-align:center;font-weight:700;font-size:11px;white-space:nowrap;color:white;border:1px solid rgba(255,255,255,0.2);}
-.daily-table tbody td{padding:8px 6px;text-align:right;border:1px solid #f0ebe3;font-variant-numeric:tabular-nums;}
+.month-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px;}
+.ms-card{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;text-align:center;}
+.ms-card .ms-label{font-size:11px;color:#888;font-weight:600;margin-bottom:4px;}
+.ms-card .ms-value{font-size:18px;font-weight:800;}
+.table-section{background:#fff;border-radius:14px;padding:12px;border:1px solid #D9D4CA;overflow-x:auto;}
+.daily-table{width:100%;border-collapse:collapse;font-size:11px;min-width:1400px;}
+.daily-table thead th{padding:6px 4px;text-align:center;font-weight:700;font-size:10px;white-space:nowrap;color:white;border:1px solid rgba(255,255,255,0.2);}
+.daily-table tbody td{padding:6px 4px;text-align:right;border:1px solid #f0ebe3;font-variant-numeric:tabular-nums;font-size:11px;}
 .daily-table tbody tr:hover td{background:#faf8f4;}
 .daily-table .date-col{text-align:center;font-weight:600;color:#555;background:#faf8f4;position:sticky;left:0;z-index:1;}
 .daily-table .total-row td{background:#1a1a2e !important;color:white !important;font-weight:700;}
 .positive{color:#0f9b58;}.negative{color:#e94560;}
 .profit-cell{font-weight:700;}
-/* 플랫폼별 헤더 색상 */
+.roas-cell{font-weight:700;color:#9b59b6;}
+.ad-cell{color:#e94560;font-size:10px;}
 .ph-naver{background:#00C73C;}.ph-coupang{background:#E31837;}.ph-ohouse{background:#35C5F0;}.ph-idus{background:#FF6F61;}.ph-total{background:#1a1a2e;}.ph-date{background:#7f8c8d;}
 .toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
-.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}
-.empty-state{text-align:center;padding:60px;color:#bbb;font-size:14px;}
+.toast.show{opacity:1;transform:translateY(0);}
 @media(max-width:768px){.month-summary{grid-template-columns:1fr 1fr;}}
 </style>
 </head>
 <body>
-
 <div class="header">
-    <h1>📈 일별 <span>매출/순익</span></h1>
-    <div class="nav-links">
-        <a href="order-dashboard.html">📊 대시보드</a>
-        <a href="order-upload.html">📦 업로드</a>
-        <a href="order-list.html">📋 주문목록</a>
-    </div>
+    <h1>📈 일별 <span>매출/순익/ROAS</span></h1>
+    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-upload.html">📦 업로드</a><a href="order-list.html">📋 주문목록</a></div>
 </div>
-
 <div class="container">
-    <!-- 월 선택 -->
     <div class="month-nav">
         <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
         <div class="month-label" id="monthLabel"></div>
         <button class="nav-btn" onclick="changeMonth(1)">다음달 ▶</button>
         <button class="current-btn" onclick="goCurrentMonth()">이번달</button>
     </div>
-
-    <!-- 월간 요약 -->
     <div class="month-summary" id="monthSummary"></div>
-
-    <!-- 일별 테이블 -->
     <div class="table-section">
         <table class="daily-table">
             <thead>
                 <tr>
                     <th class="ph-date" rowspan="2" style="min-width:70px;position:sticky;left:0;z-index:2;">날짜</th>
-                    <th class="ph-naver" colspan="2">네이버</th>
-                    <th class="ph-coupang" colspan="2">쿠팡</th>
-                    <th class="ph-ohouse" colspan="2">오늘의집</th>
-                    <th class="ph-idus" colspan="2">아이디어스</th>
-                    <th class="ph-total" colspan="2">전체</th>
+                    <th class="ph-naver" colspan="4">네이버</th>
+                    <th class="ph-coupang" colspan="4">쿠팡</th>
+                    <th class="ph-ohouse" colspan="4">오늘의집</th>
+                    <th class="ph-idus" colspan="4">아이디어스</th>
+                    <th class="ph-total" colspan="3">전체</th>
                 </tr>
                 <tr>
-                    <th class="ph-naver">매출</th><th class="ph-naver">순익</th>
-                    <th class="ph-coupang">매출</th><th class="ph-coupang">순익</th>
-                    <th class="ph-ohouse">매출</th><th class="ph-ohouse">순익</th>
-                    <th class="ph-idus">매출</th><th class="ph-idus">순익</th>
-                    <th class="ph-total">매출</th><th class="ph-total">순익</th>
+                    <th class="ph-naver">매출</th><th class="ph-naver">순익</th><th class="ph-naver">광고</th><th class="ph-naver">ROAS</th>
+                    <th class="ph-coupang">매출</th><th class="ph-coupang">순익</th><th class="ph-coupang">광고</th><th class="ph-coupang">ROAS</th>
+                    <th class="ph-ohouse">매출</th><th class="ph-ohouse">순익</th><th class="ph-ohouse">광고</th><th class="ph-ohouse">ROAS</th>
+                    <th class="ph-idus">매출</th><th class="ph-idus">순익</th><th class="ph-idus">광고</th><th class="ph-idus">ROAS</th>
+                    <th class="ph-total">매출</th><th class="ph-total">광고</th><th class="ph-total">실순익</th>
                 </tr>
             </thead>
-            <tbody id="dailyBody">
-                <tr><td colspan="11" class="empty-state">로딩 중...</td></tr>
-            </tbody>
+            <tbody id="dailyBody"><tr><td colspan="20" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
         </table>
     </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
 const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
 const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
 const {createClient}=window.supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
-
-const COMMISSION_RATES={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
+const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
 const PLATFORMS=["네이버","쿠팡","오늘의집","아이디어스"];
 
 let currentDate=new Date();
-
-function updateMonthLabel(){
-    document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;
-}
+function updateMonthLabel(){document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;}
 function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);updateMonthLabel();loadDaily();}
 function goCurrentMonth(){currentDate=new Date();updateMonthLabel();loadDaily();}
-
 function getMonthRange(){
     const y=currentDate.getFullYear(),m=currentDate.getMonth();
     const start=`${y}-${String(m+1).padStart(2,'0')}-01`;
     const lastDay=new Date(y,m+1,0).getDate();
-    const end=`${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-    return{start,end,lastDay};
+    return{start,end:`${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,lastDay};
 }
-
-function fmtNum(n){return Math.round(n).toLocaleString('ko-KR');}
+function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
 
 async function loadDaily(){
     const {start,end,lastDay}=getMonthRange();
-    
-    // 주문 데이터
-    const {data:orders,error}=await db.from('orders')
-        .select('order_date,platform,product,option,quantity,price')
-        .gte('order_date',start).lte('order_date',end);
-    
-    if(error){console.error(error);return;}
-    
-    // 원가 데이터
+    const m=currentDate.getMonth()+1;
+
+    // 주문
+    const {data:orders}=await db.from('orders').select('order_date,platform,product,option,quantity,price').gte('order_date',start).lte('order_date',end);
+    // 원가
     const {data:costs}=await db.from('product_costs').select('platform,product,option,cost');
-    const costMap={};
-    (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
-    
+    const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
+    // 일별 광고비
+    const {data:dailyAds}=await db.from('ad_costs').select('ad_date,platform,cost').gte('ad_date',start).lte('ad_date',end);
+    // 기간 광고비
+    const {data:periodAds}=await db.from('product_ad_costs').select('platform,start_date,end_date,total_cost').lte('start_date',end).gte('end_date',start);
+
     // 일별 집계
     const daily={};
-    
     (orders||[]).forEach(o=>{
-        const d=o.order_date;
-        const p=o.platform;
+        const d=o.order_date,p=o.platform;
         if(!daily[d]) daily[d]={};
         if(!daily[d][p]) daily[d][p]={sales:0,cost:0,qty:0,orderCount:0};
-        
-        const amount=(o.price||0)*(o.quantity||1);
-        const costKey=`${p}|${o.product}|${o.option||''}`;
-        const unitCost=costMap[costKey]||0;
-        
-        daily[d][p].sales+=amount;
-        daily[d][p].cost+=unitCost*(o.quantity||1);
+        const amt=(o.price||0)*(o.quantity||1);
+        const ck=`${p}|${o.product}|${o.option||''}`;
+        daily[d][p].sales+=amt;
+        daily[d][p].cost+=(costMap[ck]||0)*(o.quantity||1);
         daily[d][p].qty+=(o.quantity||1);
         daily[d][p].orderCount++;
     });
-    
+
+    // 일별 광고비 매핑
+    const adDaily={};// {date: {platform: cost}}
+    (dailyAds||[]).forEach(a=>{
+        if(!adDaily[a.ad_date]) adDaily[a.ad_date]={};
+        adDaily[a.ad_date][a.platform]=(adDaily[a.ad_date][a.platform]||0)+(a.cost||0);
+    });
+
+    // 기간 광고비 → 일별 분배
+    (periodAds||[]).forEach(pa=>{
+        const pS=new Date(pa.start_date),pE=new Date(pa.end_date);
+        const totalDays=Math.max(1,Math.ceil((pE-pS)/86400000)+1);
+        const dailyCost=pa.total_cost/totalDays;
+        // 해당 월과 겹치는 날짜에 분배
+        const mS=new Date(start),mE=new Date(end);
+        const oS=new Date(Math.max(pS,mS)),oE=new Date(Math.min(pE,mE));
+        for(let d=new Date(oS);d<=oE;d.setDate(d.getDate()+1)){
+            const ds=d.toISOString().slice(0,10);
+            if(!adDaily[ds]) adDaily[ds]={};
+            adDaily[ds][pa.platform]=(adDaily[ds][pa.platform]||0)+dailyCost;
+        }
+    });
+
     // 렌더링
     const tbody=document.getElementById('dailyBody');
-    const y=currentDate.getFullYear(),m=currentDate.getMonth();
-    
-    let totalSales={},totalProfit={};
-    PLATFORMS.forEach(p=>{totalSales[p]=0;totalProfit[p]=0;});
-    
-    let html='';
-    
-    // 날짜 내림차순
-    const dates=[];
-    for(let d=lastDay;d>=1;d--){
-        const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        dates.push(dateStr);
-    }
-    
+    let totals={};PLATFORMS.forEach(p=>{totals[p]={sales:0,profit:0,ad:0};});
+    let grandSales=0,grandProfit=0,grandAd=0;
     let hasData=false;
-    
-    dates.forEach(dateStr=>{
+    let html='';
+
+    for(let day=lastDay;day>=1;day--){
+        const dateStr=`${currentDate.getFullYear()}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
         const dayData=daily[dateStr];
-        if(!dayData) return;
+        const dayAd=adDaily[dateStr]||{};
+        if(!dayData&&!Object.keys(dayAd).length) continue;
         hasData=true;
-        
-        const shortDate=`${dateStr.slice(5,7)}/${dateStr.slice(8,10)}`;
-        const dayOfWeek=['일','월','화','수','목','금','토'][new Date(dateStr+'T00:00:00').getDay()];
-        const isWeekend=dayOfWeek==='일'||dayOfWeek==='토';
-        
-        let dayTotalSales=0,dayTotalProfit=0;
+
+        const shortDate=`${String(m).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
+        const dow=['일','월','화','수','목','금','토'][new Date(dateStr+'T00:00:00').getDay()];
+        const isWe=dow==='일'||dow==='토';
+
+        let daySales=0,dayProfit=0,dayAdTotal=0;
         let cells='';
-        
+
         PLATFORMS.forEach(p=>{
-            const d=dayData[p]||{sales:0,cost:0,qty:0,orderCount:0};
-            const commission=d.sales*COMMISSION_RATES[p]+(p==='아이디어스'?d.orderCount*2500:0);
-            const profit=d.sales-commission-d.cost;
-            
-            totalSales[p]+=d.sales;
-            totalProfit[p]+=profit;
-            dayTotalSales+=d.sales;
-            dayTotalProfit+=profit;
-            
-            const profitClass=profit>0?'positive':profit<0?'negative':'';
-            
-            cells+=`<td>${d.sales?fmtNum(d.sales):'-'}</td>`;
-            cells+=`<td class="profit-cell ${profitClass}">${d.sales?fmtNum(profit):'-'}</td>`;
+            const d=(dayData&&dayData[p])||{sales:0,cost:0,qty:0,orderCount:0};
+            const comm=d.sales*CR[p]+(p==='아이디어스'?d.orderCount*2500:0);
+            const profit=d.sales-comm-d.cost;
+            const ad=Math.round(dayAd[p]||0);
+            const realProfit=profit-ad;
+            const roas=ad>0?Math.round((d.sales/ad)*100):0;
+
+            totals[p].sales+=d.sales;totals[p].profit+=profit;totals[p].ad+=ad;
+            daySales+=d.sales;dayProfit+=profit;dayAdTotal+=ad;
+
+            const pc=realProfit>0?'positive':realProfit<0?'negative':'';
+            cells+=`<td>${d.sales?fmt(d.sales):'-'}</td>`;
+            cells+=`<td class="profit-cell ${pc}">${d.sales?fmt(realProfit):'-'}</td>`;
+            cells+=`<td class="ad-cell">${ad>0?fmt(ad):'-'}</td>`;
+            cells+=`<td class="roas-cell">${ad>0?roas+'%':'-'}</td>`;
         });
-        
-        const totalProfitClass=dayTotalProfit>0?'positive':dayTotalProfit<0?'negative':'';
-        cells+=`<td style="font-weight:700">${fmtNum(dayTotalSales)}</td>`;
-        cells+=`<td class="profit-cell ${totalProfitClass}" style="font-weight:700">${fmtNum(dayTotalProfit)}</td>`;
-        
-        html+=`<tr>
-            <td class="date-col" style="${isWeekend?'color:#e94560':''}">
-                ${shortDate} (${dayOfWeek})
-            </td>
-            ${cells}
-        </tr>`;
-    });
-    
+
+        grandSales+=daySales;grandProfit+=dayProfit;grandAd+=dayAdTotal;
+        const dayReal=dayProfit-dayAdTotal;
+        const drpc=dayReal>0?'positive':dayReal<0?'negative':'';
+        cells+=`<td style="font-weight:700">${fmt(daySales)}</td>`;
+        cells+=`<td class="ad-cell" style="font-weight:600">${dayAdTotal>0?fmt(dayAdTotal):'-'}</td>`;
+        cells+=`<td class="profit-cell ${drpc}" style="font-weight:700">${fmt(dayReal)}</td>`;
+
+        html+=`<tr><td class="date-col" style="${isWe?'color:#e94560':''}">${shortDate} (${dow})</td>${cells}</tr>`;
+    }
+
     if(!hasData){
-        tbody.innerHTML='<tr><td colspan="11" class="empty-state">이 달의 주문 데이터가 없습니다</td></tr>';
+        tbody.innerHTML='<tr><td colspan="20" style="text-align:center;color:#ccc;padding:40px;">이 달의 데이터 없음</td></tr>';
         document.getElementById('monthSummary').innerHTML='';
         return;
     }
-    
+
     // 합계 행
-    let totalCells='';
-    let grandSales=0,grandProfit=0;
-    
+    let tCells='';
     PLATFORMS.forEach(p=>{
-        grandSales+=totalSales[p];
-        grandProfit+=totalProfit[p];
-        const profitClass=totalProfit[p]>0?'positive':'';
-        totalCells+=`<td>${fmtNum(totalSales[p])}</td>`;
-        totalCells+=`<td>${fmtNum(totalProfit[p])}</td>`;
+        const realP=totals[p].profit-totals[p].ad;
+        const roas=totals[p].ad>0?Math.round((totals[p].sales/totals[p].ad)*100):0;
+        tCells+=`<td>${fmt(totals[p].sales)}</td><td>${fmt(realP)}</td>`;
+        tCells+=`<td>${totals[p].ad>0?fmt(totals[p].ad):'-'}</td>`;
+        tCells+=`<td>${totals[p].ad>0?roas+'%':'-'}</td>`;
     });
-    totalCells+=`<td>${fmtNum(grandSales)}</td>`;
-    totalCells+=`<td>${fmtNum(grandProfit)}</td>`;
-    
-    html+=`<tr class="total-row"><td class="date-col" style="background:#1a1a2e !important;color:white !important">[합계]</td>${totalCells}</tr>`;
-    
+    const grandReal=grandProfit-grandAd;
+    tCells+=`<td>${fmt(grandSales)}</td><td>${grandAd>0?fmt(grandAd):'-'}</td><td>${fmt(grandReal)}</td>`;
+    html+=`<tr class="total-row"><td class="date-col" style="background:#1a1a2e !important;color:white !important">[합계]</td>${tCells}</tr>`;
     tbody.innerHTML=html;
-    
-    // 월간 요약
-    const profitRate=grandSales>0?((grandProfit/grandSales)*100).toFixed(1):0;
+
+    // 요약
+    const profitRate=grandSales>0?((grandReal/grandSales)*100).toFixed(1):0;
+    const totalRoas=grandAd>0?Math.round((grandSales/grandAd)*100):0;
     document.getElementById('monthSummary').innerHTML=`
-        <div class="ms-card"><div class="ms-label">월 매출</div><div class="ms-value" style="color:#4285f4">${fmtNum(grandSales)}원</div></div>
-        <div class="ms-card"><div class="ms-label">월 순익</div><div class="ms-value" style="color:${grandProfit>=0?'#0f9b58':'#e94560'}">${fmtNum(grandProfit)}원</div></div>
+        <div class="ms-card"><div class="ms-label">${m}월 매출</div><div class="ms-value" style="color:#4285f4">${fmt(grandSales)}원</div></div>
+        <div class="ms-card"><div class="ms-label">${m}월 실순익</div><div class="ms-value" style="color:${grandReal>=0?'#0f9b58':'#e94560'}">${fmt(grandReal)}원</div></div>
         <div class="ms-card"><div class="ms-label">순이익률</div><div class="ms-value" style="color:#f4a900">${profitRate}%</div></div>
-        <div class="ms-card"><div class="ms-label">총 주문</div><div class="ms-value" style="color:#9b59b6">${(orders||[]).length}건</div></div>
+        <div class="ms-card"><div class="ms-label">총 광고비</div><div class="ms-value" style="color:#e94560">${fmt(grandAd)}원</div></div>
+        <div class="ms-card"><div class="ms-label">전체 ROAS</div><div class="ms-value" style="color:#9b59b6">${totalRoas>0?totalRoas+'%':'-'}</div></div>
     `;
 }
 
-function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
-
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
 document.addEventListener('DOMContentLoaded',()=>{updateMonthLabel();loadDaily();});
-
-// iframe 안이면 자체 헤더/네비 숨기기
-if(window.self !== window.top){
-    document.querySelectorAll('.header').forEach(el=>el.style.display='none');
-    document.querySelectorAll('[style*="background:#16162a"]').forEach(el=>el.style.display='none');
-    // container 상단 패딩 조정
-    const c=document.querySelector('.container');
-    if(c) c.style.paddingTop='12px';
-}
-
 </script>
 </body>
 </html>
