@@ -16,8 +16,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .header a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
 .container{max-width:1000px;margin:0 auto;padding:24px;}
 .upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
-.upload-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid #D9D4CA;transition:box-shadow 0.2s;}
-.upload-card:hover{box-shadow:0 4px 20px rgba(0,0,0,0.08);}
+.upload-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid #D9D4CA;}
 .upload-card-header{padding:18px 22px;color:white;font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center;}
 .upload-card-body{padding:22px;}
 .upload-card-body p{font-size:12px;color:#888;margin-bottom:14px;line-height:1.6;}
@@ -31,8 +30,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .result-box.error{display:block;background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
 .result-box.loading{display:block;background:#fff8e1;color:#f57f17;border:1px solid #ffe082;}
 .result-box.pw-guide{display:block;background:#fff3e0;color:#e65100;border:1px solid #ffcc80;}
-.result-box .pw-steps{margin-top:10px;padding-left:8px;font-size:12px;line-height:2;}
-.result-box .pw-value{background:#1a1a2e;color:#f4a900;padding:2px 10px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px;display:inline-block;margin:4px 0;user-select:all;cursor:pointer;}
+.result-box .pw-value{background:#1a1a2e;color:#f4a900;padding:2px 10px;border-radius:4px;font-family:monospace;font-weight:700;font-size:13px;display:inline-block;margin:4px 0;user-select:all;cursor:pointer;}
 .history-section{background:#fff;border-radius:14px;padding:24px;border:1px solid #D9D4CA;margin-bottom:28px;}
 .history-section h3{font-size:15px;font-weight:700;color:#555;margin-bottom:16px;}
 .history-table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -40,6 +38,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .history-table td{padding:10px 12px;border-bottom:1px solid #f0ebe3;}
 .history-table tr:hover td{background:#faf8f4;}
 .platform-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;color:white;}
+.lib-status{font-size:11px;padding:6px 14px;border-radius:8px;margin-bottom:16px;display:inline-block;}
+.lib-ok{background:#e8f5e9;color:#2e7d32;}
+.lib-fail{background:#ffebee;color:#c62828;}
 .toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
 .toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#4285f4;}
 @media(max-width:768px){.upload-grid{grid-template-columns:1fr;}}
@@ -53,24 +54,23 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 </div>
 
 <div class="container">
+    <div id="libStatus"></div>
+
     <div class="upload-grid">
-        <!-- 쿠팡 -->
         <div class="upload-card">
             <div class="upload-card-header" style="background:#E31837;">
                 <span>🛒 쿠팡</span><span style="font-size:12px;opacity:0.8;">DeliveryList.xlsx</span>
             </div>
             <div class="upload-card-body">
-                <p>쿠팡 발주관리 > DeliveryList 다운로드 파일<br>🔓 암호 없음 — 바로 업로드 가능</p>
+                <p>쿠팡 발주관리 > DeliveryList 다운로드 파일<br>🔓 암호 없음 — 바로 업로드</p>
                 <div class="drop-zone" onclick="this.querySelector('input').click()">
-                    <div class="dz-icon">📂</div>
-                    <div class="dz-text">클릭 또는 파일 드래그</div>
+                    <div class="dz-icon">📂</div><div class="dz-text">클릭 또는 파일 드래그</div>
                     <input type="file" accept=".xlsx,.xls" onchange="handleFile(this,'쿠팡')">
                 </div>
                 <div class="result-box" id="result-쿠팡"></div>
             </div>
         </div>
 
-        <!-- 네이버 -->
         <div class="upload-card">
             <div class="upload-card-header" style="background:#00C73C;">
                 <span>🟢 네이버</span><span style="font-size:12px;opacity:0.8;">발주발송/구매확정</span>
@@ -78,40 +78,35 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
             <div class="upload-card-body">
                 <p>발주발송관리 또는 구매확정내역 파일<br>🔓 암호 자동 해제 — 바로 업로드!</p>
                 <div class="drop-zone" onclick="this.querySelector('input').click()">
-                    <div class="dz-icon">📂</div>
-                    <div class="dz-text">클릭 또는 파일 드래그</div>
+                    <div class="dz-icon">📂</div><div class="dz-text">클릭 또는 파일 드래그</div>
                     <input type="file" accept=".xlsx,.xls" onchange="handleFile(this,'네이버')">
                 </div>
                 <div class="result-box" id="result-네이버"></div>
             </div>
         </div>
 
-        <!-- 오늘의집 -->
         <div class="upload-card">
             <div class="upload-card-header" style="background:#35C5F0;">
                 <span>🏠 오늘의집</span><span style="font-size:12px;opacity:0.8;">합쳐진 정산파일</span>
             </div>
             <div class="upload-card-body">
-                <p>주문배송 + 정산상세 + 세부할인 합쳐진 파일<br>📂 <a href="order-merge.html" style="color:#35C5F0;">주문서 정리 도구</a>에서 먼저 합치세요</p>
+                <p>주문배송+정산상세+세부할인 합쳐진 파일<br>📂 <a href="order-merge.html" style="color:#35C5F0;">주문서 정리 도구</a>에서 먼저 합치세요</p>
                 <div class="drop-zone" onclick="this.querySelector('input').click()">
-                    <div class="dz-icon">📂</div>
-                    <div class="dz-text">클릭 또는 파일 드래그</div>
+                    <div class="dz-icon">📂</div><div class="dz-text">클릭 또는 파일 드래그</div>
                     <input type="file" accept=".xlsx,.xls" onchange="handleFile(this,'오늘의집')">
                 </div>
                 <div class="result-box" id="result-오늘의집"></div>
             </div>
         </div>
 
-        <!-- 아이디어스 -->
         <div class="upload-card">
             <div class="upload-card-header" style="background:#FF6F61;">
                 <span>🎨 아이디어스</span><span style="font-size:12px;opacity:0.8;">order_list.xlsx</span>
             </div>
             <div class="upload-card-body">
-                <p>아이디어스 주문 리스트 다운로드 파일<br>🔓 암호 없음 — 바로 업로드 가능</p>
+                <p>아이디어스 주문 리스트 다운로드 파일<br>🔓 암호 없음 — 바로 업로드</p>
                 <div class="drop-zone" onclick="this.querySelector('input').click()">
-                    <div class="dz-icon">📂</div>
-                    <div class="dz-text">클릭 또는 파일 드래그</div>
+                    <div class="dz-icon">📂</div><div class="dz-text">클릭 또는 파일 드래그</div>
                     <input type="file" accept=".xlsx,.xls" onchange="handleFile(this,'아이디어스')">
                 </div>
                 <div class="result-box" id="result-아이디어스"></div>
@@ -135,217 +130,179 @@ const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
 const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
 const {createClient}=window.supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
-
 const PLATFORM_COLORS={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
-const PW_INFO={
-    "네이버":{pw:"351567",name:"네이버 스마트스토어"},
-    "오늘의집":{pw:"qkrtjdals1!",name:"오늘의집"}
-};
+
+// 암호 자동해제 라이브러리 체크
+const hasXlsxPopulate=typeof XlsxPopulate!=='undefined';
+document.getElementById('libStatus').innerHTML=hasXlsxPopulate
+    ?'<span class="lib-status lib-ok">🔓 암호 자동 해제 지원됨 (네이버/오늘의집)</span>'
+    :'<span class="lib-status lib-fail">⚠️ 암호 해제 라이브러리 로딩 실패 — 비번 해제 후 업로드 필요</span>';
+
+const AUTO_PASSWORDS={"네이버":["351567"],"오늘의집":["qkrtjdals1!","QKRTJDALS1!"]};
 
 // 드래그앤드롭
 document.querySelectorAll('.drop-zone').forEach(dz=>{
     dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
     dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-    dz.addEventListener('drop',e=>{
-        e.preventDefault();dz.classList.remove('dragover');
-        const card=dz.closest('.upload-card');
-        const platform=card.querySelector('.upload-card-header span:first-child').textContent.replace(/[🛒🟢🏠🎨\s]/g,'');
-        const file=e.dataTransfer.files[0];
-        if(file) processFile(file,platform);
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');
+        const headers=dz.closest('.upload-card').querySelector('.upload-card-header');
+        const platform=headers.querySelector('span').textContent.replace(/[^\uAC00-\uD7AF]/g,'');
+        if(e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0],platform);
     });
 });
 
-function handleFile(input,platform){
-    const file=input.files[0];
-    if(file) processFile(file,platform);
-    input.value='';
-}
+function handleFile(input,platform){const f=input.files[0];if(f)processFile(f,platform);input.value='';}
 
 async function processFile(file,platform){
-    const resultEl=document.getElementById('result-'+platform);
-    resultEl.className='result-box loading';
-    resultEl.style.display='block';
-    resultEl.textContent='📊 파일 처리 중...';
+    const el=document.getElementById('result-'+platform);
+    el.className='result-box loading';el.style.display='block';
+    el.textContent='📊 파일 처리 중...';
 
     try{
         const data=await file.arrayBuffer();
-        let wb;
-        
-        // 1차: SheetJS로 바로 열기
+        let wb=null;
+
+        // === STEP 1: SheetJS로 바로 열기 ===
         try{
-            wb=XLSX.read(data,{type:'array'});
-        }catch(e1){
-            // 2차: xlsx-populate로 비밀번호 자동 복호화
-            const passwords=platform==='네이버'?['351567']:platform==='오늘의집'?['qkrtjdals1!','QKRTJDALS1!']:[];
-            let decrypted=false;
-            
+            wb=XLSX.read(new Uint8Array(data),{type:'array'});
+            console.log(platform+': SheetJS 바로 열기 성공');
+        }catch(e){
+            console.log(platform+': SheetJS 실패 →',e.message);
+            wb=null;
+        }
+
+        // === STEP 2: 암호화 파일이면 xlsx-populate로 자동 복호화 ===
+        if(!wb && hasXlsxPopulate){
+            const passwords=AUTO_PASSWORDS[platform]||[];
             for(const pw of passwords){
                 try{
-                    resultEl.className='result-box loading';
-                    resultEl.textContent=`🔓 비밀번호(${pw})로 해제 중...`;
-                    
+                    el.textContent=`🔓 비밀번호(${pw})로 자동 해제 중...`;
+                    console.log(platform+': xlsx-populate 시도, 비번='+pw);
                     const popWb=await XlsxPopulate.fromDataAsync(data,{password:pw});
-                    const decBuf=await popWb.outputAsync();
-                    wb=XLSX.read(decBuf,{type:'array'});
-                    decrypted=true;
+                    const decrypted=await popWb.outputAsync({type:'uint8array'});
+                    wb=XLSX.read(decrypted,{type:'array'});
+                    console.log(platform+': ✅ 자동 복호화 성공!');
                     break;
-                }catch(e2){}
-            }
-            
-            if(!decrypted){
-                // 비번 직접 입력 시도
-                const userPw=prompt('🔒 암호화된 파일입니다.\n비밀번호를 입력해주세요:');
-                if(userPw){
-                    try{
-                        resultEl.textContent=`🔓 비밀번호로 해제 중...`;
-                        const popWb=await XlsxPopulate.fromDataAsync(data,{password:userPw});
-                        const decBuf=await popWb.outputAsync();
-                        wb=XLSX.read(decBuf,{type:'array'});
-                        decrypted=true;
-                    }catch(e3){
-                        resultEl.className='result-box error';
-                        resultEl.textContent='❌ 비밀번호가 틀렸습니다. 다시 시도해주세요.';
-                        return;
-                    }
-                }else{
-                    resultEl.className='result-box error';
-                    resultEl.textContent='취소됨';
-                    return;
+                }catch(e2){
+                    console.log(platform+': 비번 '+pw+' 실패 →',e2.message);
                 }
             }
         }
 
+        // === STEP 3: 아직 못 열었으면 수동 비밀번호 입력 ===
+        if(!wb && hasXlsxPopulate){
+            const userPw=prompt(`🔒 [${platform}] 암호화된 파일입니다.\n비밀번호를 입력해주세요:`);
+            if(userPw){
+                try{
+                    el.textContent='🔓 비밀번호로 해제 중...';
+                    const popWb=await XlsxPopulate.fromDataAsync(data,{password:userPw});
+                    const decrypted=await popWb.outputAsync({type:'uint8array'});
+                    wb=XLSX.read(decrypted,{type:'array'});
+                }catch(e3){
+                    el.className='result-box error';
+                    el.textContent='❌ 비밀번호가 틀렸습니다. 다시 시도해주세요.';
+                    return;
+                }
+            }else{el.className='result-box error';el.textContent='취소됨';return;}
+        }
+
+        // === STEP 4: 라이브러리 없이 암호화 파일 → 안내 ===
+        if(!wb){
+            el.className='result-box pw-guide';
+            const pw=platform==='네이버'?'351567':platform==='오늘의집'?'qkrtjdals1!':'';
+            el.innerHTML=`🔒 <strong>암호화된 파일입니다!</strong><br>엑셀에서 비밀번호를 해제한 후 다시 업로드해주세요.`
+                +(pw?`<br><br>📌 비밀번호: <span class="pw-value" onclick="navigator.clipboard.writeText('${pw}');alert('복사됨!')">${pw}</span> (클릭하면 복사)`:'');
+            return;
+        }
+
+        // === 파싱 ===
         let orders=[];
         if(platform==='쿠팡') orders=parseCoupang(wb);
         else if(platform==='네이버') orders=parseNaver(wb);
         else if(platform==='오늘의집') orders=parseOhouse(wb);
         else if(platform==='아이디어스') orders=parseIdus(wb);
 
-        if(orders.length===0){
-            resultEl.className='result-box error';
-            resultEl.textContent='⚠️ 파싱된 주문이 없습니다. 파일 형식을 확인해주세요.';
-            return;
-        }
+        if(!orders.length){el.className='result-box error';el.textContent='⚠️ 파싱된 주문이 없습니다. 파일 형식을 확인해주세요.';return;}
 
-        const result=await saveOrders(orders,platform);
-        resultEl.className='result-box success';
-        resultEl.innerHTML=`✅ <strong>${result.added}건</strong> 추가 완료!${result.duplicates>0?` (중복 ${result.duplicates}건 제외)`:''}`;
-        showToast(`${platform} ${result.added}건 업로드 완료!`,'success');
+        el.textContent=`💾 ${orders.length}건 저장 중...`;
+        const result=await saveOrders(orders);
+        el.className='result-box success';
+        el.innerHTML=`✅ <strong>${result.added}건</strong> 추가 완료!${result.duplicates>0?` (중복 ${result.duplicates}건 제외)`:''}`;
+        showToast(`${platform} ${result.added}건 업로드!`,'success');
         loadRecentOrders();
-        await autoAddProductCosts(orders,platform);
+        await autoAddProductCosts(orders);
 
     }catch(err){
-        console.error(err);
-        resultEl.className='result-box error';
-        resultEl.textContent='❌ 오류: '+err.message;
+        console.error(platform+' 오류:',err);
+        el.className='result-box error';
+        el.textContent='❌ 오류: '+err.message;
     }
 }
 
-// ── 쿠팡 파싱 ──
+// ── 파싱 함수들 ──
 function parseCoupang(wb){
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
     const orders=[];
     for(let i=1;i<rows.length;i++){
-        const r=rows[i];
-        const orderNo=String(r[2]||'');if(!orderNo)continue;
-        let orderDate=parseDate(r[9]);if(!orderDate)continue;
-        const product=String(r[10]||''),option=String(r[11]||'');
-        const totalPrice=Number(r[18])||0,delivery=Number(r[20])||0,qty=Number(r[22])||1;
-        const price=qty>0?totalPrice/qty:totalPrice;
-        const recipient=String(r[26]||''),phone=String(r[27]||''),address=String(r[29]||''),tracking=String(r[4]||'');
-        orders.push({platform:'쿠팡',order_date:orderDate,order_no:orderNo,product,option,quantity:qty,price,delivery_fee:delivery,recipient,phone,address,tracking});
-    }
-    return orders;
+        const r=rows[i];const no=String(r[2]||'');if(!no)continue;
+        let d=parseDate(r[9]);if(!d)continue;
+        const qty=Number(r[22])||1,tp=Number(r[18])||0;
+        orders.push({platform:'쿠팡',order_date:d,order_no:no,product:String(r[10]||''),option:String(r[11]||''),quantity:qty,price:qty>0?tp/qty:tp,delivery_fee:Number(r[20])||0,recipient:String(r[26]||''),phone:String(r[27]||''),address:String(r[29]||''),tracking:String(r[4]||'')});
+    }return orders;
 }
 
-// ── 네이버 파싱 ──
 function parseNaver(wb){
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-    const orders=[];
-    const firstCell=String(rows[0]?.[0]||'');
-
-    if(firstCell==='상품주문번호'){
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+    const orders=[];const fc=String(rows[0]?.[0]||'');
+    if(fc==='상품주문번호'){
         for(let i=1;i<rows.length;i++){
-            const r=rows[i];
-            const orderNo=String(r[0]||'');if(!orderNo||!orderNo.startsWith('202'))continue;
-            let orderDate=parseDate(r[39]);if(!orderDate)continue;
-            const product=String(r[16]||''),option=String(r[20]||'');
-            const qty=Number(r[22])||1,totalPrice=Number(r[28])||0;
-            const price=qty>0?totalPrice/qty:totalPrice;
-            const delivery=Number(r[36])||0,recipient=String(r[9]||''),tracking=String(r[13]||'');
-            orders.push({platform:'네이버',order_date:orderDate,order_no:orderNo,product,option,quantity:qty,price,delivery_fee:delivery,recipient,phone:'',address:'',tracking});
+            const r=rows[i];const no=String(r[0]||'');if(!no||!no.startsWith('202'))continue;
+            let d=parseDate(r[39]);if(!d)continue;
+            const qty=Number(r[22])||1,tp=Number(r[28])||0;
+            orders.push({platform:'네이버',order_date:d,order_no:no,product:String(r[16]||''),option:String(r[20]||''),quantity:qty,price:qty>0?tp/qty:tp,delivery_fee:Number(r[36])||0,recipient:String(r[9]||''),phone:'',address:'',tracking:String(r[13]||'')});
         }
     }else{
         for(let i=2;i<rows.length;i++){
-            const r=rows[i];
-            const orderNo=String(r[0]||'');if(!orderNo||!orderNo.startsWith('202'))continue;
-            let orderDate=parseDate(r[53])||parseDate(r[15]);if(!orderDate)continue;
-            const product=String(r[18]||''),option=String(r[12]||'');
-            const qty=Number(r[19])||1,totalPrice=Number(r[13])||0;
-            const price=qty>0?totalPrice/qty:totalPrice;
-            const delivery=Number(r[41])||0,recipient=String(r[7]||''),phone=String(r[8]||''),address=String(r[11]||''),tracking=String(r[5]||'');
-            orders.push({platform:'네이버',order_date:orderDate,order_no:orderNo,product,option,quantity:qty,price,delivery_fee:delivery,recipient,phone,address,tracking});
+            const r=rows[i];const no=String(r[0]||'');if(!no||!no.startsWith('202'))continue;
+            let d=parseDate(r[53])||parseDate(r[15]);if(!d)continue;
+            const qty=Number(r[19])||1,tp=Number(r[13])||0;
+            orders.push({platform:'네이버',order_date:d,order_no:no,product:String(r[18]||''),option:String(r[12]||''),quantity:qty,price:qty>0?tp/qty:tp,delivery_fee:Number(r[41])||0,recipient:String(r[7]||''),phone:String(r[8]||''),address:String(r[11]||''),tracking:String(r[5]||'')});
         }
-    }
-    return orders;
+    }return orders;
 }
 
-// ── 오늘의집 파싱 ──
 function parseOhouse(wb){
-    const sheetNames=wb.SheetNames;
-    if(!['주문배송','정산상세','세부할인'].every(s=>sheetNames.includes(s))){
-        throw new Error('주문배송/정산상세/세부할인 3개 시트가 필요합니다. 주문서 정리 도구에서 먼저 합쳐주세요!');
-    }
-    const orderRows=XLSX.utils.sheet_to_json(wb.Sheets['주문배송'],{header:1,defval:''});
-    const optionMap={};
-    for(let i=1;i<orderRows.length;i++){const n=String(orderRows[i][2]||'').trim();if(n)optionMap[n]=String(orderRows[i][8]||'').trim();}
-
-    const discountRows=XLSX.utils.sheet_to_json(wb.Sheets['세부할인'],{header:1,defval:''});
-    const discountMap={};
-    for(let i=1;i<discountRows.length;i++){
-        const n=String(discountRows[i][4]||'').trim();if(!n)continue;
-        discountMap[n]=(discountMap[n]||0)+(Number(discountRows[i][9])||0)+(Number(discountRows[i][10])||0)+(Number(discountRows[i][11])||0);
-    }
-
-    const settlementRows=XLSX.utils.sheet_to_json(wb.Sheets['정산상세'],{header:1,defval:''});
+    if(!['주문배송','정산상세','세부할인'].every(s=>wb.SheetNames.includes(s)))throw new Error('주문배송/정산상세/세부할인 3개 시트 필요. 주문서 정리 도구에서 먼저 합쳐주세요!');
+    const oRows=XLSX.utils.sheet_to_json(wb.Sheets['주문배송'],{header:1,defval:''});
+    const optMap={};for(let i=1;i<oRows.length;i++){const n=String(oRows[i][2]||'').trim();if(n)optMap[n]=String(oRows[i][8]||'').trim();}
+    const dRows=XLSX.utils.sheet_to_json(wb.Sheets['세부할인'],{header:1,defval:''});
+    const dMap={};for(let i=1;i<dRows.length;i++){const n=String(dRows[i][4]||'').trim();if(n)dMap[n]=(dMap[n]||0)+(Number(dRows[i][9])||0)+(Number(dRows[i][10])||0)+(Number(dRows[i][11])||0);}
+    const sRows=XLSX.utils.sheet_to_json(wb.Sheets['정산상세'],{header:1,defval:''});
     const orders=[];
-    for(let i=1;i<settlementRows.length;i++){
-        const r=settlementRows[i];
-        if(!String(r[0]||'').includes('주문정산'))continue;
-        const optNo=String(r[3]||'').trim(),product=String(r[4]||''),qty=Number(r[5])||0,settlement=Number(r[6])||0;
-        let orderDate=parseDate(r[11]);
-        if(!product||!optNo||qty===0||!orderDate)continue;
-        const net=settlement+(discountMap[optNo]||0);
-        orders.push({platform:'오늘의집',order_date:orderDate,order_no:`오늘의집_${optNo}`,product,option:optionMap[optNo]||'',quantity:qty,price:qty>0?net/qty:0,delivery_fee:0,recipient:'',phone:'',address:'',tracking:''});
-    }
-    return orders;
+    for(let i=1;i<sRows.length;i++){
+        const r=sRows[i];if(!String(r[0]||'').includes('주문정산'))continue;
+        const on=String(r[3]||'').trim(),pr=String(r[4]||''),qty=Number(r[5])||0,st=Number(r[6])||0;
+        let d=parseDate(r[11]);if(!pr||!on||!qty||!d)continue;
+        const net=st+(dMap[on]||0);
+        orders.push({platform:'오늘의집',order_date:d,order_no:`오늘의집_${on}`,product:pr,option:optMap[on]||'',quantity:qty,price:qty>0?net/qty:0,delivery_fee:0,recipient:'',phone:'',address:'',tracking:''});
+    }return orders;
 }
 
-// ── 아이디어스 파싱 ──
 function parseIdus(wb){
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
     const orders=[];
     for(let i=1;i<rows.length;i++){
-        const r=rows[i];
-        const orderNo=String(r[0]||'');if(!orderNo||!orderNo.startsWith('P_'))continue;
-        const dp=orderNo.split('_')[1]?.substring(0,8);if(!dp||dp.length!==8)continue;
-        const orderDate=`${dp.slice(0,4)}-${dp.slice(4,6)}-${dp.slice(6,8)}`;
-        const product=String(r[2]||''),option=String(r[3]||''),qty=Number(r[4])||1;
-        const totalPrice=Number(r[8])||0,delivery=Number(r[9])||0;
-        const price=qty>0?totalPrice/qty:totalPrice;
-        const recipient=String(r[14]||''),address=String(r[16]||''),phone=String(r[17]||'');
-        orders.push({platform:'아이디어스',order_date:orderDate,order_no:orderNo,product,option,quantity:Math.round(qty),price,delivery_fee:delivery,recipient,phone,address,tracking:''});
-    }
-    return orders;
+        const r=rows[i];const no=String(r[0]||'');if(!no||!no.startsWith('P_'))continue;
+        const dp=no.split('_')[1]?.substring(0,8);if(!dp||dp.length!==8)continue;
+        const d=`${dp.slice(0,4)}-${dp.slice(4,6)}-${dp.slice(6,8)}`;
+        const qty=Number(r[4])||1,tp=Number(r[8])||0;
+        orders.push({platform:'아이디어스',order_date:d,order_no:no,product:String(r[2]||''),option:String(r[3]||''),quantity:Math.round(qty),price:qty>0?tp/qty:tp,delivery_fee:Number(r[9])||0,recipient:String(r[14]||''),phone:String(r[17]||''),address:String(r[16]||''),tracking:''});
+    }return orders;
 }
 
-// ── 유틸 ──
 function parseDate(val){
     if(!val)return null;
-    if(val instanceof Date){const y=val.getFullYear(),m=String(val.getMonth()+1).padStart(2,'0'),d=String(val.getDate()).padStart(2,'0');return`${y}-${m}-${d}`;}
+    if(val instanceof Date){return`${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;}
     if(typeof val==='number'){const d=XLSX.SSF.parse_date_code(val);if(d)return`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;}
     const s=String(val).trim();
     let m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;
@@ -360,14 +317,13 @@ async function saveOrders(orders){
         const {data,error}=await db.from('orders').upsert(batch,{onConflict:'order_no',ignoreDuplicates:true}).select();
         if(error){for(const o of batch){const {error:e2}=await db.from('orders').upsert([o],{onConflict:'order_no',ignoreDuplicates:true});if(!e2)added++;else duplicates++;}
         }else{added+=(data||[]).length;duplicates+=batch.length-(data||[]).length;}
-    }
-    return{added,duplicates};
+    }return{added,duplicates};
 }
 
 async function autoAddProductCosts(orders){
-    const seen=new Set(),newP=[];
-    for(const o of orders){const k=`${o.platform}|${o.product}|${o.option||''}`;if(seen.has(k))continue;seen.add(k);newP.push({platform:o.platform,product:o.product,option:o.option||'',cost:0,selling_price:0});}
-    if(newP.length>0) await db.from('product_costs').upsert(newP,{onConflict:'platform,product,option',ignoreDuplicates:true});
+    const seen=new Set(),arr=[];
+    for(const o of orders){const k=`${o.platform}|${o.product}|${o.option||''}`;if(seen.has(k))continue;seen.add(k);arr.push({platform:o.platform,product:o.product,option:o.option||'',cost:0,selling_price:0});}
+    if(arr.length) await db.from('product_costs').upsert(arr,{onConflict:'platform,product,option',ignoreDuplicates:true});
 }
 
 async function loadRecentOrders(){
@@ -376,10 +332,8 @@ async function loadRecentOrders(){
     if(!data||!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#ccc;padding:30px;">등록된 주문 없음</td></tr>';return;}
     tbody.innerHTML=data.map(o=>`<tr>
         <td><span class="platform-badge" style="background:${PLATFORM_COLORS[o.platform]||'#999'}">${o.platform}</span></td>
-        <td>${o.order_date}</td>
-        <td>${(o.product||'').substring(0,30)}</td>
-        <td>${(o.option||'').substring(0,20)||'-'}</td>
-        <td style="text-align:center">${o.quantity||1}</td>
+        <td>${o.order_date}</td><td>${(o.product||'').substring(0,30)}</td>
+        <td>${(o.option||'').substring(0,20)||'-'}</td><td style="text-align:center">${o.quantity||1}</td>
         <td style="text-align:right;font-weight:600">${Math.round((o.price||0)*(o.quantity||1)).toLocaleString()}원</td>
     </tr>`).join('');
 }
