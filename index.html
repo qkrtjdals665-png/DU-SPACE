@@ -15,7 +15,6 @@
     --pink: #f472b6; --sidebar-w: 260px;
   }
   body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
-
   .sidebar { position: fixed; left: 0; top: 0; width: var(--sidebar-w); height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 100; transition: transform 0.3s ease; }
   .sidebar-header { padding: 28px 24px 20px; border-bottom: 1px solid var(--border); }
   .brand { display: flex; align-items: center; gap: 12px; }
@@ -37,7 +36,6 @@
   .user-info { flex: 1; }
   .user-name { font-size: 12.5px; font-weight: 600; }
   .user-plan { font-size: 10.5px; color: var(--text2); }
-
   .main { margin-left: var(--sidebar-w); min-height: 100vh; }
   .topbar { position: sticky; top: 0; background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; z-index: 50; }
   .topbar-title { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
@@ -46,13 +44,10 @@
   .topbar-btn:hover { background: var(--surface); color: var(--text); border-color: var(--text2); }
   .menu-btn { display: none; background: none; border: none; color: var(--text); font-size: 24px; cursor: pointer; }
   .content { padding: 0; height: calc(100vh - 61px); }
-
-  /* 대시보드 홈 */
   .dashboard-home { padding: 32px; }
   .greeting-text { font-size: 26px; font-weight: 700; letter-spacing: -1px; margin-bottom: 6px; }
   .greeting-text span { background: linear-gradient(135deg, var(--accent), var(--yellow)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .greeting-sub { font-size: 14px; color: var(--text2); margin-bottom: 32px; }
-
   .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
   .tool-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
   .tool-card:hover { border-color: var(--text2); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
@@ -66,21 +61,15 @@
   .tool-name { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
   .tool-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
   .tool-status { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 600; background: rgba(61,214,140,0.15); color: var(--green); }
-
-  /* 서브 페이지 iframe */
   .subpage { display: none; height: 100%; }
   .subpage.active { display: block; }
   .subpage iframe { width: 100%; height: 100%; border: none; }
-
-  /* 개발예정 플레이스홀더 */
   .placeholder-box { text-align: center; padding: 80px 40px; }
   .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
   .placeholder-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
   .placeholder-desc { font-size: 14px; color: var(--text2); line-height: 1.8; }
-
   .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
   .overlay.show { display: block; }
-
   @media (max-width: 900px) {
     .sidebar { transform: translateX(-100%); }
     .sidebar.open { transform: translateX(0); }
@@ -123,6 +112,8 @@
       <div class="nav-item" data-page="order-products"><span class="nav-icon">📊</span> 제품별 판매량 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-ads"><span class="nav-icon">📢</span> 광고비 관리 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-finance"><span class="nav-icon">🏦</span> 재무 리포트 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-inventory"><span class="nav-icon">📦</span> 재고 관리 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-merge"><span class="nav-icon">📂</span> 주문서 정리 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
     </div>
     <div class="nav-group">
@@ -155,13 +146,17 @@
     </div>
   </div>
   <div class="content">
-    <!-- 대시보드 홈 -->
     <div class="subpage active" id="page-dashboard">
       <div class="dashboard-home">
         <div class="greeting-text">안녕, <span>디유 스페이스</span> 👋</div>
         <div class="greeting-sub" id="greetingSub"></div>
-
         <div class="tool-grid">
+          <div class="tool-card" data-color="red" onclick="navigate('order-dash')">
+            <span class="tool-emoji">📦</span>
+            <div class="tool-name">주문관리</div>
+            <div class="tool-desc">4개 플랫폼 통합 관리<br>대시보드 · 업로드 · 일별분석</div>
+            <div class="tool-status">☁ LIVE</div>
+          </div>
           <div class="tool-card" data-color="red" onclick="navigate('laser')">
             <span class="tool-emoji">🏷️</span>
             <div class="tool-name">레이저 각인 생성기</div>
@@ -192,12 +187,6 @@
             <div class="tool-desc">쿠팡/오늘의집 → CJ/롯데 변환<br>운송장 매칭 · 오늘의집 업로드</div>
             <div class="tool-status">☁ LIVE</div>
           </div>
-          <div class="tool-card" data-color="red" onclick="navigate('order-dash')">
-            <span class="tool-emoji">📦</span>
-            <div class="tool-name">주문관리</div>
-            <div class="tool-desc">4개 플랫폼 통합 관리<br>대시보드 · 업로드 · 일별분석</div>
-            <div class="tool-status">☁ LIVE</div>
-          </div>
         </div>
       </div>
     </div>
@@ -207,10 +196,9 @@
     <div class="subpage" id="page-freelancer"></div>
     <div class="subpage" id="page-quotation"></div>
     <div class="subpage" id="page-transaction"></div>
-
     <div class="subpage" id="page-invoice"></div>
 
-    <!-- 주문관리 (iframe) -->
+    <!-- 주문관리 -->
     <div class="subpage" id="page-order-dash"></div>
     <div class="subpage" id="page-order-upload"></div>
     <div class="subpage" id="page-order-list"></div>
@@ -219,6 +207,8 @@
     <div class="subpage" id="page-order-products"></div>
     <div class="subpage" id="page-order-ads"></div>
     <div class="subpage" id="page-order-finance"></div>
+    <div class="subpage" id="page-order-inventory"></div>
+    <div class="subpage" id="page-order-merge"></div>
 
     <!-- 개발 예정 -->
     <div class="subpage" id="page-profit"><div class="placeholder-box"><div class="placeholder-icon">💰</div><div class="placeholder-title">수익 계산기</div><div class="placeholder-desc">손익분기점 시뮬레이션 · 가구매 계산기<br>개발 예정</div></div></div>
@@ -240,7 +230,9 @@
     'order-costs': 'order-costs.html',
     'order-products': 'order-products.html',
     'order-ads': 'order-ads.html',
-    'order-finance': 'order-finance.html'
+    'order-finance': 'order-finance.html',
+    'order-inventory': 'order-inventory.html',
+    'order-merge': 'order-merge.html'
   };
 
   const pageInfo = {
@@ -257,32 +249,25 @@
     'order-products': ['📊', '제품별 판매량'],
     'order-ads': ['📢', '광고비 관리'],
     'order-finance': ['🏦', '재무 리포트'],
+    'order-inventory': ['📦', '재고 관리'],
+    'order-merge': ['📂', '주문서 정리'],
     invoice: ['🚚', '송장 변환기'],
     profit: ['💰', '수익 계산기'],
     ledger: ['🏦', '가계부']
   };
 
   function navigate(pageId) {
-    // 사이드바 active
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const activeNav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
     if (activeNav) activeNav.classList.add('active');
-
-    // 페이지 전환
     document.querySelectorAll('.subpage').forEach(p => p.classList.remove('active'));
     const page = document.getElementById('page-' + pageId);
     if (page) page.classList.add('active');
-
-    // iframe 로드 (아직 안 불러온 경우만)
     if (iframePages[pageId] && !page.querySelector('iframe')) {
       page.innerHTML = `<iframe src="${iframePages[pageId]}"></iframe>`;
     }
-
-    // 탑바 제목
     const info = pageInfo[pageId] || ['📊', '대시보드'];
     document.getElementById('topbarTitle').innerHTML = `<span>${info[0]}</span> ${info[1]}`;
-
-    // 모바일 사이드바 닫기
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('overlay').classList.remove('show');
   }
@@ -296,7 +281,6 @@
     document.getElementById('overlay').classList.toggle('show');
   }
 
-  // 인사말
   const now = new Date();
   const m = now.getMonth() + 1, d = now.getDate();
   const dn = ['일','월','화','수','목','금','토'][now.getDay()];

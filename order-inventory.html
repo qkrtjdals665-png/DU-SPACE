@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 재고 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:1200px;margin:0 auto;padding:24px;}
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.sc{background:#fff;border-radius:14px;padding:18px;border:1px solid #D9D4CA;text-align:center;}
+.sc .sc-label{font-size:11px;color:#888;font-weight:600;margin-bottom:4px;}
+.sc .sc-value{font-size:20px;font-weight:800;}
+.tabs{display:flex;gap:4px;margin-bottom:0;}
+.tab-btn{padding:12px 24px;border:none;border-radius:12px 12px 0 0;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:#d9d4ca;color:#888;}
+.tab-btn.active{background:#fff;color:#1a1a2e;}
+.tab-content{display:none;background:#fff;border-radius:0 14px 14px 14px;padding:24px;border:1px solid #D9D4CA;}
+.tab-content.active{display:block;}
+.form-row{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:16px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group label{font-size:12px;font-weight:600;color:#666;}
+.form-group input,.form-group select{padding:8px 12px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#f4a900;}
+.btn{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-primary{background:#1a1a2e;color:white;}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px;}
+thead th{background:#f5f0e8;padding:10px 8px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;}
+tbody td{padding:10px 8px;border-bottom:1px solid #f0ebe3;text-align:center;}
+tbody tr:hover td{background:#faf8f4;}
+.status-ok{color:#0f9b58;font-weight:700;}.status-warn{color:#f4a900;font-weight:700;}.status-danger{color:#e94560;font-weight:700;}
+.amount{font-variant-numeric:tabular-nums;font-weight:600;}
+.del-btn{background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;padding:4px 8px;border-radius:4px;}
+.del-btn:hover{color:#e94560;background:#fef0f3;}
+.edit-btn{background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;padding:4px 8px;border-radius:4px;}
+.edit-btn:hover{color:#4285f4;background:#e8f0fe;}
+.platform-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;color:white;}
+.info-box{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:14px 20px;margin-bottom:16px;font-size:12.5px;color:#6d5600;line-height:1.6;}
+.stock-input{width:60px;padding:4px 8px;border:1.5px solid #D9D4CA;border-radius:6px;font-family:'Noto Sans KR',sans-serif;font-size:13px;text-align:center;}
+.stock-input:focus{outline:none;border-color:#f4a900;}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#4285f4;}
+@media(max-width:768px){.summary-cards{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>📦 재고 <span>관리</span></h1>
+    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-costs.html">💰 원가관리</a></div>
+</div>
+<div class="container">
+    <div class="summary-cards" id="summaryCards"></div>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('products')">📦 내 상품 관리</button>
+        <button class="tab-btn" onclick="switchTab('links')">🔗 플랫폼 상품 연결</button>
+    </div>
+    <div class="tab-content active" id="tab-products">
+        <div class="info-box">💡 실제 판매하는 완제품을 등록하세요. 플랫폼 상품을 연결하면 주문 시 자동 재고 차감에 활용할 수 있어요.</div>
+        <div class="form-row">
+            <div class="form-group"><label>상품명</label><input type="text" id="prodName" placeholder="예: 월넛 태그 4글자"></div>
+            <div class="form-group"><label>현재 재고</label><input type="number" id="prodStock" value="0" style="width:80px;"></div>
+            <div class="form-group"><label>안전 재고</label><input type="number" id="prodSafe" value="10" style="width:80px;"></div>
+            <div class="form-group"><label>원가 (원)</label><input type="number" id="prodCost" value="0" style="width:100px;"></div>
+            <button class="btn btn-primary" onclick="addProduct()">➕ 상품 추가</button>
+        </div>
+        <table>
+            <thead><tr><th>상품명</th><th>현재재고</th><th>안전재고</th><th>원가</th><th>연결 상품</th><th>상태</th><th>재고수정</th><th>관리</th></tr></thead>
+            <tbody id="productBody"><tr><td colspan="8" style="color:#ccc;padding:30px;">로딩 중...</td></tr></tbody>
+        </table>
+    </div>
+    <div class="tab-content" id="tab-links">
+        <div class="info-box">💡 플랫폼에서 판매하는 상품을 내 상품에 연결하세요. 예: 네이버 "월넛 펜던트 4글자" → 내 상품 "월넛 태그"</div>
+        <div class="form-row">
+            <div class="form-group"><label>내 상품</label><select id="linkMyProduct" style="width:200px;"><option value="">선택...</option></select></div>
+            <div class="form-group"><label>플랫폼</label><select id="linkPlatform" onchange="loadPlatformProducts()"><option>네이버</option><option>쿠팡</option><option>오늘의집</option><option>아이디어스</option></select></div>
+            <div class="form-group"><label>플랫폼 상품</label><select id="linkProduct" style="width:300px;" onchange="loadOptions()"><option value="">선택...</option></select></div>
+            <div class="form-group"><label>옵션</label><select id="linkOption" style="width:200px;"><option value="">(전체)</option></select></div>
+            <button class="btn btn-primary" onclick="addLink()">🔗 연결</button>
+        </div>
+        <table>
+            <thead><tr><th>내 상품</th><th>↔</th><th>플랫폼</th><th>플랫폼 상품명</th><th>옵션</th><th>삭제</th></tr></thead>
+            <tbody id="linkBody"><tr><td colspan="6" style="color:#ccc;padding:30px;">로딩 중...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
+
+function switchTab(tab){
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(tab==='products'?0:1)));
+    document.getElementById('tab-products').classList.toggle('active',tab==='products');
+    document.getElementById('tab-links').classList.toggle('active',tab==='links');
+    if(tab==='links'){loadMyProductsDropdown();loadPlatformProducts();loadLinks();}
+}
+
+async function addProduct(){
+    const name=document.getElementById('prodName').value.trim();
+    const stock=Number(document.getElementById('prodStock').value)||0;
+    const safe=Number(document.getElementById('prodSafe').value)||10;
+    const cost=Number(document.getElementById('prodCost').value)||0;
+    if(!name){showToast('상품명을 입력해주세요','error');return;}
+    const {error}=await db.from('my_products').insert({name,stock,safe_stock:safe,cost});
+    if(error){showToast(error.message.includes('unique')?'이미 존재하는 상품명입니다':'추가 실패','error');return;}
+    document.getElementById('prodName').value='';
+    showToast(`'${name}' 추가!`,'success');loadProducts();
+}
+
+async function loadProducts(){
+    const {data:products}=await db.from('my_products').select('*').order('name');
+    const {data:links}=await db.from('product_links').select('my_product_id');
+    const linkCount={};(links||[]).forEach(l=>{linkCount[l.my_product_id]=(linkCount[l.my_product_id]||0)+1;});
+    const tbody=document.getElementById('productBody');
+    if(!products||!products.length){tbody.innerHTML='<tr><td colspan="8" style="color:#ccc;padding:30px;">등록된 상품이 없습니다</td></tr>';renderSummary([]);return;}
+    tbody.innerHTML=products.map(p=>{
+        const lc=linkCount[p.id]||0;
+        let status,sc;
+        if(p.stock<=0){status='❌ 품절';sc='status-danger';}
+        else if(p.stock<=p.safe_stock){status='⚠️ 부족';sc='status-warn';}
+        else{status='✅ 정상';sc='status-ok';}
+        return `<tr>
+            <td style="text-align:left;font-weight:600;">${p.name}</td>
+            <td class="amount">${p.stock}개</td><td>${p.safe_stock}개</td>
+            <td class="amount">${Math.round(p.cost).toLocaleString()}원</td>
+            <td>${lc}개</td><td class="${sc}">${status}</td>
+            <td><input class="stock-input" type="number" value="${p.stock}" onchange="updateStock(${p.id},this.value)"></td>
+            <td><button class="edit-btn" onclick="editProduct(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.safe_stock},${p.cost})">✏️</button><button class="del-btn" onclick="deleteProduct(${p.id},'${p.name.replace(/'/g,"\\'")}')">✕</button></td>
+        </tr>`;
+    }).join('');
+    renderSummary(products);
+}
+
+async function updateStock(id,val){await db.from('my_products').update({stock:Number(val)||0}).eq('id',id);showToast('재고 수정됨','success');loadProducts();}
+async function deleteProduct(id,name){if(!confirm(`'${name}' 삭제?`))return;await db.from('product_links').delete().eq('my_product_id',id);await db.from('my_products').delete().eq('id',id);showToast('삭제됨','info');loadProducts();}
+function editProduct(id,name,safe,cost){const ns=prompt('안전재고:',safe);if(ns===null)return;const nc=prompt('원가:',cost);if(nc===null)return;db.from('my_products').update({safe_stock:Number(ns),cost:Number(nc)}).eq('id',id).then(()=>{showToast('수정!','success');loadProducts();});}
+
+function renderSummary(products){
+    const t=products.length,oos=products.filter(p=>p.stock<=0).length,low=products.filter(p=>p.stock>0&&p.stock<=p.safe_stock).length;
+    document.getElementById('summaryCards').innerHTML=`
+        <div class="sc"><div class="sc-label">전체 상품</div><div class="sc-value">${t}개</div></div>
+        <div class="sc"><div class="sc-label">정상</div><div class="sc-value" style="color:#0f9b58">${t-oos-low}개</div></div>
+        <div class="sc"><div class="sc-label">재고 부족</div><div class="sc-value" style="color:#f4a900">${low}개</div></div>
+        <div class="sc"><div class="sc-label">품절</div><div class="sc-value" style="color:#e94560">${oos}개</div></div>`;
+}
+
+async function loadMyProductsDropdown(){
+    const {data}=await db.from('my_products').select('id,name').order('name');
+    document.getElementById('linkMyProduct').innerHTML='<option value="">선택...</option>'+(data||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+async function loadPlatformProducts(){
+    const pf=document.getElementById('linkPlatform').value;
+    const {data}=await db.from('orders').select('product').eq('platform',pf);
+    const u=[...new Set((data||[]).map(o=>o.product))].sort();
+    document.getElementById('linkProduct').innerHTML='<option value="">선택...</option>'+u.map(p=>`<option value="${p}">${p.substring(0,50)}</option>`).join('');
+    document.getElementById('linkOption').innerHTML='<option value="">(전체)</option>';
+}
+
+async function loadOptions(){
+    const pf=document.getElementById('linkPlatform').value,pr=document.getElementById('linkProduct').value;
+    if(!pr)return;
+    const {data}=await db.from('orders').select('option').eq('platform',pf).eq('product',pr);
+    const u=[...new Set((data||[]).map(o=>o.option||''))].filter(o=>o).sort();
+    document.getElementById('linkOption').innerHTML='<option value="">(전체)</option>'+u.map(o=>`<option value="${o}">${o.substring(0,40)}</option>`).join('');
+}
+
+async function addLink(){
+    const mid=Number(document.getElementById('linkMyProduct').value),pf=document.getElementById('linkPlatform').value,pr=document.getElementById('linkProduct').value,opt=document.getElementById('linkOption').value;
+    if(!mid||!pr){showToast('내 상품과 플랫폼 상품을 선택해주세요','error');return;}
+    const {error}=await db.from('product_links').upsert({my_product_id:mid,platform:pf,product:pr,option:opt||''},{onConflict:'platform,product,option'});
+    if(error){showToast('연결 실패','error');return;}
+    showToast('연결 완료!','success');loadLinks();loadProducts();
+}
+
+async function loadLinks(){
+    const {data}=await db.from('product_links').select('*,my_products(name)').order('my_product_id');
+    const tbody=document.getElementById('linkBody');
+    if(!data||!data.length){tbody.innerHTML='<tr><td colspan="6" style="color:#ccc;padding:30px;">연결 없음</td></tr>';return;}
+    tbody.innerHTML=data.map(l=>`<tr>
+        <td style="font-weight:600;">${l.my_products?.name||'?'}</td><td>↔</td>
+        <td><span class="platform-badge" style="background:${PFC[l.platform]||'#999'}">${l.platform}</span></td>
+        <td style="text-align:left;font-size:12px;">${l.product.substring(0,40)}</td>
+        <td style="font-size:12px;color:#666;">${l.option||'(전체)'}</td>
+        <td><button class="del-btn" onclick="deleteLink(${l.id})">✕</button></td>
+    </tr>`).join('');
+}
+
+async function deleteLink(id){if(!confirm('연결 해제?'))return;await db.from('product_links').delete().eq('id',id);showToast('해제됨','info');loadLinks();loadProducts();}
+function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
+document.addEventListener('DOMContentLoaded',()=>loadProducts());
+</script>
+</body>
+</html>

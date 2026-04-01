@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 주문서 정리</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:900px;margin:0 auto;padding:24px;}
+.info-box{background:#fff8e1;border:1px solid #ffe082;border-radius:14px;padding:20px 24px;margin-bottom:24px;font-size:13px;color:#6d5600;line-height:1.8;}
+.info-box h3{font-size:15px;margin-bottom:8px;color:#e65100;}
+.merge-card{background:#fff;border-radius:14px;padding:28px;border:1px solid #D9D4CA;margin-bottom:24px;}
+.merge-card h3{font-size:16px;font-weight:700;margin-bottom:16px;color:#35C5F0;}
+.file-slots{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;}
+.file-slot{display:flex;align-items:center;gap:12px;padding:14px 18px;background:#f9f6f0;border-radius:10px;border:2px dashed #D9D4CA;transition:all 0.2s;cursor:pointer;}
+.file-slot:hover{border-color:#35C5F0;background:#f0fbff;}
+.file-slot.filled{border-style:solid;border-color:#0f9b58;background:#f0faf4;}
+.file-slot .slot-icon{font-size:24px;width:36px;text-align:center;}
+.file-slot .slot-info{flex:1;}
+.file-slot .slot-name{font-size:13px;font-weight:600;color:#333;}
+.file-slot .slot-desc{font-size:11px;color:#888;margin-top:2px;}
+.file-slot .slot-file{font-size:12px;color:#0f9b58;font-weight:600;margin-top:2px;}
+.file-slot .slot-clear{color:#e94560;cursor:pointer;font-size:18px;padding:4px 8px;}
+.file-slot input{display:none;}
+.btn-merge{display:block;width:100%;padding:14px;border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#35C5F0,#1a9ec4);color:white;box-shadow:0 4px 15px rgba(53,197,240,0.3);transition:all 0.2s;}
+.btn-merge:hover{transform:translateY(-2px);}
+.btn-merge:disabled{opacity:0.4;transform:none;cursor:not-allowed;}
+.result-box{margin-top:20px;padding:20px;border-radius:12px;display:none;text-align:center;}
+.result-box.success{display:block;background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;}
+.result-box.error{display:block;background:#ffebee;border:1px solid #ef9a9a;color:#c62828;}
+.result-box .result-icon{font-size:36px;margin-bottom:8px;}
+.result-box .result-text{font-size:14px;font-weight:600;}
+.result-box .result-sub{font-size:12px;color:#666;margin-top:4px;}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>📂 주문서 <span>정리 도구</span></h1>
+    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-upload.html">📦 업로드</a></div>
+</div>
+<div class="container">
+    <div class="info-box">
+        <h3>📌 이 도구는 언제 쓰나요?</h3>
+        오늘의집 주문서 업로드에는 <strong>3개 파일을 합친 1개 파일</strong>이 필요해요.<br>
+        여기서 3개 파일을 올리면 자동으로 합쳐서 다운로드할 수 있어요.<br>
+        합쳐진 파일을 <strong>주문서 업로드</strong> 페이지에서 올리면 됩니다!
+    </div>
+    <div class="merge-card">
+        <h3>🏠 오늘의집 파일 합치기</h3>
+        <div class="file-slots">
+            <div class="file-slot" id="slot-order" onclick="this.querySelector('input').click()">
+                <div class="slot-icon">📋</div>
+                <div class="slot-info">
+                    <div class="slot-name">① 주문배송_내역.xlsx</div>
+                    <div class="slot-desc">오늘의집 > 주문관리 > 주문/배송 내역 다운로드 (암호화)</div>
+                    <div class="slot-file" id="file-order"></div>
+                </div>
+                <span class="slot-clear" onclick="event.stopPropagation();clearSlot('order')" style="display:none;" id="clear-order">✕</span>
+                <input type="file" accept=".xlsx,.xls" onchange="onFileSelect(this,'order')">
+            </div>
+            <div class="file-slot" id="slot-settlement" onclick="this.querySelector('input').click()">
+                <div class="slot-icon">💰</div>
+                <div class="slot-info">
+                    <div class="slot-name">② 정산상세_엑셀다운로드.xlsx</div>
+                    <div class="slot-desc">오늘의집 > 정산관리 > 정산상세 엑셀다운로드</div>
+                    <div class="slot-file" id="file-settlement"></div>
+                </div>
+                <span class="slot-clear" onclick="event.stopPropagation();clearSlot('settlement')" style="display:none;" id="clear-settlement">✕</span>
+                <input type="file" accept=".xlsx,.xls" onchange="onFileSelect(this,'settlement')">
+            </div>
+            <div class="file-slot" id="slot-discount" onclick="this.querySelector('input').click()">
+                <div class="slot-icon">🏷️</div>
+                <div class="slot-info">
+                    <div class="slot-name">③ 세부할인내역_다운로드.xlsx</div>
+                    <div class="slot-desc">오늘의집 > 정산관리 > 세부할인내역 다운로드</div>
+                    <div class="slot-file" id="file-discount"></div>
+                </div>
+                <span class="slot-clear" onclick="event.stopPropagation();clearSlot('discount')" style="display:none;" id="clear-discount">✕</span>
+                <input type="file" accept=".xlsx,.xls" onchange="onFileSelect(this,'discount')">
+            </div>
+        </div>
+        <button class="btn-merge" id="mergeBtn" onclick="mergeFiles()" disabled>📥 3개 파일 합치기</button>
+        <div class="result-box" id="resultBox"></div>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const PASSWORDS=['qkrtjdals1!','QKRTJDALS1!'];
+const files={order:null,settlement:null,discount:null};
+
+function onFileSelect(input,type){
+    const file=input.files[0];if(!file)return;
+    files[type]=file;
+    document.getElementById('slot-'+type).classList.add('filled');
+    document.getElementById('file-'+type).textContent='✅ '+file.name;
+    document.getElementById('clear-'+type).style.display='inline';
+    input.value='';checkReady();
+}
+function clearSlot(type){
+    files[type]=null;
+    document.getElementById('slot-'+type).classList.remove('filled');
+    document.getElementById('file-'+type).textContent='';
+    document.getElementById('clear-'+type).style.display='none';
+    checkReady();
+}
+function checkReady(){document.getElementById('mergeBtn').disabled=!(files.order&&files.settlement&&files.discount);}
+
+async function mergeFiles(){
+    const resultBox=document.getElementById('resultBox');resultBox.style.display='none';
+    try{
+        const orderData=await files.order.arrayBuffer();
+        let orderWb;
+        for(const pw of PASSWORDS){try{orderWb=XLSX.read(orderData,{type:'array',password:pw});break;}catch(e){}}
+        if(!orderWb) orderWb=XLSX.read(orderData,{type:'array'});
+
+        const settlementWb=XLSX.read(await files.settlement.arrayBuffer(),{type:'array'});
+        const discountWb=XLSX.read(await files.discount.arrayBuffer(),{type:'array'});
+
+        const newWb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(newWb,orderWb.Sheets[orderWb.SheetNames[0]],'주문배송');
+        XLSX.utils.book_append_sheet(newWb,settlementWb.Sheets[settlementWb.SheetNames[0]],'정산상세');
+        XLSX.utils.book_append_sheet(newWb,discountWb.Sheets[discountWb.SheetNames[0]],'세부할인');
+
+        const oR=XLSX.utils.sheet_to_json(orderWb.Sheets[orderWb.SheetNames[0]],{header:1}).length-1;
+        const sR=XLSX.utils.sheet_to_json(settlementWb.Sheets[settlementWb.SheetNames[0]],{header:1}).length-1;
+        const dR=XLSX.utils.sheet_to_json(discountWb.Sheets[discountWb.SheetNames[0]],{header:1}).length-1;
+
+        const now=new Date();
+        const fn=`오늘의집_정산_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.xlsx`;
+        XLSX.writeFile(newWb,fn);
+
+        resultBox.className='result-box success';
+        resultBox.innerHTML=`<div class="result-icon">✅</div><div class="result-text">파일 합치기 완료!</div>
+            <div class="result-sub">주문배송: ${oR}건 / 정산상세: ${sR}건 / 세부할인: ${dR}건</div>
+            <div class="result-sub" style="margin-top:8px;">📥 <strong>${fn}</strong> 다운로드됨</div>
+            <div class="result-sub" style="margin-top:12px;color:#35C5F0;">→ 이 파일을 <strong>주문서 업로드</strong> 페이지에서 올리세요!</div>`;
+        showToast('합치기 완료!','success');
+    }catch(err){
+        console.error(err);
+        resultBox.className='result-box error';
+        resultBox.innerHTML=`<div class="result-icon">❌</div><div class="result-text">오류: ${err.message}</div>`;
+    }
+}
+
+function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
+</script>
+</body>
+</html>
