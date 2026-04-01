@@ -6,6 +6,7 @@
 <title>주문관리 - 주문서 업로드</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-populate@1.21.0/browser/xlsx-populate.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -75,7 +76,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
                 <span>🟢 네이버</span><span style="font-size:12px;opacity:0.8;">발주발송/구매확정</span>
             </div>
             <div class="upload-card-body">
-                <p>발주발송관리 또는 구매확정내역 파일<br>🔒 암호 있음 — <strong>비번 해제 후</strong> 업로드</p>
+                <p>발주발송관리 또는 구매확정내역 파일<br>🔓 암호 자동 해제 — 바로 업로드!</p>
                 <div class="drop-zone" onclick="this.querySelector('input').click()">
                     <div class="dz-icon">📂</div>
                     <div class="dz-text">클릭 또는 파일 드래그</div>
@@ -170,33 +171,48 @@ async function processFile(file,platform){
         const data=await file.arrayBuffer();
         let wb;
         
+        // 1차: SheetJS로 바로 열기
         try{
             wb=XLSX.read(data,{type:'array'});
-        }catch(e){
-            // 암호화 파일 감지
-            if(e.message&&(e.message.includes('password')||e.message.includes('encrypt')||e.message.includes('cfb'))){
-                const info=PW_INFO[platform];
-                if(info){
-                    resultEl.className='result-box pw-guide';
-                    resultEl.innerHTML=`
-                        🔒 <strong>암호화된 파일입니다!</strong><br>
-                        엑셀에서 비밀번호를 해제한 후 다시 업로드해주세요.
-                        <div class="pw-steps">
-                            <strong>📌 ${info.name} 비밀번호:</strong> <span class="pw-value" onclick="navigator.clipboard.writeText('${info.pw}');alert('복사됨!')">${info.pw}</span> (클릭하면 복사)<br><br>
-                            <strong>비밀번호 해제 방법:</strong><br>
-                            1️⃣ 엑셀에서 파일 열기 (비번: ${info.pw})<br>
-                            2️⃣ <strong>파일</strong> → <strong>다른 이름으로 저장</strong><br>
-                            3️⃣ <strong>도구</strong> → <strong>일반 옵션</strong> → 비밀번호 칸 <strong>비우기</strong> → 확인<br>
-                            4️⃣ 저장된 파일을 여기에 다시 업로드!
-                        </div>
-                    `;
+        }catch(e1){
+            // 2차: xlsx-populate로 비밀번호 자동 복호화
+            const passwords=platform==='네이버'?['351567']:platform==='오늘의집'?['qkrtjdals1!','QKRTJDALS1!']:[];
+            let decrypted=false;
+            
+            for(const pw of passwords){
+                try{
+                    resultEl.className='result-box loading';
+                    resultEl.textContent=`🔓 비밀번호(${pw})로 해제 중...`;
+                    
+                    const popWb=await XlsxPopulate.fromDataAsync(data,{password:pw});
+                    const decBuf=await popWb.outputAsync();
+                    wb=XLSX.read(decBuf,{type:'array'});
+                    decrypted=true;
+                    break;
+                }catch(e2){}
+            }
+            
+            if(!decrypted){
+                // 비번 직접 입력 시도
+                const userPw=prompt('🔒 암호화된 파일입니다.\n비밀번호를 입력해주세요:');
+                if(userPw){
+                    try{
+                        resultEl.textContent=`🔓 비밀번호로 해제 중...`;
+                        const popWb=await XlsxPopulate.fromDataAsync(data,{password:userPw});
+                        const decBuf=await popWb.outputAsync();
+                        wb=XLSX.read(decBuf,{type:'array'});
+                        decrypted=true;
+                    }catch(e3){
+                        resultEl.className='result-box error';
+                        resultEl.textContent='❌ 비밀번호가 틀렸습니다. 다시 시도해주세요.';
+                        return;
+                    }
                 }else{
                     resultEl.className='result-box error';
-                    resultEl.textContent='🔒 암호화된 파일입니다. 엑셀에서 비밀번호 해제 후 다시 시도해주세요.';
+                    resultEl.textContent='취소됨';
+                    return;
                 }
-                return;
             }
-            throw e;
         }
 
         let orders=[];
