@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>주문관리 - 주문서 정리</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-populate@1.21.0/browser/xlsx-populate.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -32,9 +33,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .btn-merge{display:block;width:100%;padding:14px;border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#35C5F0,#1a9ec4);color:white;box-shadow:0 4px 15px rgba(53,197,240,0.3);transition:all 0.2s;}
 .btn-merge:hover{transform:translateY(-2px);}
 .btn-merge:disabled{opacity:0.4;transform:none;cursor:not-allowed;}
-.result-box{margin-top:20px;padding:20px;border-radius:12px;display:none;text-align:center;}
+.result-box{margin-top:20px;padding:20px;border-radius:12px;display:none;text-align:center;line-height:1.8;}
 .result-box.success{display:block;background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32;}
 .result-box.error{display:block;background:#ffebee;border:1px solid #ef9a9a;color:#c62828;}
+.result-box.loading{display:block;background:#fff8e1;border:1px solid #ffe082;color:#f57f17;}
 .result-box .result-icon{font-size:36px;margin-bottom:8px;}
 .result-box .result-text{font-size:14px;font-weight:600;}
 .result-box .result-sub{font-size:12px;color:#666;margin-top:4px;}
@@ -52,7 +54,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
         <h3>📌 이 도구는 언제 쓰나요?</h3>
         오늘의집 주문서 업로드에는 <strong>3개 파일을 합친 1개 파일</strong>이 필요해요.<br>
         여기서 3개 파일을 올리면 자동으로 합쳐서 다운로드할 수 있어요.<br>
-        합쳐진 파일을 <strong>주문서 업로드</strong> 페이지에서 올리면 됩니다!
+        합쳐진 파일을 <strong>주문서 업로드</strong> 페이지에서 올리면 됩니다!<br>
+        🔓 주문배송 파일 암호는 자동으로 해제됩니다.
     </div>
     <div class="merge-card">
         <h3>🏠 오늘의집 파일 합치기</h3>
@@ -61,7 +64,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
                 <div class="slot-icon">📋</div>
                 <div class="slot-info">
                     <div class="slot-name">① 주문배송_내역.xlsx</div>
-                    <div class="slot-desc">오늘의집 > 주문관리 > 주문/배송 내역 다운로드 (암호화)</div>
+                    <div class="slot-desc">오늘의집 > 주문관리 > 주문/배송 내역 다운로드 (암호화 → 자동 해제)</div>
                     <div class="slot-file" id="file-order"></div>
                 </div>
                 <span class="slot-clear" onclick="event.stopPropagation();clearSlot('order')" style="display:none;" id="clear-order">✕</span>
@@ -96,6 +99,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 <script>
 const PASSWORDS=['qkrtjdals1!','QKRTJDALS1!'];
 const files={order:null,settlement:null,discount:null};
+const hasXlsxPopulate=typeof XlsxPopulate!=='undefined';
 
 function onFileSelect(input,type){
     const file=input.files[0];if(!file)return;
@@ -114,40 +118,100 @@ function clearSlot(type){
 }
 function checkReady(){document.getElementById('mergeBtn').disabled=!(files.order&&files.settlement&&files.discount);}
 
-async function mergeFiles(){
-    const resultBox=document.getElementById('resultBox');resultBox.style.display='none';
+// 엑셀 파일 읽기 (암호화 자동 해제)
+async function readExcelFile(file, isEncrypted){
+    const data=await file.arrayBuffer();
+    
+    // 1차: 그냥 열기
     try{
-        const orderData=await files.order.arrayBuffer();
-        let orderWb;
-        for(const pw of PASSWORDS){try{orderWb=XLSX.read(orderData,{type:'array',password:pw});break;}catch(e){}}
-        if(!orderWb) orderWb=XLSX.read(orderData,{type:'array'});
+        return XLSX.read(new Uint8Array(data),{type:'array'});
+    }catch(e){
+        console.log('일반 열기 실패:', e.message);
+    }
+    
+    // 2차: xlsx-populate로 암호 해제
+    if(hasXlsxPopulate && isEncrypted){
+        for(const pw of PASSWORDS){
+            try{
+                console.log('비번 시도:', pw);
+                const popWb=await XlsxPopulate.fromDataAsync(data,{password:pw});
+                const decBuf=await popWb.outputAsync({type:'uint8array'});
+                return XLSX.read(decBuf,{type:'array'});
+            }catch(e2){
+                console.log('비번', pw, '실패:', e2.message);
+            }
+        }
+        
+        // 수동 비밀번호 입력
+        const userPw=prompt('🔒 주문배송 파일 비밀번호를 입력해주세요:');
+        if(userPw){
+            try{
+                const popWb=await XlsxPopulate.fromDataAsync(data,{password:userPw});
+                const decBuf=await popWb.outputAsync({type:'uint8array'});
+                return XLSX.read(decBuf,{type:'array'});
+            }catch(e3){
+                throw new Error('비밀번호가 틀렸습니다.');
+            }
+        }
+    }
+    
+    throw new Error('파일을 열 수 없습니다. 암호화 해제에 실패했어요.');
+}
 
-        const settlementWb=XLSX.read(await files.settlement.arrayBuffer(),{type:'array'});
-        const discountWb=XLSX.read(await files.discount.arrayBuffer(),{type:'array'});
+async function mergeFiles(){
+    const resultBox=document.getElementById('resultBox');
+    resultBox.className='result-box loading';
+    resultBox.style.display='block';
+    resultBox.innerHTML='<div class="result-icon">⏳</div><div class="result-text">파일 처리 중...</div><div class="result-sub">주문배송 파일 암호 해제 중...</div>';
 
+    try{
+        // 주문배송 (암호화 → 자동 해제)
+        const orderWb=await readExcelFile(files.order, true);
+        resultBox.querySelector('.result-sub').textContent='정산상세 파일 읽는 중...';
+        
+        // 정산상세
+        const settlementWb=await readExcelFile(files.settlement, false);
+        resultBox.querySelector('.result-sub').textContent='세부할인 파일 읽는 중...';
+        
+        // 세부할인
+        const discountWb=await readExcelFile(files.discount, false);
+        resultBox.querySelector('.result-sub').textContent='파일 합치는 중...';
+
+        // 새 워크북에 3개 시트 합치기
         const newWb=XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(newWb,orderWb.Sheets[orderWb.SheetNames[0]],'주문배송');
         XLSX.utils.book_append_sheet(newWb,settlementWb.Sheets[settlementWb.SheetNames[0]],'정산상세');
         XLSX.utils.book_append_sheet(newWb,discountWb.Sheets[discountWb.SheetNames[0]],'세부할인');
 
+        // 건수
         const oR=XLSX.utils.sheet_to_json(orderWb.Sheets[orderWb.SheetNames[0]],{header:1}).length-1;
         const sR=XLSX.utils.sheet_to_json(settlementWb.Sheets[settlementWb.SheetNames[0]],{header:1}).length-1;
         const dR=XLSX.utils.sheet_to_json(discountWb.Sheets[discountWb.SheetNames[0]],{header:1}).length-1;
 
+        // 다운로드
         const now=new Date();
         const fn=`오늘의집_정산_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.xlsx`;
         XLSX.writeFile(newWb,fn);
 
         resultBox.className='result-box success';
-        resultBox.innerHTML=`<div class="result-icon">✅</div><div class="result-text">파일 합치기 완료!</div>
+        resultBox.innerHTML=`
+            <div class="result-icon">✅</div>
+            <div class="result-text">파일 합치기 완료!</div>
             <div class="result-sub">주문배송: ${oR}건 / 정산상세: ${sR}건 / 세부할인: ${dR}건</div>
             <div class="result-sub" style="margin-top:8px;">📥 <strong>${fn}</strong> 다운로드됨</div>
-            <div class="result-sub" style="margin-top:12px;color:#35C5F0;">→ 이 파일을 <strong>주문서 업로드</strong> 페이지에서 올리세요!</div>`;
+            <div class="result-sub" style="margin-top:12px;color:#35C5F0;font-weight:600;">→ 이 파일을 <strong>주문서 업로드</strong> 페이지의 오늘의집에서 올리세요!</div>
+        `;
         showToast('합치기 완료!','success');
+
     }catch(err){
         console.error(err);
         resultBox.className='result-box error';
-        resultBox.innerHTML=`<div class="result-icon">❌</div><div class="result-text">오류: ${err.message}</div>`;
+        resultBox.innerHTML=`
+            <div class="result-icon">❌</div>
+            <div class="result-text">오류 발생</div>
+            <div class="result-sub">${err.message}</div>
+        `;
+        showToast('파일 처리 실패','error');
     }
 }
 
