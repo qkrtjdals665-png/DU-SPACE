@@ -274,15 +274,20 @@ function parseOhouse(wb){
     if(!['주문배송','정산상세','세부할인'].every(s=>wb.SheetNames.includes(s)))throw new Error('주문배송/정산상세/세부할인 3개 시트 필요. 주문서 정리 도구에서 먼저 합쳐주세요!');
     const oRows=XLSX.utils.sheet_to_json(wb.Sheets['주문배송'],{header:1,defval:''});
     const optMap={};for(let i=1;i<oRows.length;i++){const n=String(oRows[i][2]||'').trim();if(n)optMap[n]=String(oRows[i][8]||'').trim();}
+    // 세부할인: 상품쿠폰(12열=index11)만 셀러 부담, 포인트(10열)는 오늘의집 부담
     const dRows=XLSX.utils.sheet_to_json(wb.Sheets['세부할인'],{header:1,defval:''});
-    const dMap={};for(let i=1;i<dRows.length;i++){const n=String(dRows[i][4]||'').trim();if(n)dMap[n]=(dMap[n]||0)+(Number(dRows[i][9])||0)+(Number(dRows[i][10])||0)+(Number(dRows[i][11])||0);}
+    const couponMap={};
+    for(let i=1;i<dRows.length;i++){
+        const n=String(dRows[i][4]||'').trim();if(!n)continue;
+        couponMap[n]=(couponMap[n]||0)+(Number(dRows[i][11])||0);  // 상품쿠폰만
+    }
     const sRows=XLSX.utils.sheet_to_json(wb.Sheets['정산상세'],{header:1,defval:''});
     const orders=[];
     for(let i=1;i<sRows.length;i++){
         const r=sRows[i];if(!String(r[0]||'').includes('주문정산'))continue;
         const on=String(r[3]||'').trim(),pr=String(r[4]||''),qty=Number(r[5])||0,st=Number(r[6])||0;
         let d=parseDate(r[11]);if(!pr||!on||!qty||!d)continue;
-        const net=st+(dMap[on]||0);
+        const net=st+(couponMap[on]||0);  // 정산예정 - 상품쿠폰(셀러부담)
         orders.push({platform:'오늘의집',order_date:d,order_no:`오늘의집_${on}`,product:pr,option:optMap[on]||'',quantity:qty,price:qty>0?net/qty:0,delivery_fee:0,recipient:'',phone:'',address:'',tracking:''});
     }return orders;
 }
