@@ -101,14 +101,14 @@ async function loadDaily(){
     const m=currentDate.getMonth()+1;
 
     // 주문
-    const {data:orders}=await db.from('orders').select('order_date,platform,product,option,quantity,price').gte('order_date',start).lte('order_date',end);
+    const {data:orders}=await db.from('orders').select('order_date,platform,product,option,quantity,price').gte('order_date',start).lte('order_date',end).limit(5000);
     // 원가
-    const {data:costs}=await db.from('product_costs').select('platform,product,option,cost');
+    const {data:costs}=await db.from('product_costs').select('platform,product,option,cost').limit(5000);
     const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
     // 일별 광고비
-    const {data:dailyAds}=await db.from('ad_costs').select('ad_date,platform,cost').gte('ad_date',start).lte('ad_date',end);
+    const {data:dailyAds}=await db.from('ad_costs').select('ad_date,platform,cost').gte('ad_date',start).lte('ad_date',end).limit(5000);
     // 기간 광고비
-    const {data:periodAds}=await db.from('product_ad_costs').select('platform,start_date,end_date,total_cost').lte('start_date',end).gte('end_date',start);
+    const {data:periodAds}=await db.from('product_ad_costs').select('platform,start_date,end_date,total_cost').lte('start_date',end).gte('end_date',start).limit(1000);
 
     // 일별 집계
     const daily={};
