@@ -295,12 +295,16 @@ function parseOhouse(wb){
 function parseIdus(wb){
     const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
     const orders=[];
+    const noCount={};  // 같은 P_ 주문번호 카운터
     for(let i=1;i<rows.length;i++){
         const r=rows[i];const no=String(r[0]||'');if(!no||!no.startsWith('P_'))continue;
+        const status=String(r[1]||'');if(status.includes('취소'))continue;
         const dp=no.split('_')[1]?.substring(0,8);if(!dp||dp.length!==8)continue;
         const d=`${dp.slice(0,4)}-${dp.slice(4,6)}-${dp.slice(6,8)}`;
         const qty=Number(r[4])||1,tp=Number(r[8])||0;
-        orders.push({platform:'아이디어스',order_date:d,order_no:no,product:String(r[2]||''),option:String(r[3]||''),quantity:Math.round(qty),price:qty>0?tp/qty:tp,delivery_fee:Number(r[9])||0,recipient:String(r[14]||''),phone:String(r[17]||''),address:String(r[16]||''),tracking:''});
+        noCount[no]=(noCount[no]||0)+1;
+        const uniqueNo=noCount[no]>1?`${no}_${noCount[no]}`:no;  // 중복 시 _2, _3 추가
+        orders.push({platform:'아이디어스',order_date:d,order_no:uniqueNo,product:String(r[2]||''),option:String(r[3]||''),quantity:Math.round(qty),price:qty>0?tp/qty:tp,delivery_fee:Number(r[9])||0,recipient:String(r[14]||''),phone:String(r[17]||''),address:String(r[16]||''),tracking:''});
     }return orders;
 }
 

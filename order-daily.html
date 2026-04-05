@@ -117,7 +117,7 @@ async function loadDaily(){
     }
 
     // 주문
-    const orders=await fetchAll('orders','order_date,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
+    const orders=await fetchAll('orders','order_date,order_no,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
     // 원가
     const costs=await fetchAll('product_costs','platform,product,option,cost');
     const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
@@ -131,13 +131,14 @@ async function loadDaily(){
     (orders||[]).forEach(o=>{
         const d=o.order_date,p=o.platform;
         if(!daily[d]) daily[d]={};
-        if(!daily[d][p]) daily[d][p]={sales:0,cost:0,qty:0,orderCount:0};
+        if(!daily[d][p]) daily[d][p]={sales:0,cost:0,qty:0,orderCount:0,uniqueOrders:new Set()};
         const amt=(o.price||0)*(o.quantity||1);
         const ck=`${p}|${o.product}|${o.option||''}`;
         daily[d][p].sales+=amt;
         daily[d][p].cost+=(costMap[ck]||0)*(o.quantity||1);
         daily[d][p].qty+=(o.quantity||1);
         daily[d][p].orderCount++;
+        if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');daily[d][p].uniqueOrders.add(base);}
     });
 
     // 일별 광고비 매핑
@@ -185,7 +186,8 @@ async function loadDaily(){
 
         PLATFORMS.forEach(p=>{
             const d=(dayData&&dayData[p])||{sales:0,cost:0,qty:0,orderCount:0};
-            const comm=d.sales*CR[p]+(p==='아이디어스'?d.orderCount*2500:0);
+            const idusShip=p==='아이디어스'?(d.uniqueOrders?d.uniqueOrders.size:d.orderCount)*2500:0;
+            const comm=d.sales*CR[p]+idusShip;
             const profit=d.sales-comm-d.cost;
             const ad=Math.round(dayAd[p]||0);
             const realProfit=profit-ad;

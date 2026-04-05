@@ -116,7 +116,7 @@ async function loadReport(){
     }
 
     // 주문
-    const orders=await fetchAll('orders','platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
+    const orders=await fetchAll('orders','order_no,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
     // 원가
     const costs=await fetchAll('product_costs','platform,product,option,cost');
     const costMap={};
@@ -138,7 +138,7 @@ async function loadReport(){
 
     // 플랫폼별 집계
     const pfData={};
-    PLATFORMS.forEach(p=>{pfData[p]={sales:0,cost:0,qty:0,orderCount:0};});
+    PLATFORMS.forEach(p=>{pfData[p]={sales:0,cost:0,qty:0,orderCount:0,uniqueOrders:new Set()};});
     (orders||[]).forEach(o=>{
         const p=o.platform;if(!pfData[p])return;
         const amt=(o.price||0)*(o.quantity||1);
@@ -147,12 +147,14 @@ async function loadReport(){
         pfData[p].cost+=(costMap[ck]||0)*(o.quantity||1);
         pfData[p].qty+=(o.quantity||1);
         pfData[p].orderCount++;
+        if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');pfData[p].uniqueOrders.add(base);}
     });
 
     let totalSales=0,totalCommission=0,totalCost=0;
     PLATFORMS.forEach(p=>{
         const d=pfData[p];
-        const comm=d.sales*CR[p]+(p==='아이디어스'?d.orderCount*2500:0);
+        const idusShip=p==='아이디어스'?d.uniqueOrders.size*2500:0;
+        const comm=d.sales*CR[p]+idusShip;
         pfData[p].commission=comm;
         pfData[p].profit=d.sales-comm-d.cost;
         totalSales+=d.sales;totalCommission+=comm;totalCost+=d.cost;

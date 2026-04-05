@@ -550,13 +550,13 @@ function fmtWon(n) {
 }
 
 // ── 순익 계산 ──
-function calcProfit(platform, revenue, costTotal, orderCount) {
+function calcProfit(platform, revenue, costTotal, orderCount, shipCount) {
     const commissionRate = COMMISSION_RATES[platform] || 0;
     let commission = revenue * commissionRate;
 
-    // 아이디어스: 주문당 배송비 2,500원 추가
+    // 아이디어스: 고유 주문(배송)당 배송비 2,500원
     if (platform === '아이디어스') {
-        commission += (orderCount || 0) * 2500;
+        commission += (shipCount !== undefined ? shipCount : orderCount || 0) * 2500;
     }
 
     return revenue - commission - costTotal;
@@ -640,7 +640,7 @@ async function fetchAll(table, select, filters={}){
 
 // ── 하루 데이터 조회 ──
 async function fetchDayData(dateStr) {
-    const orders=await fetchAll('orders','platform, product, option, quantity, price',{eq:[['order_date',dateStr]]});
+    const orders=await fetchAll('orders','order_no, platform, product, option, quantity, price',{eq:[['order_date',dateStr]]});
     const costs=await fetchAll('product_costs','platform, product, option, cost');
 
     const costMap = {};
@@ -650,7 +650,7 @@ async function fetchDayData(dateStr) {
 
     const result = {};
     PLATFORMS.forEach(p => {
-        result[p] = { revenue: 0, qty: 0, costTotal: 0, orderCount: 0, orders: new Set() };
+        result[p] = { revenue: 0, qty: 0, costTotal: 0, orderCount: 0, orders: new Set(), uniqueOrders: new Set() };
     });
 
     (orders || []).forEach(o => {
@@ -663,6 +663,7 @@ async function fetchDayData(dateStr) {
         result[p].qty += (o.quantity || 1);
         result[p].costTotal += unitCost * (o.quantity || 1);
         result[p].orderCount++;
+        if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');result[p].uniqueOrders.add(base);}
     });
 
     return result;
@@ -670,7 +671,7 @@ async function fetchDayData(dateStr) {
 
 // ── 기간 데이터 조회 ──
 async function fetchPeriodData(startDate, endDate) {
-    const orders=await fetchAll('orders','platform, product, option, quantity, price',{gte:[['order_date',startDate]],lte:[['order_date',endDate]]});
+    const orders=await fetchAll('orders','order_no, platform, product, option, quantity, price',{gte:[['order_date',startDate]],lte:[['order_date',endDate]]});
     const costs=await fetchAll('product_costs','platform, product, option, cost');
 
     const costMap = {};
@@ -680,7 +681,7 @@ async function fetchPeriodData(startDate, endDate) {
 
     const result = {};
     PLATFORMS.forEach(p => {
-        result[p] = { revenue: 0, qty: 0, costTotal: 0, orderCount: 0 };
+        result[p] = { revenue: 0, qty: 0, costTotal: 0, orderCount: 0, uniqueOrders: new Set() };
     });
 
     (orders || []).forEach(o => {
@@ -693,6 +694,7 @@ async function fetchPeriodData(startDate, endDate) {
         result[p].qty += (o.quantity || 1);
         result[p].costTotal += unitCost * (o.quantity || 1);
         result[p].orderCount++;
+        if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');result[p].uniqueOrders.add(base);}
     });
 
     return result;
@@ -709,7 +711,7 @@ function renderYesterdaySummary(dateStr, data) {
     PLATFORMS.forEach(p => {
         const d = data[p];
         totalRevenue += d.revenue;
-        totalProfit += calcProfit(p, d.revenue, d.costTotal, d.orderCount);
+        totalProfit += calcProfit(p, d.revenue, d.costTotal, d.orderCount, d.uniqueOrders?d.uniqueOrders.size:d.orderCount);
         totalQty += d.qty;
     });
 
@@ -744,9 +746,9 @@ function renderPlatformCards(dateStr, data) {
 
     PLATFORMS.forEach(p => {
         const d = data[p];
-        const profit = calcProfit(p, d.revenue, d.costTotal, d.orderCount);
+        const profit = calcProfit(p, d.revenue, d.costTotal, d.orderCount, d.uniqueOrders?d.uniqueOrders.size:d.orderCount);
         const commission = d.revenue * (COMMISSION_RATES[p] || 0) +
-            (p === '아이디어스' ? d.orderCount * 2500 : 0);
+            (p === '아이디어스' ? (d.uniqueOrders?d.uniqueOrders.size:d.orderCount) * 2500 : 0);
         const profitClass = profit >= 0 ? 'positive' : 'negative';
 
         container.innerHTML += `
@@ -790,7 +792,7 @@ function renderMonthSummary(data) {
     PLATFORMS.forEach(p => {
         const d = data[p];
         totalRevenue += d.revenue;
-        totalProfit += calcProfit(p, d.revenue, d.costTotal, d.orderCount);
+        totalProfit += calcProfit(p, d.revenue, d.costTotal, d.orderCount, d.uniqueOrders?d.uniqueOrders.size:d.orderCount);
         totalQty += d.qty;
     });
 
@@ -827,7 +829,7 @@ function renderMonthBarChart(data) {
     container.innerHTML = PLATFORMS.map(p => {
         const d = data[p];
         const pct = Math.round((d.revenue / maxRevenue) * 100);
-        const profit = calcProfit(p, d.revenue, d.costTotal, d.orderCount);
+        const profit = calcProfit(p, d.revenue, d.costTotal, d.orderCount, d.uniqueOrders?d.uniqueOrders.size:d.orderCount);
 
         return `
             <div class="bar-row">
