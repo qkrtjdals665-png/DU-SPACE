@@ -144,19 +144,38 @@ async function loadCosts(){
     const search=document.getElementById('filterSearch').value.trim();
     const {start:ms,end:me}=getMonthRange();
 
-    let q=db.from('product_costs').select('*').order('platform').order('product');
-    if(pf!=='전체')q=q.eq('platform',pf);
-    if(search)q=q.ilike('product',`%${search}%`);
-    const{data:costs,error}=await q;
-    if(error){showToast('로드 실패','error');return;}
+    // 페이지네이션 함수
+    async function fetchAll(table, select, filters={}){
+        const PAGE=1000; let all=[], from=0;
+        while(true){
+            let q=db.from(table).select(select);
+            if(filters.eq) filters.eq.forEach(f=>q=q.eq(f[0],f[1]));
+            if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+            if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+            if(filters.ilike) filters.ilike.forEach(f=>q=q.ilike(f[0],f[1]));
+            if(filters.order) filters.order.forEach(f=>q=q.order(f));
+            const {data}=await q.range(from,from+PAGE-1);
+            if(!data||!data.length) break;
+            all=all.concat(data);
+            if(data.length<PAGE) break;
+            from+=PAGE;
+        }
+        return all;
+    }
+
+    const costFilters={order:['platform','product']};
+    if(pf!=='전체')costFilters.eq=[['platform',pf]];
+    if(search)costFilters.ilike=[['product',`%${search}%`]];
+    const costs=await fetchAll('product_costs','*',costFilters);
+    if(!costs){showToast('로드 실패','error');return;}
 
     // 해당 월 판매
-    const{data:mo}=await db.from('orders').select('platform,product,option,quantity,price').gte('order_date',ms).lte('order_date',me);
+    const mo=await fetchAll('orders','platform,product,option,quantity,price',{gte:[['order_date',ms]],lte:[['order_date',me]]});
     salesData={};
     (mo||[]).forEach(o=>{const k=`${o.platform}|${o.product}|${o.option||''}`;if(!salesData[k])salesData[k]={qty:0,revenue:0};salesData[k].qty+=(o.quantity||1);salesData[k].revenue+=(o.price||0)*(o.quantity||1);});
 
     // 판매가 자동 입력
-    const{data:ao}=await db.from('orders').select('platform,product,option,price');
+    const ao=await fetchAll('orders','platform,product,option,price');
     const ap={};(ao||[]).forEach(o=>{const k=`${o.platform}|${o.product}|${o.option||''}`;if(!ap[k])ap[k]=[];if(o.price>0)ap[k].push(o.price);});
     const au=[];
     (costs||[]).forEach(c=>{

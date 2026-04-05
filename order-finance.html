@@ -99,17 +99,33 @@ async function loadReport(){
     const m=currentDate.getMonth()+1;
     document.getElementById('reportTitle').textContent=`📊 ${currentDate.getFullYear()}년 ${m}월 손익 리포트`;
 
+    // 페이지네이션 함수
+    async function fetchAll(table, select, filters={}){
+        const PAGE=1000; let all=[], from=0;
+        while(true){
+            let q=db.from(table).select(select);
+            if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+            if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+            const {data}=await q.range(from,from+PAGE-1);
+            if(!data||!data.length) break;
+            all=all.concat(data);
+            if(data.length<PAGE) break;
+            from+=PAGE;
+        }
+        return all;
+    }
+
     // 주문
-    const {data:orders}=await db.from('orders').select('platform,product,option,quantity,price').gte('order_date',start).lte('order_date',end);
+    const orders=await fetchAll('orders','platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
     // 원가
-    const {data:costs}=await db.from('product_costs').select('platform,product,option,cost');
+    const costs=await fetchAll('product_costs','platform,product,option,cost');
     const costMap={};
     (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
     // 광고비 - 일별
-    const {data:dailyAds}=await db.from('ad_costs').select('*').gte('ad_date',start).lte('ad_date',end);
+    const dailyAds=await fetchAll('ad_costs','*',{gte:[['ad_date',start]],lte:[['ad_date',end]]});
     const dailyAdTotal=(dailyAds||[]).reduce((s,d)=>s+(d.cost||0),0);
     // 광고비 - 기간
-    const {data:periodAds}=await db.from('product_ad_costs').select('*').lte('start_date',end).gte('end_date',start);
+    const periodAds=await fetchAll('product_ad_costs','*',{lte:[['start_date',end]],gte:[['end_date',start]]});
     let periodAdTotal=0;
     (periodAds||[]).forEach(d=>{
         const pS=new Date(d.start_date),pE=new Date(d.end_date),mS=new Date(start),mE=new Date(end);

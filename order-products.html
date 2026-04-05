@@ -116,11 +116,25 @@ async function loadSales(){
     const end=document.getElementById('endDate').value;
     const sortBy=document.getElementById('sortBy').value;
 
-    const {data:orders,error}=await db.from('orders')
-        .select('platform,product,quantity,price')
-        .gte('order_date',start).lte('order_date',end);
+    // 페이지네이션 함수
+    async function fetchAll(table, select, filters={}){
+        const PAGE=1000; let all=[], from=0;
+        while(true){
+            let q=db.from(table).select(select);
+            if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+            if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+            const {data}=await q.range(from,from+PAGE-1);
+            if(!data||!data.length) break;
+            all=all.concat(data);
+            if(data.length<PAGE) break;
+            from+=PAGE;
+        }
+        return all;
+    }
 
-    if(error){console.error(error);return;}
+    const orders=await fetchAll('orders','platform,product,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
+
+    if(!orders){console.error('load failed');return;}
 
     // 상품별 집계
     const productMap={};

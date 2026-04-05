@@ -621,27 +621,33 @@ async function loadDashboard() {
     }
 }
 
+// ── 페이지네이션 함수 ──
+async function fetchAll(table, select, filters={}){
+    const PAGE=1000; let all=[], from=0;
+    while(true){
+        let q=db.from(table).select(select);
+        if(filters.eq) filters.eq.forEach(f=>q=q.eq(f[0],f[1]));
+        if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+        if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+        const {data}=await q.range(from,from+PAGE-1);
+        if(!data||!data.length) break;
+        all=all.concat(data);
+        if(data.length<PAGE) break;
+        from+=PAGE;
+    }
+    return all;
+}
+
 // ── 하루 데이터 조회 ──
 async function fetchDayData(dateStr) {
-    // 주문 데이터
-    const { data: orders, error } = await db
-        .from('orders')
-        .select('platform, product, option, quantity, price')
-        .eq('order_date', dateStr);
-
-    if (error) throw error;
-
-    // 원가 데이터 (전체)
-    const { data: costs } = await db
-        .from('product_costs')
-        .select('platform, product, option, cost');
+    const orders=await fetchAll('orders','platform, product, option, quantity, price',{eq:[['order_date',dateStr]]});
+    const costs=await fetchAll('product_costs','platform, product, option, cost');
 
     const costMap = {};
     (costs || []).forEach(c => {
         costMap[`${c.platform}|${c.product}|${c.option || ''}`] = c.cost || 0;
     });
 
-    // 플랫폼별 집계
     const result = {};
     PLATFORMS.forEach(p => {
         result[p] = { revenue: 0, qty: 0, costTotal: 0, orderCount: 0, orders: new Set() };
@@ -650,11 +656,9 @@ async function fetchDayData(dateStr) {
     (orders || []).forEach(o => {
         const p = o.platform;
         if (!result[p]) return;
-
         const amount = (o.price || 0) * (o.quantity || 1);
         const costKey = `${p}|${o.product}|${o.option || ''}`;
         const unitCost = costMap[costKey] || 0;
-
         result[p].revenue += amount;
         result[p].qty += (o.quantity || 1);
         result[p].costTotal += unitCost * (o.quantity || 1);
@@ -666,17 +670,8 @@ async function fetchDayData(dateStr) {
 
 // ── 기간 데이터 조회 ──
 async function fetchPeriodData(startDate, endDate) {
-    const { data: orders, error } = await db
-        .from('orders')
-        .select('platform, product, option, quantity, price')
-        .gte('order_date', startDate)
-        .lte('order_date', endDate);
-
-    if (error) throw error;
-
-    const { data: costs } = await db
-        .from('product_costs')
-        .select('platform, product, option, cost');
+    const orders=await fetchAll('orders','platform, product, option, quantity, price',{gte:[['order_date',startDate]],lte:[['order_date',endDate]]});
+    const costs=await fetchAll('product_costs','platform, product, option, cost');
 
     const costMap = {};
     (costs || []).forEach(c => {
@@ -691,11 +686,9 @@ async function fetchPeriodData(startDate, endDate) {
     (orders || []).forEach(o => {
         const p = o.platform;
         if (!result[p]) return;
-
         const amount = (o.price || 0) * (o.quantity || 1);
         const costKey = `${p}|${o.product}|${o.option || ''}`;
         const unitCost = costMap[costKey] || 0;
-
         result[p].revenue += amount;
         result[p].qty += (o.quantity || 1);
         result[p].costTotal += unitCost * (o.quantity || 1);

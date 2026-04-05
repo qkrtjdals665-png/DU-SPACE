@@ -100,15 +100,31 @@ async function loadDaily(){
     const {start,end,lastDay}=getMonthRange();
     const m=currentDate.getMonth()+1;
 
+    // 페이지네이션 함수 (1000건씩 전부 가져오기)
+    async function fetchAll(table, select, filters={}){
+        const PAGE=1000; let all=[], from=0;
+        while(true){
+            let q=db.from(table).select(select);
+            if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+            if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+            const {data}=await q.range(from,from+PAGE-1);
+            if(!data||!data.length) break;
+            all=all.concat(data);
+            if(data.length<PAGE) break;
+            from+=PAGE;
+        }
+        return all;
+    }
+
     // 주문
-    const {data:orders}=await db.from('orders').select('order_date,platform,product,option,quantity,price').gte('order_date',start).lte('order_date',end).limit(5000);
+    const orders=await fetchAll('orders','order_date,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
     // 원가
-    const {data:costs}=await db.from('product_costs').select('platform,product,option,cost').limit(5000);
+    const costs=await fetchAll('product_costs','platform,product,option,cost');
     const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
     // 일별 광고비
-    const {data:dailyAds}=await db.from('ad_costs').select('ad_date,platform,cost').gte('ad_date',start).lte('ad_date',end).limit(5000);
+    const dailyAds=await fetchAll('ad_costs','ad_date,platform,cost',{gte:[['ad_date',start]],lte:[['ad_date',end]]});
     // 기간 광고비
-    const {data:periodAds}=await db.from('product_ad_costs').select('platform,start_date,end_date,total_cost').lte('start_date',end).gte('end_date',start).limit(1000);
+    const periodAds=await fetchAll('product_ad_costs','platform,start_date,end_date,total_cost',{lte:[['start_date',end]],gte:[['end_date',start]]});
 
     // 일별 집계
     const daily={};
