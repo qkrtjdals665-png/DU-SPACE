@@ -33,9 +33,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .delete-bar{background:#fff;border-radius:14px;padding:12px 24px;border:1px solid #D9D4CA;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .delete-bar span{font-size:12px;color:#e94560;font-weight:600;}
 .table-section{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:12px;}
-thead th{background:#f5f0e8;padding:9px 5px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;white-space:nowrap;font-size:11px;}
-tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;}
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}
+thead th{background:#f5f0e8;padding:9px 5px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;white-space:nowrap;font-size:11px;position:relative;overflow:hidden;text-overflow:ellipsis;}
+thead th .resize-handle{position:absolute;right:0;top:0;width:5px;height:100%;cursor:col-resize;background:transparent;z-index:5;}
+thead th .resize-handle:hover,thead th .resize-handle.active{background:#f4a900;}
+tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 tbody tr:hover td{background:#faf8f4;}
 .platform-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;color:white;}
 .editable{padding:5px 6px;border:1.5px solid #D9D4CA;border-radius:6px;font-family:'Noto Sans KR',sans-serif;font-size:12px;text-align:right;width:75px;}
@@ -91,14 +93,20 @@ input[type="checkbox"]{width:15px;height:15px;accent-color:#f4a900;cursor:pointe
         <button class="btn btn-danger" style="font-size:11px;padding:5px 12px;" onclick="deleteAllCosts()">⚠️ 전체 삭제</button>
     </div>
     <div class="table-section">
-        <table>
+        <table id="costTable">
+            <colgroup>
+                <col style="width:28px"><col style="width:35px"><col style="width:65px">
+                <col style="width:240px"><col style="width:160px">
+                <col style="width:75px"><col style="width:75px"><col style="width:75px"><col style="width:60px">
+                <col style="width:65px"><col style="width:80px"><col style="width:80px"><col style="width:40px">
+            </colgroup>
             <thead><tr>
-                <th style="width:28px"><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
-                <th>No</th><th>플랫폼</th>
-                <th class="text-left" style="min-width:200px;">상품명</th>
-                <th class="text-left" style="min-width:120px;">옵션</th>
-                <th>원가</th><th>판매가</th><th>개당순익</th><th>이익률</th>
-                <th>판매수량</th><th>월매출</th><th>월순익</th><th>삭제</th>
+                <th><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
+                <th>No<span class="resize-handle"></span></th><th>플랫폼<span class="resize-handle"></span></th>
+                <th class="text-left">상품명<span class="resize-handle"></span></th>
+                <th class="text-left">옵션<span class="resize-handle"></span></th>
+                <th>원가<span class="resize-handle"></span></th><th>판매가<span class="resize-handle"></span></th><th>개당순익<span class="resize-handle"></span></th><th>이익률<span class="resize-handle"></span></th>
+                <th>판매수량<span class="resize-handle"></span></th><th>월매출<span class="resize-handle"></span></th><th>월순익<span class="resize-handle"></span></th><th>삭제</th>
             </tr></thead>
             <tbody id="costBody"><tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
         </table>
@@ -314,7 +322,35 @@ function renderSummary(allData){
 
 function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
 if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
-document.addEventListener('DOMContentLoaded',()=>{updateMonthLabel();loadCosts();});
+document.addEventListener('DOMContentLoaded',()=>{
+    updateMonthLabel();loadCosts();
+    // 컬럼 리사이즈
+    const table=document.getElementById('costTable');
+    const cols=table.querySelectorAll('colgroup col');
+    table.querySelectorAll('thead .resize-handle').forEach(handle=>{
+        let startX,startW,colIdx;
+        handle.addEventListener('mousedown',e=>{
+            e.preventDefault();
+            const th=handle.parentElement;
+            colIdx=Array.from(th.parentElement.children).indexOf(th);
+            startX=e.pageX;
+            startW=cols[colIdx].style.width?parseInt(cols[colIdx].style.width):th.offsetWidth;
+            handle.classList.add('active');
+            document.addEventListener('mousemove',onMove);
+            document.addEventListener('mouseup',onUp);
+        });
+        function onMove(e){
+            const diff=e.pageX-startX;
+            const newW=Math.max(30,startW+diff);
+            cols[colIdx].style.width=newW+'px';
+        }
+        function onUp(){
+            handle.classList.remove('active');
+            document.removeEventListener('mousemove',onMove);
+            document.removeEventListener('mouseup',onUp);
+        }
+    });
+});
 </script>
 </body>
 </html>
