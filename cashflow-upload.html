@@ -170,8 +170,8 @@ function selectAccount(id){
     });
 }
 
-function getBankEmoji(bank){return bank==='하나은행'?'🏦':bank==='KB국민'?'🏛️':bank==='농협'?'🌾':'💳';}
-function getBankClass(bank){return bank==='하나은행'?'bank-hana':bank==='KB국민'?'bank-kb':bank==='농협'?'bank-nh':'';}
+function getBankEmoji(bank){return bank==='하나'?'🏦':bank==='KB국민'?'🏛️':bank==='농협'?'🌾':'💳';}
+function getBankClass(bank){return bank==='하나'?'bank-hana':bank==='KB국민'?'bank-kb':bank==='농협'?'bank-nh':'';}
 
 // ── 파일 업로드 ──
 const dropZone=document.getElementById('dropZone');
@@ -272,19 +272,19 @@ function parseWorkbook(wb,filename){
 
         // 은행 감지: 시트이름 → 내용
         let bankType=null;
-        if(sheetName.includes('424'))bankType='하나은행';
+        if(sheetName.includes('424'))bankType='하나';
         else if(sheetName.includes('7966'))bankType='KB국민';
         else if(sheetName.includes('8251'))bankType='농협';
 
         if(!bankType){
             for(let i=0;i<Math.min(8,rows.length);i++){
                 const line=String(rows[i][0]||'');
-                if(line.includes('국민은행')){bankType='KB국민';break;}
-                if(line.includes('농협은행')||line.includes('농협')){bankType='농협';break;}
-                if(line.includes('하나은행')||line.includes('거래내역')){bankType='하나은행';break;}
+                if(line.includes('국민은행')||line.includes('KB')){bankType='KB국민';break;}
+                if(line.includes('농협')){bankType='농협';break;}
+                if(line.includes('하나')||line.includes('거래내역')){bankType='하나';break;}
             }
         }
-        if(!bankType)bankType='하나은행'; // fallback
+        if(!bankType)bankType='하나'; // fallback
 
         // 통장 매칭
         let accountId=selectedAccountId;
@@ -295,7 +295,7 @@ function parseWorkbook(wb,filename){
 
         // 하나은행: 행6 헤더, 행7부터 데이터
         // KB국민/농협: 행9 헤더, 행10부터 데이터
-        if(bankType==='하나은행'){
+        if(bankType==='하나'){
             // 헤더 찾기: "거래일시" 포함 행
             let headerIdx=-1;
             for(let i=0;i<Math.min(10,rows.length);i++){
@@ -494,16 +494,14 @@ async function saveToDb(){
         const row={
             account_id:tx.account_id,
             tx_date:tx.tx_date,
-            tx_type:tx.tx_type,
-            amount:tx.amount,
+            deposit:tx.tx_type==='입금'?tx.amount:0,
+            withdraw:tx.tx_type==='출금'?tx.amount:0,
             balance_after:tx.balance_after||0,
             counterparty:tx.counterparty||'',
             memo:tx.memo||'',
             raw_description:tx.raw_description||'',
             category:tx.category||null,
             sub_category:tx.sub_category||null,
-            is_auto_categorized:tx.is_auto_categorized||false,
-            is_confirmed:false,
             dedup_hash:tx.dedup_hash
         };
 

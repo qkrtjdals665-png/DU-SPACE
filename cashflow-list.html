@@ -183,8 +183,8 @@ function applyFilters(){
 
 function renderSummary(){
     const total=filteredTxs.length;
-    const totalIn=filteredTxs.filter(t=>t.tx_type==='입금').reduce((s,t)=>s+(t.amount||0),0);
-    const totalOut=filteredTxs.filter(t=>t.tx_type==='출금').reduce((s,t)=>s+(t.amount||0),0);
+    const totalIn=filteredTxs.filter(t=>(t.deposit||0)>0).reduce((s,t)=>s+(t.deposit||0),0);
+    const totalOut=filteredTxs.filter(t=>(t.withdraw||0)>0).reduce((s,t)=>s+(t.withdraw||0),0);
     const unclassified=filteredTxs.filter(t=>!t.category&&!t.is_confirmed).length;
     const review=filteredTxs.filter(t=>(t.sub_category||'').includes('검토필요')).length;
 
@@ -211,8 +211,8 @@ function renderTable(){
         const isReview=(tx.sub_category||'').includes('검토필요');
         const rowClass=isUnclassified?'unclassified':'';
 
-        const amtIn=tx.tx_type==='입금'?`<span class="amount-in">+${fmt(tx.amount)}</span>`:'';
-        const amtOut=tx.tx_type==='출금'?`<span class="amount-out">-${fmt(tx.amount)}</span>`:'';
+        const amtIn=(tx.deposit||0)>0?`<span class="amount-in">+${fmt(tx.deposit)}</span>`:'';
+        const amtOut=(tx.withdraw||0)>0?`<span class="amount-out">-${fmt(tx.withdraw)}</span>`:'';
 
         let statusBadge='';
         if(tx.is_confirmed)statusBadge='<span class="cat-badge cat-confirmed">확인됨</span>';
@@ -314,7 +314,7 @@ function renderPagination(){
 
 function goPage(p){currentPage=p;renderTable();window.scrollTo(0,200);}
 
-function getBankClass(bank){return bank==='하나은행'?'bank-hana':bank==='KB국민'?'bank-kb':bank==='농협'?'bank-nh':'';}
+function getBankClass(bank){return bank==='하나'?'bank-hana':bank==='KB국민'?'bank-kb':bank==='농협'?'bank-nh':'';}
 function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 function showToast(m,t){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+(t||'info')+' show';setTimeout(()=>e.classList.remove('show'),2500);}

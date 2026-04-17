@@ -114,8 +114,8 @@ async function loadDashboard(){
     }
 
     // ── 요약 ──
-    const totalIn=txs.filter(t=>t.tx_type==='입금'&&t.category!=='통장간이체').reduce((s,t)=>s+(t.amount||0),0);
-    const totalOut=txs.filter(t=>t.tx_type==='출금'&&t.category!=='통장간이체').reduce((s,t)=>s+(t.amount||0),0);
+    const totalIn=txs.filter(t=>(t.deposit||0)>0&&t.category!=='통장간이체').reduce((s,t)=>s+(t.deposit||0),0);
+    const totalOut=txs.filter(t=>(t.withdraw||0)>0&&t.category!=='통장간이체').reduce((s,t)=>s+(t.withdraw||0),0);
     const netFlow=totalIn-totalOut;
     const unclassified=txs.filter(t=>!t.category&&!t.is_confirmed).length;
 
@@ -128,8 +128,8 @@ async function loadDashboard(){
     // ── 통장별 잔액 ──
     document.getElementById('accountCards').innerHTML=accounts.filter(a=>a.current_balance>0).map(a=>{
         const acctTxs=txs.filter(t=>t.account_id===a.id);
-        const acctIn=acctTxs.filter(t=>t.tx_type==='입금').reduce((s,t)=>s+(t.amount||0),0);
-        const acctOut=acctTxs.filter(t=>t.tx_type==='출금').reduce((s,t)=>s+(t.amount||0),0);
+        const acctIn=acctTxs.filter(t=>(t.deposit||0)>0).reduce((s,t)=>s+(t.deposit||0),0);
+        const acctOut=acctTxs.filter(t=>(t.withdraw||0)>0).reduce((s,t)=>s+(t.withdraw||0),0);
         return `<div class="account-card">
             <div class="bank-name">${a.bank}</div>
             <div class="account-name">${a.name}</div>
@@ -143,13 +143,13 @@ async function loadDashboard(){
     txs.forEach(t=>{
         const cat=t.category||'미분류';
         if(!catData[cat])catData[cat]={in:0,out:0,count:0,subs:{}};
-        if(t.tx_type==='입금')catData[cat].in+=t.amount||0;
-        else catData[cat].out+=t.amount||0;
+        if((t.deposit||0)>0)catData[cat].in+=t.deposit||0;
+        else catData[cat].out+=t.withdraw||0;
         catData[cat].count++;
         const sub=t.sub_category||'기타';
         if(!catData[cat].subs[sub])catData[cat].subs[sub]={in:0,out:0,count:0};
-        if(t.tx_type==='입금')catData[cat].subs[sub].in+=t.amount||0;
-        else catData[cat].subs[sub].out+=t.amount||0;
+        if((t.deposit||0)>0)catData[cat].subs[sub].in+=t.deposit||0;
+        else catData[cat].subs[sub].out+=t.withdraw||0;
         catData[cat].subs[sub].count++;
     });
 
@@ -192,8 +192,8 @@ async function loadDashboard(){
     const dailyData={};
     txs.forEach(t=>{
         if(!dailyData[t.tx_date])dailyData[t.tx_date]={in:0,out:0};
-        if(t.tx_type==='입금'&&t.category!=='통장간이체')dailyData[t.tx_date].in+=t.amount||0;
-        if(t.tx_type==='출금'&&t.category!=='통장간이체')dailyData[t.tx_date].out+=t.amount||0;
+        if((t.deposit||0)>0&&t.category!=='통장간이체')dailyData[t.tx_date].in+=t.deposit||0;
+        if((t.withdraw||0)>0&&t.category!=='통장간이체')dailyData[t.tx_date].out+=t.withdraw||0;
     });
     const days=Object.keys(dailyData).sort();
 
