@@ -31,6 +31,7 @@
   .nav-item.active::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: var(--accent); border-radius: 0 3px 3px 0; }
   .nav-icon { width: 20px; text-align: center; font-size: 15px; flex-shrink: 0; }
   .nav-badge { margin-left: auto; background: var(--green); color: #0a0a0f; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+  .nav-badge.new { background: var(--accent); color: white; }
   .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
   .user-avatar { width: 32px; height: 32px; background: linear-gradient(135deg, var(--purple), var(--pink)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
   .user-info { flex: 1; }
@@ -57,10 +58,12 @@
   .tool-card[data-color="blue"]::after { background: var(--blue); }
   .tool-card[data-color="green"]::after { background: var(--green); }
   .tool-card[data-color="yellow"]::after { background: var(--yellow); }
+  .tool-card[data-color="purple"]::after { background: var(--purple); }
   .tool-emoji { font-size: 28px; margin-bottom: 14px; display: block; }
   .tool-name { font-size: 14.5px; font-weight: 600; margin-bottom: 6px; }
   .tool-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
   .tool-status { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; padding: 3px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 600; background: rgba(61,214,140,0.15); color: var(--green); }
+  .tool-status.new { background: rgba(255,107,74,0.15); color: var(--accent); }
   .subpage { display: none; height: 100%; }
   .subpage.active { display: block; }
   .subpage iframe { width: 100%; height: 100%; border: none; }
@@ -117,15 +120,20 @@
       <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
     </div>
     <div class="nav-group">
+      <div class="nav-group-label">입출금 관리</div>
+      <div class="nav-item" data-page="cf-upload"><span class="nav-icon">📤</span> 은행 엑셀 업로드 <span class="nav-badge new">NEW</span></div>
+      <div class="nav-item" data-page="cf-list"><span class="nav-icon">📋</span> 거래 목록/분류 <span class="nav-badge new">NEW</span></div>
+      <div class="nav-item" data-page="cf-dashboard"><span class="nav-icon">💰</span> 입출금 대시보드 <span class="nav-badge new">NEW</span></div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">사업 분석</div>
+      <div class="nav-item" data-page="analysis"><span class="nav-icon">🔍</span> 사업 분석 리포트 <span class="nav-badge new">NEW</span></div>
+    </div>
+    <div class="nav-group">
       <div class="nav-group-label">재무 / 문서</div>
       <div class="nav-item" data-page="freelancer"><span class="nav-icon">👤</span> 프리랜서 급여 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="quotation"><span class="nav-icon">📝</span> 견적서 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="transaction"><span class="nav-icon">📄</span> 거래명세서 <span class="nav-badge">LIVE</span></div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-label">개발 예정</div>
-      <div class="nav-item" data-page="profit"><span class="nav-icon">💰</span> 수익 계산기</div>
-      <div class="nav-item" data-page="ledger"><span class="nav-icon">🏦</span> 가계부</div>
     </div>
   </nav>
   <div class="sidebar-footer">
@@ -156,6 +164,18 @@
             <div class="tool-name">주문관리</div>
             <div class="tool-desc">4개 플랫폼 통합 관리<br>대시보드 · 업로드 · 일별분석</div>
             <div class="tool-status">☁ LIVE</div>
+          </div>
+          <div class="tool-card" data-color="yellow" onclick="navigate('cf-dashboard')">
+            <span class="tool-emoji">💰</span>
+            <div class="tool-name">입출금 관리</div>
+            <div class="tool-desc">은행 엑셀 업로드 · 자동분류<br>통장별 잔액 · 현금흐름 대시보드</div>
+            <div class="tool-status new">✨ NEW</div>
+          </div>
+          <div class="tool-card" data-color="purple" onclick="navigate('analysis')">
+            <span class="tool-emoji">🔍</span>
+            <div class="tool-name">사업 분석 리포트</div>
+            <div class="tool-desc">플랫폼별 효율 · 상품 수익성<br>자동 진단 · 실행 제안</div>
+            <div class="tool-status new">✨ NEW</div>
           </div>
           <div class="tool-card" data-color="red" onclick="navigate('laser')">
             <span class="tool-emoji">🏷️</span>
@@ -210,9 +230,13 @@
     <div class="subpage" id="page-order-inventory"></div>
     <div class="subpage" id="page-order-merge"></div>
 
-    <!-- 개발 예정 -->
-    <div class="subpage" id="page-profit"><div class="placeholder-box"><div class="placeholder-icon">💰</div><div class="placeholder-title">수익 계산기</div><div class="placeholder-desc">손익분기점 시뮬레이션 · 가구매 계산기<br>개발 예정</div></div></div>
-    <div class="subpage" id="page-ledger"><div class="placeholder-box"><div class="placeholder-icon">🏦</div><div class="placeholder-title">가계부</div><div class="placeholder-desc">은행 입출금 엑셀 업로드 → 자동 분류<br>개발 예정</div></div></div>
+    <!-- 입출금 관리 -->
+    <div class="subpage" id="page-cf-upload"></div>
+    <div class="subpage" id="page-cf-list"></div>
+    <div class="subpage" id="page-cf-dashboard"></div>
+
+    <!-- 사업 분석 -->
+    <div class="subpage" id="page-analysis"></div>
   </div>
 </main>
 
@@ -232,7 +256,11 @@
     'order-ads': 'order-ads.html',
     'order-finance': 'order-finance.html',
     'order-inventory': 'order-inventory.html',
-    'order-merge': 'order-merge.html'
+    'order-merge': 'order-merge.html',
+    'cf-upload': 'cashflow-upload.html',
+    'cf-list': 'cashflow-list.html',
+    'cf-dashboard': 'cashflow-dashboard.html',
+    'analysis': 'order-analysis.html'
   };
 
   const pageInfo = {
@@ -252,8 +280,10 @@
     'order-inventory': ['📦', '재고 관리'],
     'order-merge': ['📂', '주문서 정리'],
     invoice: ['🚚', '송장 변환기'],
-    profit: ['💰', '수익 계산기'],
-    ledger: ['🏦', '가계부']
+    'cf-upload': ['📤', '은행 엑셀 업로드'],
+    'cf-list': ['📋', '거래 목록/분류'],
+    'cf-dashboard': ['💰', '입출금 대시보드'],
+    'analysis': ['🔍', '사업 분석 리포트']
   };
 
   function navigate(pageId) {
