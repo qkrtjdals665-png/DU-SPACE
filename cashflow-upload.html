@@ -186,19 +186,43 @@ async function handleFiles(files){
     if(!files.length)return;
     const resultBox=document.getElementById('resultBox');
     resultBox.className='result-box show processing';
-    resultBox.textContent='📂 파일 분석 중...';
+    resultBox.textContent='📂 파일 분석 중... (암호 해제 + 파싱)';
     parsedTxs=[];
 
     for(const file of files){
         try{
             const data=await readFile(file);
             const pw=document.getElementById('excelPassword').value.trim();
-            const wb=XLSX.read(data,{type:'array',cellDates:true,password:pw||undefined});
-            const txs=parseWorkbook(wb,file.name);
-            parsedTxs=parsedTxs.concat(txs);
+            let sheets=null;
+
+            // 1차: 서버 API로 복호화 시도
+            try{
+                resultBox.textContent=`🔐 ${file.name} 비밀번호 해제 중...`;
+                const b64=arrayBufferToBase64(data);
+                const resp=await fetch('/api/decrypt',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({file:b64,password:pw||'900520'})
+                });
+                if(resp.ok){
+                    const result=await resp.json();
+                    if(result.sheets)sheets=result.sheets;
+                }
+            }catch(e){/* 서버 API 실패 → SheetJS 시도 */}
+
+            if(sheets){
+                // 서버에서 파싱된 데이터 사용
+                const txs=parseSheetsData(sheets,file.name);
+                parsedTxs=parsedTxs.concat(txs);
+            }else{
+                // 2차: SheetJS 직접 읽기 (비번 없는 파일)
+                const wb=XLSX.read(data,{type:'array',cellDates:true,password:pw||undefined});
+                const txs=parseWorkbook(wb,file.name);
+                parsedTxs=parsedTxs.concat(txs);
+            }
         }catch(err){
             resultBox.className='result-box show error';
-            resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}<br>비밀번호가 틀리거나 지원하지 않는 암호화 형식일 수 있어요. 비밀번호를 확인하거나, 엑셀에서 비번 해제 후 다시 업로드해주세요.`;
+            resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}<br>비밀번호를 확인해주세요.`;
             return;
         }
     }
@@ -219,6 +243,116 @@ async function handleFiles(files){
     resultBox.innerHTML=`✅ <strong>${parsedTxs.length}건</strong> 파싱 완료! 아래 미리보기 확인 후 저장하세요.`;
 
     renderPreview();
+}
+
+function arrayBufferToBase64(buf){
+    let binary='';
+    const bytes=new Uint8Array(buf);
+    for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
+
+// 서버 API에서 받은 sheets 데이터 파싱
+function parseSheetsData(sheets,filename){
+    const txs=[];
+    for(const sheet of sheets){
+        const rows=sheet.rows;
+        if(rows.length<2)continue;
+
+        // 헤더 찾기
+        let headerIdx=-1;
+        let bankType=null;
+        for(let i=0;i<Math.min(10,rows.length);i++){
+            const joined=rows[i].join('|');
+            if(joined.includes('거래일시')&&(joined.includes('적요')||joined.includes('내용'))){
+                headerIdx=i;
+                if(joined.includes('거래점')||joined.includes('거래기록사항'))bankType='하나은행';
+                else if(filename.includes('8251'))bankType='농협';
+                else bankType='하나은행';
+                break;
+            }
+            if(joined.includes('거래일자')&&joined.includes('거래시간')){
+                headerIdx=i;bankType='KB국민';break;
+            }
+            if(joined.includes('거래일')&&(joined.includes('출금액')||joined.includes('출금'))){
+                headerIdx=i;
+                if(filename.includes('8251')||filename.includes('농협'))bankType='농협';
+                else if(filename.includes('7966')||filename.includes('KB'))bankType='KB국민';
+                else bankType='하나은행';
+                break;
+            }
+        }
+        // 시트이름으로 은행 감지
+        if(!bankType){
+            if(sheet.name.includes('424'))bankType='하나은행';
+            else if(sheet.name.includes('7966'))bankType='KB국민';
+            else if(sheet.name.includes('8251'))bankType='농협';
+        }
+        if(headerIdx===-1){
+            // 헤더 없이 시트이름으로 구분 후 두번째 행부터 시도
+            for(let i=0;i<Math.min(5,rows.length);i++){
+                if(rows[i].some(c=>String(c).match(/\d{4}[-./]\d{2}[-./]\d{2}/))){headerIdx=i-1;break;}
+            }
+            if(headerIdx<0)headerIdx=0;
+        }
+
+        const headers=rows[headerIdx]||[];
+        const colMap=detectColumnsFromStrings(headers,bankType);
+
+        // 통장 매칭
+        let accountId=selectedAccountId;
+        if(!accountId){
+            const acct=accounts.find(a=>a.bank===bankType)||(sheet.name.includes('424')?accounts.find(a=>a.bank==='하나은행'):null)||(sheet.name.includes('7966')?accounts.find(a=>a.bank==='KB국민'):null)||(sheet.name.includes('8251')?accounts.find(a=>a.bank==='농협'):null);
+            if(acct)accountId=acct.id;
+        }
+
+        for(let i=headerIdx+1;i<rows.length;i++){
+            const r=rows[i];
+            if(!r||!r[colMap.date])continue;
+
+            const dateStr=parseDate(r[colMap.date],colMap.time>=0?r[colMap.time]:null);
+            if(!dateStr)continue;
+
+            const outAmt=parseAmount(r[colMap.out]);
+            const inAmt=parseAmount(r[colMap.in]);
+            if(outAmt===0&&inAmt===0)continue;
+
+            const balance=colMap.balance>=0?parseAmount(r[colMap.balance]):0;
+            const counterparty=colMap.counterparty>=0?String(r[colMap.counterparty]||'').trim():'';
+            const memo=colMap.memo>=0?String(r[colMap.memo]||'').trim():'';
+
+            txs.push({
+                account_id:accountId,
+                bank:bankType,
+                tx_date:dateStr,
+                tx_type:inAmt>0?'입금':'출금',
+                amount:inAmt>0?inAmt:outAmt,
+                balance_after:balance,
+                counterparty:counterparty,
+                memo:memo,
+                raw_description:`${counterparty} ${memo}`.trim(),
+                category:null,sub_category:null,
+                is_auto_categorized:false,is_confirmed:false,is_duplicate:false
+            });
+        }
+    }
+    return txs;
+}
+
+function detectColumnsFromStrings(headers,bankType){
+    const map={date:-1,time:-1,out:-1,in:-1,balance:-1,counterparty:-1,memo:-1};
+    headers.forEach((h,i)=>{
+        const s=String(h||'');
+        if(s.includes('거래일시'))map.date=i;
+        if(s.includes('거래일자'))map.date=i;
+        if(s.includes('거래시간')||s.includes('시간'))map.time=i;
+        if(s.includes('출금'))map.out=i;
+        if(s.includes('입금'))map.in=i;
+        if(s.includes('잔액'))map.balance=i;
+        if(s.includes('적요')||s.includes('내용')||s.includes('거래기록'))map.counterparty=i;
+        if(s.includes('메모')||s.includes('비고')||s.includes('거래점'))map.memo=i;
+    });
+    return map;
 }
 
 function readFile(file){
