@@ -1,9 +1,8 @@
 from http.server import BaseHTTPRequestHandler
-import json, io, base64, hashlib
+import json, io, base64
 
 try:
     import msoffcrypto
-    from openpyxl import load_workbook
 except ImportError:
     msoffcrypto = None
 
@@ -18,50 +17,23 @@ class handler(BaseHTTPRequestHandler):
             password = req.get('password', '900520')
 
             if not file_b64:
-                return self._json(400, {'error': '파일이 없습니다'})
+                return self._json(400, {'error': 'no file'})
 
             if not msoffcrypto:
-                return self._json(500, {'error': 'msoffcrypto 라이브러리가 설치되지 않았습니다'})
+                return self._json(500, {'error': 'msoffcrypto not installed'})
 
-            # base64 → bytes
             file_bytes = base64.b64decode(file_b64)
 
-            # 복호화 시도
             try:
                 f = io.BytesIO(file_bytes)
                 ms = msoffcrypto.OfficeFile(f)
                 ms.load_key(password=password)
                 decrypted = io.BytesIO()
                 ms.decrypt(decrypted)
-                decrypted.seek(0)
-            except Exception:
-                # 암호화 안 된 파일일 수 있음 - 그냥 통과
-                decrypted = io.BytesIO(file_bytes)
-
-            # openpyxl로 파싱
-            wb = load_workbook(decrypted, data_only=True)
-            result = {'sheets': []}
-
-            for sheet_name in wb.sheetnames:
-                ws = wb[sheet_name]
-                rows = []
-                for r in range(1, ws.max_row + 1):
-                    row = []
-                    for c in range(1, ws.max_column + 1):
-                        val = ws.cell(r, c).value
-                        if val is None:
-                            row.append('')
-                        elif hasattr(val, 'isoformat'):
-                            row.append(val.isoformat())
-                        else:
-                            row.append(str(val))
-                    rows.append(row)
-                result['sheets'].append({
-                    'name': sheet_name,
-                    'rows': rows
-                })
-
-            return self._json(200, result)
+                decrypted_b64 = base64.b64encode(decrypted.getvalue()).decode('ascii')
+                return self._json(200, {'decrypted': decrypted_b64})
+            except Exception as e:
+                return self._json(400, {'error': str(e)})
 
         except Exception as e:
             return self._json(500, {'error': str(e)})
