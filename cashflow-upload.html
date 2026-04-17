@@ -83,15 +83,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 </div>
 <div class="container">
     <div class="info-box">
-        💡 <strong>비밀번호 자동 해제:</strong> 은행에서 다운받은 암호화된 엑셀을 그대로 업로드하세요. 비밀번호를 자동으로 풀어줍니다.
-    </div>
-
-    <div class="card">
-        <div class="card-title">🔐 엑셀 비밀번호</div>
-        <div style="display:flex;gap:10px;align-items:center;">
-            <input type="text" id="excelPassword" value="900520" placeholder="비밀번호 입력" style="padding:10px 14px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:14px;width:200px;">
-            <span style="font-size:12px;color:#888;">기본값: 900520 (변경 가능)</span>
-        </div>
+        💡 <strong>은행 엑셀 비번 해제 방법:</strong><br>
+        ① 다운받은 엑셀 열기 → 비번 <strong>900520</strong> 입력<br>
+        ② 파일 → <strong>다른 이름으로 저장</strong> → 도구 → 일반 옵션 → 비밀번호 칸 비우기 → 저장<br>
+        ③ 그 파일을 여기 업로드!
     </div>
 
     <div class="card">
@@ -104,7 +99,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
             <div class="icon">📁</div>
             <div class="main-text">엑셀 파일을 드래그하거나 클릭해서 선택</div>
-            <div class="sub-text">하나은행 / KB국민 / 농협 엑셀 (.xlsx, .xls) — 암호화된 파일도 자동 해제</div>
+            <div class="sub-text">하나은행 / KB국민 / 농협 엑셀 (.xlsx, .xls) — 비번 해제 후 업로드</div>
             <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
         </div>
         <div class="result-box" id="resultBox"></div>
@@ -191,34 +186,17 @@ async function handleFiles(files){
 
     for(const file of files){
         try{
-            const rawData=await readFile(file);
-            const pw=document.getElementById('excelPassword').value.trim()||'900520';
-            let xlsData=rawData;
-
-            // 1차: 서버 API로 복호화 시도
-            try{
-                resultBox.textContent=`🔐 ${file.name} 비밀번호 해제 중...`;
-                const b64=arrayBufferToBase64(rawData);
-                const resp=await fetch('/api/decrypt',{
-                    method:'POST',headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({file:b64,password:pw})
-                });
-                if(resp.ok){
-                    const result=await resp.json();
-                    if(result.decrypted){
-                        xlsData=base64ToArrayBuffer(result.decrypted);
-                        resultBox.textContent=`✅ ${file.name} 비밀번호 해제 완료! 파싱 중...`;
-                    }
-                }
-            }catch(e){/* 서버 실패 → 원본 그대로 시도 */}
-
-            // SheetJS로 파싱
-            const wb=XLSX.read(xlsData,{type:'array',cellDates:true});
+            const data=await readFile(file);
+            const wb=XLSX.read(data,{type:'array',cellDates:true});
             const txs=parseWorkbook(wb,file.name);
             parsedTxs=parsedTxs.concat(txs);
         }catch(err){
             resultBox.className='result-box show error';
-            resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}`;
+            if(err.message&&err.message.includes('password')){
+                resultBox.innerHTML=`❌ <strong>${file.name}</strong> 비밀번호가 걸려있어요!<br>위 안내대로 비번 해제 후 다시 업로드해주세요.`;
+            }else{
+                resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}`;
+            }
             return;
         }
     }
@@ -235,17 +213,6 @@ async function handleFiles(files){
     resultBox.className='result-box show success';
     resultBox.innerHTML=`✅ <strong>${parsedTxs.length}건</strong> 파싱 완료! 아래 미리보기 확인 후 저장하세요.`;
     renderPreview();
-}
-
-function arrayBufferToBase64(buf){
-    let binary='';const bytes=new Uint8Array(buf);
-    for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
-    return btoa(binary);
-}
-function base64ToArrayBuffer(b64){
-    const binary=atob(b64);const bytes=new Uint8Array(binary.length);
-    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-    return bytes;
 }
 
 function readFile(file){
