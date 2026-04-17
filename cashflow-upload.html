@@ -433,56 +433,55 @@ function renderPreview(){
 
 // ── DB 저장 ──
 async function saveToDb(){
-    const toSave=parsedTxs.filter(t=>!t.is_duplicate);
+    let toSave=parsedTxs.filter(t=>!t.is_duplicate);
     if(!toSave.length){showToast('저장할 새 거래가 없습니다 (전부 중복)','info');return;}
+
+    // account_id 없는 건 제외
+    const noAccount=toSave.filter(t=>!t.account_id);
+    toSave=toSave.filter(t=>t.account_id);
+    if(!toSave.length){
+        document.getElementById('resultBox').className='result-box show error';
+        document.getElementById('resultBox').innerHTML=`❌ 통장 매칭 실패! 통장 선택을 확인해주세요. (${noAccount.length}건 account_id 없음)`;
+        return;
+    }
 
     const resultBox=document.getElementById('resultBox');
     resultBox.className='result-box show processing';
     resultBox.textContent=`💾 ${toSave.length}건 저장 중...`;
 
-    let success=0,fail=0;
-    const batchSize=50;
+    let success=0,fail=0,lastError='';
 
-    for(let i=0;i<toSave.length;i+=batchSize){
-        const batch=toSave.slice(i,i+batchSize).map(tx=>({
+    for(const tx of toSave){
+        const row={
             account_id:tx.account_id,
             tx_date:tx.tx_date,
             tx_type:tx.tx_type,
             amount:tx.amount,
             balance_after:tx.balance_after,
-            counterparty:tx.counterparty,
-            memo:tx.memo,
-            raw_description:tx.raw_description,
-            category:tx.category,
-            sub_category:tx.sub_category,
-            is_auto_categorized:tx.is_auto_categorized,
-            is_confirmed:tx.is_auto_categorized,
+            counterparty:tx.counterparty||'',
+            memo:tx.memo||'',
+            raw_description:tx.raw_description||'',
+            category:tx.category||null,
+            sub_category:tx.sub_category||null,
+            is_auto_categorized:tx.is_auto_categorized||false,
+            is_confirmed:false,
             dedup_hash:tx.dedup_hash
-        }));
+        };
 
-        const{data,error}=await db.from('cash_transactions').upsert(batch,{onConflict:'dedup_hash'}).select();
-        if(error){
-            // 개별 삽입 시도
-            for(const row of batch){
-                const{error:e2}=await db.from('cash_transactions').upsert([row],{onConflict:'dedup_hash'});
-                if(!e2)success++;else fail++;
-            }
-        }else{
-            success+=(data||[]).length;
-        }
-    }
-
-    // 룰 hit_count 업데이트
-    const ruleHits={};
-    toSave.filter(t=>t.matched_rule_id).forEach(t=>{ruleHits[t.matched_rule_id]=(ruleHits[t.matched_rule_id]||0)+1;});
-    for(const[ruleId,hits]of Object.entries(ruleHits)){
-        await db.rpc('increment_rule_hit',{rule_id:Number(ruleId),hits:hits}).catch(()=>{});
+        const{error}=await db.from('cash_transactions').upsert([row],{onConflict:'dedup_hash',ignoreDuplicates:true});
+        if(error){fail++;lastError=error.message||JSON.stringify(error);}
+        else success++;
     }
 
     const dupCount=parsedTxs.filter(t=>t.is_duplicate).length;
-    resultBox.className='result-box show success';
-    resultBox.innerHTML=`✅ <strong>${success}건 저장 완료!</strong>${fail?` (${fail}건 실패)`:''} ${dupCount?`| 중복 ${dupCount}건 스킵`:''}`;
-    showToast(`${success}건 저장 완료!`,'success');
+    if(fail>0&&success===0){
+        resultBox.className='result-box show error';
+        resultBox.innerHTML=`❌ 저장 실패 (${fail}건)<br>에러: ${lastError}${noAccount.length?`<br>통장 미매칭: ${noAccount.length}건`:''}`;
+    }else{
+        resultBox.className='result-box show success';
+        resultBox.innerHTML=`✅ <strong>${success}건 저장!</strong>${fail?` (${fail}건 실패: ${lastError})`:''} ${dupCount?`| 중복 ${dupCount}건 스킵`:''} ${noAccount.length?`| 통장미매칭 ${noAccount.length}건 제외`:''}`;
+        showToast(`${success}건 저장 완료!`,'success');
+    }
 }
 
 function clearPreview(){
