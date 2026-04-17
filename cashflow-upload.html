@@ -83,8 +83,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 </div>
 <div class="container">
     <div class="info-box">
-        💡 <strong>업로드 전 비밀번호 해제 필요:</strong> 은행에서 다운받은 엑셀은 비번이 걸려있어요.<br>
-        엑셀 열기 → 비번 입력(900520) → <strong>다른 이름으로 저장</strong> → 도구 → 일반 옵션 → 비밀번호 비우고 저장 → 그 파일을 업로드해주세요.
+        💡 <strong>비밀번호 자동 해제:</strong> 은행에서 다운받은 암호화된 엑셀을 그대로 업로드하세요. 비밀번호를 자동으로 풀어줍니다.
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔐 엑셀 비밀번호</div>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <input type="text" id="excelPassword" value="900520" placeholder="비밀번호 입력" style="padding:10px 14px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:14px;width:200px;">
+            <span style="font-size:12px;color:#888;">기본값: 900520 (변경 가능)</span>
+        </div>
     </div>
 
     <div class="card">
@@ -97,7 +104,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
         <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
             <div class="icon">📁</div>
             <div class="main-text">엑셀 파일을 드래그하거나 클릭해서 선택</div>
-            <div class="sub-text">하나은행 / KB국민 / 농협 엑셀 (.xlsx, .xls)</div>
+            <div class="sub-text">하나은행 / KB국민 / 농협 엑셀 (.xlsx, .xls) — 암호화된 파일도 자동 해제</div>
             <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
         </div>
         <div class="result-box" id="resultBox"></div>
@@ -185,12 +192,13 @@ async function handleFiles(files){
     for(const file of files){
         try{
             const data=await readFile(file);
-            const wb=XLSX.read(data,{type:'array',cellDates:true});
+            const pw=document.getElementById('excelPassword').value.trim();
+            const wb=XLSX.read(data,{type:'array',cellDates:true,password:pw||undefined});
             const txs=parseWorkbook(wb,file.name);
             parsedTxs=parsedTxs.concat(txs);
         }catch(err){
             resultBox.className='result-box show error';
-            resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}<br>비밀번호가 걸려있다면 해제 후 다시 업로드해주세요.`;
+            resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}<br>비밀번호가 틀리거나 지원하지 않는 암호화 형식일 수 있어요. 비밀번호를 확인하거나, 엑셀에서 비번 해제 후 다시 업로드해주세요.`;
             return;
         }
     }
