@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>입출금 관리 - 은행 엑셀 업로드</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.container{max-width:1000px;margin:0 auto;padding:24px;}
+.card{background:#fff;border-radius:14px;padding:24px;border:1px solid #D9D4CA;margin-bottom:20px;}
+.card-title{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+
+/* 업로드 영역 */
+.drop-zone{border:2px dashed #D9D4CA;border-radius:12px;padding:48px;text-align:center;cursor:pointer;transition:all 0.2s;background:#faf8f4;}
+.drop-zone:hover,.drop-zone.dragover{border-color:#f4a900;background:#fff8e1;}
+.drop-zone .icon{font-size:40px;margin-bottom:12px;}
+.drop-zone .main-text{font-size:15px;font-weight:600;color:#333;margin-bottom:6px;}
+.drop-zone .sub-text{font-size:12px;color:#999;}
+.drop-zone input{display:none;}
+
+/* 안내 */
+.info-box{background:#e3f2fd;border-left:4px solid #1976d2;border-radius:0 10px 10px 0;padding:14px 18px;margin-bottom:16px;font-size:12.5px;color:#0d47a1;line-height:1.7;}
+.info-box strong{color:#0d47a1;}
+
+/* 통장 선택 */
+.account-select{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.account-btn{padding:10px 18px;border:2px solid #D9D4CA;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:#fff;transition:all 0.2s;}
+.account-btn:hover{border-color:#f4a900;}
+.account-btn.active{border-color:#f4a900;background:#fff8e1;color:#1a1a2e;}
+.account-btn.auto{border-color:#0f9b58;background:#e8f5e9;color:#1b5e20;}
+
+/* 결과 */
+.result-box{padding:16px;border-radius:10px;margin-top:16px;font-size:13px;line-height:1.7;display:none;}
+.result-box.show{display:block;}
+.result-box.success{background:#e8f5e9;border:1px solid #a5d6a7;color:#1b5e20;}
+.result-box.error{background:#fce4ec;border:1px solid #ef9a9a;color:#b71c1c;}
+.result-box.processing{background:#fff8e1;border:1px solid #ffe082;color:#6d4c00;}
+
+/* 미리보기 테이블 */
+.preview-section{margin-top:20px;display:none;}
+.preview-section.show{display:block;}
+.preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.preview-stats{display:flex;gap:16px;font-size:13px;}
+.preview-stats .stat{padding:6px 14px;border-radius:8px;font-weight:600;}
+.stat-total{background:#e3f2fd;color:#1565c0;}
+.stat-auto{background:#e8f5e9;color:#2e7d32;}
+.stat-manual{background:#fff8e1;color:#f57f17;}
+.stat-dup{background:#f3e5f5;color:#7b1fa2;}
+
+.preview-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+.preview-table th{background:#f5f0e8;padding:8px 6px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;font-size:11px;}
+.preview-table td{padding:7px 6px;border-bottom:1px solid #f0ebe3;text-align:center;}
+.preview-table tr:hover td{background:#faf8f4;}
+.cat-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;}
+.cat-auto{background:#e8f5e9;color:#2e7d32;}
+.cat-manual{background:#fff8e1;color:#f57f17;}
+.cat-dup{background:#f3e5f5;color:#7b1fa2;text-decoration:line-through;}
+.amount-in{color:#0f9b58;font-weight:600;}
+.amount-out{color:#e94560;font-weight:600;}
+
+.btn{padding:12px 28px;border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.btn-primary{background:#f4a900;color:#1a1a2e;}.btn-primary:hover{background:#e09800;transform:translateY(-1px);}
+.btn-secondary{background:#f5f0e8;color:#555;}.btn-secondary:hover{background:#e8e3da;}
+.btn-danger{background:#fce4ec;color:#c62828;}.btn-danger:hover{background:#f8bbd0;}
+.btn-group{display:flex;gap:10px;justify-content:center;margin-top:20px;}
+
+.bank-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;color:white;}
+.bank-hana{background:#009688;}.bank-kb{background:#eab308;color:#1a1a2e;}.bank-nh{background:#2196f3;}
+
+.toast{position:fixed;bottom:30px;right:30px;padding:14px 24px;border-radius:10px;color:white;font-size:13px;font-weight:600;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#1976d2;}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>📤 은행 엑셀 <span>업로드</span></h1>
+</div>
+<div class="container">
+    <div class="info-box">
+        💡 <strong>업로드 전 비밀번호 해제 필요:</strong> 은행에서 다운받은 엑셀은 비번이 걸려있어요.<br>
+        엑셀 열기 → 비번 입력(900520) → <strong>다른 이름으로 저장</strong> → 도구 → 일반 옵션 → 비밀번호 비우고 저장 → 그 파일을 업로드해주세요.
+    </div>
+
+    <div class="card">
+        <div class="card-title">🏦 통장 선택 (자동 감지됨)</div>
+        <div class="account-select" id="accountSelect"></div>
+    </div>
+
+    <div class="card">
+        <div class="card-title">📂 파일 업로드</div>
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <div class="icon">📁</div>
+            <div class="main-text">엑셀 파일을 드래그하거나 클릭해서 선택</div>
+            <div class="sub-text">하나은행 / KB국민 / 농협 엑셀 (.xlsx, .xls)</div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" multiple>
+        </div>
+        <div class="result-box" id="resultBox"></div>
+    </div>
+
+    <div class="preview-section" id="previewSection">
+        <div class="card">
+            <div class="preview-header">
+                <div class="card-title" style="margin-bottom:0;">📋 파싱 결과 미리보기</div>
+                <div class="preview-stats" id="previewStats"></div>
+            </div>
+            <div style="max-height:500px;overflow-y:auto;">
+                <table class="preview-table">
+                    <thead><tr>
+                        <th>통장</th><th>날짜</th><th>거래처/적요</th><th>입금</th><th>출금</th><th>잔액</th><th>분류</th><th>상태</th>
+                    </tr></thead>
+                    <tbody id="previewBody"></tbody>
+                </table>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="saveToDb()">💾 DB에 저장</button>
+                <button class="btn btn-secondary" onclick="clearPreview()">🔄 초기화</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const{createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let accounts=[];
+let rules=[];
+let parsedTxs=[];
+let selectedAccountId=null;
+
+// ── 초기 로드 ──
+async function init(){
+    const{data:accts}=await db.from('bank_accounts').select('*').order('id');
+    accounts=accts||[];
+    renderAccountButtons();
+
+    const{data:rls}=await db.from('categorization_rules').select('*').order('priority');
+    rules=rls||[];
+}
+
+function renderAccountButtons(){
+    const el=document.getElementById('accountSelect');
+    el.innerHTML=`<button class="account-btn auto active" onclick="selectAccount(null)">🔍 자동 감지</button>`
+        +accounts.map(a=>`<button class="account-btn" onclick="selectAccount(${a.id})" data-id="${a.id}">${getBankEmoji(a.bank)} ${a.name}</button>`).join('');
+}
+
+function selectAccount(id){
+    selectedAccountId=id;
+    document.querySelectorAll('.account-btn').forEach(b=>{
+        b.classList.remove('active');
+        if(id===null&&b.classList.contains('auto'))b.classList.add('active');
+        else if(b.dataset.id==id)b.classList.add('active');
+    });
+}
+
+function getBankEmoji(bank){return bank==='하나은행'?'🏦':bank==='KB국민'?'🏛️':bank==='농협'?'🌾':'💳';}
+function getBankClass(bank){return bank==='하나은행'?'bank-hana':bank==='KB국민'?'bank-kb':bank==='농협'?'bank-nh':'';}
+
+// ── 파일 업로드 ──
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('dragover');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');handleFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change',e=>handleFiles(e.target.files));
+
+async function handleFiles(files){
+    if(!files.length)return;
+    const resultBox=document.getElementById('resultBox');
+    resultBox.className='result-box show processing';
+    resultBox.textContent='📂 파일 분석 중...';
+    parsedTxs=[];
+
+    for(const file of files){
+        try{
+            const data=await readFile(file);
+            const wb=XLSX.read(data,{type:'array',cellDates:true});
+            const txs=parseWorkbook(wb,file.name);
+            parsedTxs=parsedTxs.concat(txs);
+        }catch(err){
+            resultBox.className='result-box show error';
+            resultBox.innerHTML=`❌ <strong>${file.name}</strong> 읽기 실패: ${err.message}<br>비밀번호가 걸려있다면 해제 후 다시 업로드해주세요.`;
+            return;
+        }
+    }
+
+    if(!parsedTxs.length){
+        resultBox.className='result-box show error';
+        resultBox.textContent='⚠️ 파싱된 거래가 없습니다. 파일 형식을 확인해주세요.';
+        return;
+    }
+
+    // 자동분류 적용
+    parsedTxs.forEach(tx=>applyRules(tx));
+
+    // 중복 체크
+    await checkDuplicates();
+
+    resultBox.className='result-box show success';
+    resultBox.innerHTML=`✅ <strong>${parsedTxs.length}건</strong> 파싱 완료! 아래 미리보기 확인 후 저장하세요.`;
+
+    renderPreview();
+}
+
+function readFile(file){
+    return new Promise((resolve,reject)=>{
+        const reader=new FileReader();
+        reader.onload=e=>resolve(new Uint8Array(e.target.result));
+        reader.onerror=()=>reject(new Error('파일 읽기 실패'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// ── 은행 자동감지 + 파싱 ──
+function parseWorkbook(wb,filename){
+    const txs=[];
+    for(const sheetName of wb.SheetNames){
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:'',raw:false});
+        if(rows.length<2)continue;
+
+        // 헤더 찾기 (처음 10행 안에서)
+        let headerIdx=-1;
+        let bankType=null;
+        for(let i=0;i<Math.min(10,rows.length);i++){
+            const row=rows[i].map(c=>String(c||'').trim());
+            const joined=row.join('|');
+
+            if(joined.includes('거래일시')&&(joined.includes('적요')||joined.includes('내용'))){
+                headerIdx=i;
+                // 하나은행: "거래일시|적요|출금|입금|잔액|거래점"
+                if(joined.includes('거래점')||joined.includes('거래기록사항'))bankType='하나은행';
+                // 농협: 비슷하지만 다른 패턴
+                else if(joined.includes('농협')||filename.includes('8251'))bankType='농협';
+                else bankType='하나은행';
+                break;
+            }
+            if(joined.includes('거래일자')&&joined.includes('거래시간')){
+                headerIdx=i;
+                bankType='KB국민';
+                break;
+            }
+            // 추가 패턴
+            if(joined.includes('거래일')&&(joined.includes('출금액')||joined.includes('출금'))){
+                headerIdx=i;
+                if(filename.includes('8251')||filename.includes('농협'))bankType='농협';
+                else if(filename.includes('7966')||filename.includes('KB'))bankType='KB국민';
+                else bankType='하나은행';
+                break;
+            }
+        }
+
+        if(headerIdx===-1)continue;
+
+        const headers=rows[headerIdx].map(c=>String(c||'').trim());
+
+        // 컬럼 인덱스 매핑
+        const colMap=detectColumns(headers,bankType);
+        if(!colMap)continue;
+
+        // 통장 매칭
+        let accountId=selectedAccountId;
+        if(!accountId){
+            const acct=accounts.find(a=>a.bank===bankType);
+            if(acct)accountId=acct.id;
+        }
+
+        // 데이터 행 파싱
+        for(let i=headerIdx+1;i<rows.length;i++){
+            const r=rows[i];
+            if(!r||!r[colMap.date])continue;
+
+            const dateStr=parseDate(r[colMap.date],colMap.time?r[colMap.time]:null);
+            if(!dateStr)continue;
+
+            const outAmt=parseAmount(r[colMap.out]);
+            const inAmt=parseAmount(r[colMap.in]);
+            if(outAmt===0&&inAmt===0)continue;
+
+            const balance=parseAmount(r[colMap.balance]);
+            const counterparty=String(r[colMap.counterparty]||'').trim();
+            const memo=colMap.memo!==undefined?String(r[colMap.memo]||'').trim():'';
+
+            txs.push({
+                account_id:accountId,
+                bank:bankType,
+                tx_date:dateStr,
+                tx_type:inAmt>0?'입금':'출금',
+                amount:inAmt>0?inAmt:outAmt,
+                balance_after:balance,
+                counterparty:counterparty,
+                memo:memo,
+                raw_description:`${counterparty} ${memo}`.trim(),
+                category:null,
+                sub_category:null,
+                is_auto_categorized:false,
+                is_confirmed:false,
+                is_duplicate:false
+            });
+        }
+    }
+    return txs;
+}
+
+function detectColumns(headers,bankType){
+    const map={};
+    const find=(keywords)=>headers.findIndex(h=>keywords.some(k=>h.includes(k)));
+
+    if(bankType==='KB국민'){
+        map.date=find(['거래일자']);
+        map.time=find(['거래시간','시간']);
+    }else{
+        map.date=find(['거래일시','거래일']);
+    }
+    map.out=find(['출금','출금액','지급']);
+    map.in=find(['입금','입금액','수취']);
+    map.balance=find(['잔액','거래후잔액']);
+    map.counterparty=find(['적요','거래내용','내용','거래기록사항','기재내용']);
+    map.memo=find(['메모','비고','거래점']);
+
+    if(map.date===-1||map.out===-1||map.in===-1)return null;
+    if(map.balance===-1)map.balance=map.in; // fallback
+    return map;
+}
+
+function parseDate(dateVal,timeVal){
+    if(!dateVal)return null;
+    let s=String(dateVal).trim();
+
+    // 엑셀 날짜 객체
+    if(dateVal instanceof Date){
+        return `${dateVal.getFullYear()}-${String(dateVal.getMonth()+1).padStart(2,'0')}-${String(dateVal.getDate()).padStart(2,'0')}`;
+    }
+
+    // "2026-04-16" or "2026.04.16" or "20260416"
+    let m=s.match(/(\d{4})[-./]?(\d{2})[-./]?(\d{2})/);
+    if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+
+    // "2026-04-16 14:30:22"
+    m=s.match(/(\d{4})[-./](\d{2})[-./](\d{2})\s/);
+    if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+
+    return null;
+}
+
+function parseAmount(val){
+    if(!val)return 0;
+    const n=Number(String(val).replace(/[^\d.-]/g,''));
+    return isNaN(n)?0:Math.abs(n);
+}
+
+// ── 자동분류 ──
+function applyRules(tx){
+    const desc=(tx.raw_description||'').toLowerCase();
+    const sortedRules=[...rules].sort((a,b)=>(a.priority||99)-(b.priority||99));
+
+    for(const rule of sortedRules){
+        const kw=(rule.keyword||'').toLowerCase();
+        if(!kw)continue;
+
+        // 통장 힌트 체크
+        if(rule.account_hint){
+            const acct=accounts.find(a=>a.id===tx.account_id);
+            if(acct&&!acct.name.includes(rule.account_hint)&&!acct.bank.includes(rule.account_hint))continue;
+        }
+
+        if(desc.includes(kw)){
+            tx.category=rule.category;
+            tx.sub_category=rule.sub_category;
+            tx.is_auto_categorized=true;
+            tx.matched_rule_id=rule.id;
+            return;
+        }
+    }
+}
+
+// ── 중복 체크 ──
+async function checkDuplicates(){
+    // dedup_hash 생성
+    for(const tx of parsedTxs){
+        const str=`${tx.account_id}|${tx.tx_date}|${tx.tx_type}|${tx.amount}|${tx.counterparty}|${tx.balance_after}`;
+        const enc=new TextEncoder().encode(str);
+        const hash=await crypto.subtle.digest('SHA-256',enc);
+        tx.dedup_hash=Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+
+    // DB에서 기존 해시 조회
+    const hashes=parsedTxs.map(t=>t.dedup_hash);
+    const batchSize=50;
+    const existingHashes=new Set();
+
+    for(let i=0;i<hashes.length;i+=batchSize){
+        const batch=hashes.slice(i,i+batchSize);
+        const{data}=await db.from('cash_transactions').select('dedup_hash').in('dedup_hash',batch);
+        if(data)data.forEach(d=>existingHashes.add(d.dedup_hash));
+    }
+
+    parsedTxs.forEach(tx=>{
+        tx.is_duplicate=existingHashes.has(tx.dedup_hash);
+    });
+}
+
+// ── 미리보기 ──
+function renderPreview(){
+    const section=document.getElementById('previewSection');
+    section.classList.add('show');
+
+    const total=parsedTxs.length;
+    const auto=parsedTxs.filter(t=>t.is_auto_categorized&&!t.is_duplicate).length;
+    const manual=parsedTxs.filter(t=>!t.is_auto_categorized&&!t.is_duplicate).length;
+    const dup=parsedTxs.filter(t=>t.is_duplicate).length;
+
+    document.getElementById('previewStats').innerHTML=`
+        <span class="stat stat-total">전체 ${total}건</span>
+        <span class="stat stat-auto">자동분류 ${auto}건</span>
+        <span class="stat stat-manual">미분류 ${manual}건</span>
+        ${dup?`<span class="stat stat-dup">중복 ${dup}건</span>`:''}`;
+
+    const tbody=document.getElementById('previewBody');
+    tbody.innerHTML=parsedTxs.map(tx=>{
+        const bankClass=getBankClass(tx.bank);
+        const amtIn=tx.tx_type==='입금'?`<span class="amount-in">+${tx.amount.toLocaleString()}</span>`:'';
+        const amtOut=tx.tx_type==='출금'?`<span class="amount-out">-${tx.amount.toLocaleString()}</span>`:'';
+
+        let statusBadge='';
+        if(tx.is_duplicate)statusBadge='<span class="cat-badge cat-dup">중복(스킵)</span>';
+        else if(tx.is_auto_categorized)statusBadge='<span class="cat-badge cat-auto">자동</span>';
+        else statusBadge='<span class="cat-badge cat-manual">미분류</span>';
+
+        const cat=tx.category?`${tx.category}${tx.sub_category?' / '+tx.sub_category:''}`:'-';
+
+        return `<tr style="${tx.is_duplicate?'opacity:0.4':''}">
+            <td><span class="bank-badge ${bankClass}">${tx.bank||'?'}</span></td>
+            <td style="font-size:11px;">${tx.tx_date}</td>
+            <td style="text-align:left;font-size:11px;">${tx.counterparty||'-'}</td>
+            <td>${amtIn}</td><td>${amtOut}</td>
+            <td style="font-size:11px;">${tx.balance_after?tx.balance_after.toLocaleString():'-'}</td>
+            <td style="font-size:10px;">${cat}</td>
+            <td>${statusBadge}</td>
+        </tr>`;
+    }).join('');
+
+    section.scrollIntoView({behavior:'smooth'});
+}
+
+// ── DB 저장 ──
+async function saveToDb(){
+    const toSave=parsedTxs.filter(t=>!t.is_duplicate);
+    if(!toSave.length){showToast('저장할 새 거래가 없습니다 (전부 중복)','info');return;}
+
+    const resultBox=document.getElementById('resultBox');
+    resultBox.className='result-box show processing';
+    resultBox.textContent=`💾 ${toSave.length}건 저장 중...`;
+
+    let success=0,fail=0;
+    const batchSize=50;
+
+    for(let i=0;i<toSave.length;i+=batchSize){
+        const batch=toSave.slice(i,i+batchSize).map(tx=>({
+            account_id:tx.account_id,
+            tx_date:tx.tx_date,
+            tx_type:tx.tx_type,
+            amount:tx.amount,
+            balance_after:tx.balance_after,
+            counterparty:tx.counterparty,
+            memo:tx.memo,
+            raw_description:tx.raw_description,
+            category:tx.category,
+            sub_category:tx.sub_category,
+            is_auto_categorized:tx.is_auto_categorized,
+            is_confirmed:tx.is_auto_categorized,
+            dedup_hash:tx.dedup_hash
+        }));
+
+        const{data,error}=await db.from('cash_transactions').upsert(batch,{onConflict:'dedup_hash'}).select();
+        if(error){
+            // 개별 삽입 시도
+            for(const row of batch){
+                const{error:e2}=await db.from('cash_transactions').upsert([row],{onConflict:'dedup_hash'});
+                if(!e2)success++;else fail++;
+            }
+        }else{
+            success+=(data||[]).length;
+        }
+    }
+
+    // 룰 hit_count 업데이트
+    const ruleHits={};
+    toSave.filter(t=>t.matched_rule_id).forEach(t=>{ruleHits[t.matched_rule_id]=(ruleHits[t.matched_rule_id]||0)+1;});
+    for(const[ruleId,hits]of Object.entries(ruleHits)){
+        await db.rpc('increment_rule_hit',{rule_id:Number(ruleId),hits:hits}).catch(()=>{});
+    }
+
+    const dupCount=parsedTxs.filter(t=>t.is_duplicate).length;
+    resultBox.className='result-box show success';
+    resultBox.innerHTML=`✅ <strong>${success}건 저장 완료!</strong>${fail?` (${fail}건 실패)`:''} ${dupCount?`| 중복 ${dupCount}건 스킵`:''}`;
+    showToast(`${success}건 저장 완료!`,'success');
+}
+
+function clearPreview(){
+    parsedTxs=[];
+    document.getElementById('previewSection').classList.remove('show');
+    document.getElementById('resultBox').className='result-box';
+    fileInput.value='';
+}
+
+function showToast(m,t){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+t+' show';setTimeout(()=>e.classList.remove('show'),2500);}
+
+// iframe 감지
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

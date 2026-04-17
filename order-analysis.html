@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 사업 분석</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:1200px;margin:0 auto;padding:24px;}
+.month-nav{display:flex;align-items:center;gap:8px;background:#fff;padding:14px 20px;border-radius:14px;border:1px solid #D9D4CA;margin-bottom:20px;}
+.month-nav button{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.month-nav .nav-btn{background:#f5f0e8;color:#555;}.month-nav .current-btn{background:#f4a900;color:#1a1a2e;}
+.month-label{font-size:18px;font-weight:700;min-width:140px;text-align:center;}
+.card{background:#fff;border-radius:14px;padding:24px;border:1px solid #D9D4CA;margin-bottom:20px;}
+.card-title{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-title .icon{font-size:20px;}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.stat-card{background:#fff;border-radius:14px;padding:18px;border:1px solid #D9D4CA;text-align:center;}
+.stat-label{font-size:11px;color:#888;font-weight:600;margin-bottom:6px;}
+.stat-value{font-size:22px;font-weight:800;}
+.insight-box{padding:14px 18px;border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.7;}
+.insight-good{background:#e8f5e9;border-left:4px solid #0f9b58;color:#1b5e20;}
+.insight-warn{background:#fff8e1;border-left:4px solid #f4a900;color:#6d4c00;}
+.insight-bad{background:#fce4ec;border-left:4px solid #e94560;color:#880e4f;}
+.insight-info{background:#e3f2fd;border-left:4px solid #1976d2;color:#0d47a1;}
+.rank-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+.rank-table th{background:#f5f0e8;padding:10px 8px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;font-size:11px;}
+.rank-table td{padding:10px 8px;border-bottom:1px solid #f0ebe3;text-align:center;}
+.rank-table tr:hover td{background:#faf8f4;}
+.rank-badge{display:inline-block;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:800;line-height:24px;text-align:center;color:white;}
+.rank-1{background:#f4a900;}.rank-2{background:#888;}.rank-3{background:#cd7f32;}
+.rank-other{background:#ddd;color:#666;}
+.platform-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;color:white;}
+.pf-naver{background:#00C73C;}.pf-coupang{background:#E31837;}.pf-ohouse{background:#35C5F0;}.pf-idus{background:#FF6F61;}
+.chart-container{position:relative;height:280px;margin:16px 0;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.progress-bar{height:8px;background:#f0ebe3;border-radius:4px;overflow:hidden;margin-top:6px;}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.5s;}
+.action-list{list-style:none;padding:0;}
+.action-list li{padding:10px 14px;border-left:3px solid #f4a900;margin-bottom:8px;background:#faf8f4;border-radius:0 8px 8px 0;font-size:13px;}
+.action-list li strong{color:#1a1a2e;}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;margin-left:6px;}
+.tag-high{background:#fce4ec;color:#c62828;}.tag-mid{background:#fff8e1;color:#f57f17;}.tag-low{background:#e8f5e9;color:#2e7d32;}
+@media(max-width:768px){.summary-grid{grid-template-columns:1fr 1fr;}.two-col{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>🔍 사업 <span>분석 리포트</span></h1>
+    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-daily.html">📈 일별매출</a><a href="order-finance.html">🏦 재무</a></div>
+</div>
+<div class="container">
+    <div class="month-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button class="nav-btn" onclick="changeMonth(1)">다음달 ▶</button>
+        <button class="current-btn" onclick="goCurrentMonth()">이번달</button>
+    </div>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div id="reportArea"><div class="card" style="text-align:center;color:#ccc;padding:60px;">분석 중...</div></div>
+</div>
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
+const PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
+const PFCLASS={"네이버":"pf-naver","쿠팡":"pf-coupang","오늘의집":"pf-ohouse","아이디어스":"pf-idus"};
+const PLATFORMS=["네이버","쿠팡","오늘의집","아이디어스"];
+
+let currentDate=new Date();
+function updateMonthLabel(){document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;}
+function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);updateMonthLabel();loadAnalysis();}
+function goCurrentMonth(){currentDate=new Date();updateMonthLabel();loadAnalysis();}
+function getMonthRange(){
+    const y=currentDate.getFullYear(),m=currentDate.getMonth();
+    const start=`${y}-${String(m+1).padStart(2,'0')}-01`;
+    const lastDay=new Date(y,m+1,0).getDate();
+    return{start,end:`${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,lastDay,month:m+1,year:y};
+}
+function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
+
+async function fetchAll(table,select,filters={}){
+    const PAGE=1000;let all=[],from=0;
+    while(true){
+        let q=db.from(table).select(select);
+        if(filters.eq)filters.eq.forEach(f=>q=q.eq(f[0],f[1]));
+        if(filters.gte)filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+        if(filters.lte)filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+        const{data}=await q.range(from,from+PAGE-1);
+        if(!data||!data.length)break;
+        all=all.concat(data);
+        if(data.length<PAGE)break;
+        from+=PAGE;
+    }
+    return all;
+}
+
+async function loadAnalysis(){
+    const{start,end,lastDay,month,year}=getMonthRange();
+
+    const orders=await fetchAll('orders','order_no,order_date,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
+    const costs=await fetchAll('product_costs','platform,product,option,cost');
+    const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
+    const dailyAds=await fetchAll('ad_costs','ad_date,platform,cost',{gte:[['ad_date',start]],lte:[['ad_date',end]]});
+    const periodAds=await fetchAll('product_ad_costs','platform,start_date,end_date,total_cost',{lte:[['start_date',end]],gte:[['end_date',start]]});
+
+    // 이전달 데이터
+    const prevDate=new Date(year,month-2,1);
+    const prevStart=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}-01`;
+    const prevEnd=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}-${String(new Date(prevDate.getFullYear(),prevDate.getMonth()+1,0).getDate()).padStart(2,'0')}`;
+    const prevOrders=await fetchAll('orders','order_date,platform,product,option,quantity,price',{gte:[['order_date',prevStart]],lte:[['order_date',prevEnd]]});
+
+    // ── 플랫폼별 집계 ──
+    const pfData={};
+    PLATFORMS.forEach(p=>{pfData[p]={sales:0,cost:0,qty:0,orderCount:0,uniqueOrders:new Set(),products:{}};});
+    (orders||[]).forEach(o=>{
+        const p=o.platform;if(!pfData[p])return;
+        const amt=(o.price||0)*(o.quantity||1);
+        const ck=`${p}|${o.product}|${o.option||''}`;
+        const uc=(costMap[ck]||0)*(o.quantity||1);
+        pfData[p].sales+=amt;pfData[p].cost+=uc;pfData[p].qty+=(o.quantity||1);pfData[p].orderCount++;
+        if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');pfData[p].uniqueOrders.add(base);}
+        // 상품별
+        const pk=`${p}|${o.product}|${o.option||''}`;
+        if(!pfData[p].products[pk])pfData[p].products[pk]={name:o.product,option:o.option||'',sales:0,cost:0,qty:0};
+        pfData[p].products[pk].sales+=amt;pfData[p].products[pk].cost+=uc;pfData[p].products[pk].qty+=(o.quantity||1);
+    });
+
+    // 수수료 + 순익
+    let totalSales=0,totalProfit=0,totalAd=0;
+    PLATFORMS.forEach(p=>{
+        const d=pfData[p];
+        const idusShip=p==='아이디어스'?d.uniqueOrders.size*2500:0;
+        d.commission=d.sales*CR[p]+idusShip;
+        d.profit=d.sales-d.commission-d.cost;
+        totalSales+=d.sales;
+    });
+
+    // 광고비
+    const adByPlatform={};
+    (dailyAds||[]).forEach(a=>{adByPlatform[a.platform]=(adByPlatform[a.platform]||0)+(a.cost||0);});
+    (periodAds||[]).forEach(pa=>{
+        const pS=new Date(pa.start_date),pE=new Date(pa.end_date),mS=new Date(start),mE=new Date(end);
+        const tDays=Math.max(1,Math.ceil((pE-pS)/86400000)+1);
+        const oS=new Date(Math.max(pS,mS)),oE=new Date(Math.min(pE,mE));
+        const oDays=Math.max(0,Math.ceil((oE-oS)/86400000)+1);
+        adByPlatform[pa.platform]=(adByPlatform[pa.platform]||0)+(pa.total_cost/tDays)*oDays;
+    });
+    PLATFORMS.forEach(p=>{pfData[p].ad=Math.round(adByPlatform[p]||0);totalAd+=pfData[p].ad;pfData[p].realProfit=pfData[p].profit-pfData[p].ad;});
+    totalProfit=PLATFORMS.reduce((s,p)=>s+pfData[p].realProfit,0);
+
+    // 이전달 집계
+    let prevTotal=0;
+    (prevOrders||[]).forEach(o=>{prevTotal+=(o.price||0)*(o.quantity||1);});
+
+    // 일별 매출
+    const dailySales={};
+    (orders||[]).forEach(o=>{
+        const d=o.order_date;
+        if(!dailySales[d])dailySales[d]={total:0};
+        PLATFORMS.forEach(p=>{if(!dailySales[d][p])dailySales[d][p]=0;});
+        dailySales[d][o.platform]+=(o.price||0)*(o.quantity||1);
+        dailySales[d].total+=(o.price||0)*(o.quantity||1);
+    });
+
+    // ── 상품별 전체 수익성 ──
+    const allProducts={};
+    PLATFORMS.forEach(p=>{
+        Object.values(pfData[p].products).forEach(prod=>{
+            const comm=prod.sales*CR[p]+(p==='아이디어스'?2500:0);
+            const profit=prod.sales-comm-prod.cost;
+            const margin=prod.sales>0?(profit/prod.sales*100):0;
+            const key=`${p}|${prod.name}|${prod.option}`;
+            allProducts[key]={platform:p,name:(prod.name||'').substring(0,35),option:(prod.option||'').substring(0,25),sales:prod.sales,cost:prod.cost,qty:prod.qty,profit,margin};
+        });
+    });
+    const prodRank=Object.values(allProducts).filter(p=>p.sales>0).sort((a,b)=>b.profit-a.profit);
+    const worstRank=Object.values(allProducts).filter(p=>p.sales>0&&p.margin<30).sort((a,b)=>a.margin-b.margin);
+
+    // ── 렌더링 ──
+    const profitRate=totalSales>0?(totalProfit/totalSales*100).toFixed(1):0;
+    const growth=prevTotal>0?((totalSales-prevTotal)/prevTotal*100).toFixed(1):'–';
+    const growthColor=growth==='–'?'#888':growth>=0?'#0f9b58':'#e94560';
+
+    document.getElementById('summaryGrid').innerHTML=`
+        <div class="stat-card"><div class="stat-label">${month}월 매출</div><div class="stat-value" style="color:#4285f4">${fmt(totalSales)}원</div></div>
+        <div class="stat-card"><div class="stat-label">${month}월 순익 (광고 후)</div><div class="stat-value" style="color:${totalProfit>=0?'#0f9b58':'#e94560'}">${fmt(totalProfit)}원</div></div>
+        <div class="stat-card"><div class="stat-label">순이익률</div><div class="stat-value" style="color:#f4a900">${profitRate}%</div></div>
+        <div class="stat-card"><div class="stat-label">전월 대비</div><div class="stat-value" style="color:${growthColor}">${growth==='–'?'데이터 없음':growth+'%'}</div></div>`;
+
+    let html='';
+
+    // ── 1. 인사이트 (자동 진단) ──
+    html+=`<div class="card"><div class="card-title"><span class="icon">💡</span> 자동 진단</div>`;
+    const insights=[];
+
+    // 매출 집중도
+    const topPlatform=PLATFORMS.reduce((a,b)=>pfData[a].sales>pfData[b].sales?a:b);
+    const topPct=(pfData[topPlatform].sales/totalSales*100);
+    if(topPct>60)insights.push({type:'warn',text:`매출의 ${topPct.toFixed(0)}%가 <strong>${topPlatform}</strong>에 집중돼있어요. ${topPlatform} 정책 변경 시 매출 급감 리스크가 있습니다. 2~3개 플랫폼에 분산 필요.`});
+    else if(topPct>45)insights.push({type:'info',text:`<strong>${topPlatform}</strong>이 매출의 ${topPct.toFixed(0)}%로 메인 채널. 적정 수준이지만 지속 모니터링 필요.`});
+    else insights.push({type:'good',text:`매출이 플랫폼별로 고르게 분산돼있어요. 안정적 구조!`});
+
+    // 순이익률
+    if(profitRate>=40)insights.push({type:'good',text:`순이익률 <strong>${profitRate}%</strong>로 매우 건강해요. 현재 비용 구조 유지하세요.`});
+    else if(profitRate>=25)insights.push({type:'info',text:`순이익률 <strong>${profitRate}%</strong>. 괜찮지만 원가 절감이나 판가 인상 여지를 검토해보세요.`});
+    else insights.push({type:'bad',text:`순이익률 <strong>${profitRate}%</strong>로 낮습니다. 저마진 상품 비중이 높거나 광고비가 과다할 수 있어요.`});
+
+    // 광고비
+    const adRate=totalSales>0?(totalAd/totalSales*100):0;
+    if(adRate>15)insights.push({type:'bad',text:`광고비가 매출의 <strong>${adRate.toFixed(1)}%</strong>를 차지해요. 업종 평균(10~12%) 초과. ROAS 낮은 광고를 줄여보세요.`});
+    else if(adRate>10)insights.push({type:'warn',text:`광고비율 <strong>${adRate.toFixed(1)}%</strong>. 적정 범위지만 ROAS를 정기적으로 체크하세요.`});
+    else if(totalAd>0)insights.push({type:'good',text:`광고비율 <strong>${adRate.toFixed(1)}%</strong>로 효율적이에요.`});
+
+    // 아이디어스 배송비
+    if(pfData['아이디어스'].sales>0){
+        const idusShipTotal=pfData['아이디어스'].uniqueOrders.size*2500;
+        const idusShipRate=idusShipTotal/pfData['아이디어스'].sales*100;
+        if(idusShipRate>10)insights.push({type:'warn',text:`아이디어스 배송비가 매출의 <strong>${idusShipRate.toFixed(1)}%</strong>. 저가 상품(차량용 등)은 마진이 크게 깎입니다. 고가 상품 비중을 높이는 것을 추천.`});
+    }
+
+    // 매출 없는 플랫폼
+    PLATFORMS.forEach(p=>{if(pfData[p].sales===0)insights.push({type:'info',text:`<strong>${p}</strong> ${month}월 매출 데이터가 없어요. 주문서를 업로드했는지 확인해주세요.`});});
+
+    // 성장률
+    if(growth!=='–'){
+        if(growth>=10)insights.push({type:'good',text:`전월 대비 <strong>+${growth}%</strong> 성장! 현재 전략이 잘 먹히고 있어요.`});
+        else if(growth>=-5)insights.push({type:'info',text:`전월 대비 <strong>${growth}%</strong>. 안정적이지만 성장 동력이 필요할 수 있어요.`});
+        else insights.push({type:'bad',text:`전월 대비 <strong>${growth}%</strong> 하락. 원인 분석이 필요합니다.`});
+    }
+
+    // 저마진 상품 경고
+    if(worstRank.length>0){
+        const worst=worstRank[0];
+        insights.push({type:'warn',text:`<strong>${worst.name.substring(0,20)}</strong> (${worst.platform}) 마진 ${worst.margin.toFixed(0)}%로 가장 낮아요. 원가 절감 또는 가격 인상을 검토하세요.`});
+    }
+
+    insights.forEach(ins=>{html+=`<div class="insight-box insight-${ins.type}">${ins.text}</div>`;});
+    html+=`</div>`;
+
+    // ── 2. 플랫폼별 효율 비교 ──
+    html+=`<div class="card"><div class="card-title"><span class="icon">📊</span> 플랫폼별 효율 비교</div>
+    <table class="rank-table"><thead><tr><th>플랫폼</th><th>매출</th><th>비용합계</th><th>순익</th><th>순이익률</th><th>매출비중</th><th>판정</th></tr></thead><tbody>`;
+    
+    const pfSorted=PLATFORMS.filter(p=>pfData[p].sales>0).sort((a,b)=>pfData[b].realProfit-pfData[a].realProfit);
+    pfSorted.forEach((p,i)=>{
+        const d=pfData[p];
+        const totalCost=d.commission+d.cost+d.ad;
+        const margin=d.sales>0?(d.realProfit/d.sales*100).toFixed(1):0;
+        const share=(d.sales/totalSales*100).toFixed(1);
+        const verdict=margin>=40?'⭐ 최고':margin>=25?'✅ 양호':margin>=10?'⚠️ 주의':'❌ 재검토';
+        html+=`<tr>
+            <td><span class="platform-badge ${PFCLASS[p]}">${p}</span></td>
+            <td style="font-weight:600">${fmt(d.sales)}원</td>
+            <td style="color:#e94560">${fmt(totalCost)}원</td>
+            <td style="font-weight:700;color:${d.realProfit>=0?'#0f9b58':'#e94560'}">${fmt(d.realProfit)}원</td>
+            <td style="font-weight:600">${margin}%</td>
+            <td>${share}%</td>
+            <td>${verdict}</td></tr>`;
+    });
+    html+=`</tbody></table></div>`;
+
+    // ── 3. 상품 수익성 TOP 10 + 하위 5 ──
+    html+=`<div class="two-col">`;
+    
+    // TOP 10
+    html+=`<div class="card"><div class="card-title"><span class="icon">🏆</span> 수익성 TOP 10</div>
+    <table class="rank-table"><thead><tr><th>#</th><th>플랫폼</th><th>상품</th><th>순익</th><th>마진</th></tr></thead><tbody>`;
+    prodRank.slice(0,10).forEach((p,i)=>{
+        const badgeClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
+        html+=`<tr><td><span class="rank-badge ${badgeClass}">${i+1}</span></td>
+            <td><span class="platform-badge ${PFCLASS[p.platform]}">${p.platform}</span></td>
+            <td style="text-align:left;font-size:11px;" title="${p.name} / ${p.option}">${p.name.substring(0,20)}</td>
+            <td style="font-weight:700;color:#0f9b58">${fmt(p.profit)}원</td>
+            <td style="font-weight:600">${p.margin.toFixed(0)}%</td></tr>`;
+    });
+    html+=`</tbody></table></div>`;
+
+    // 하위 (저마진)
+    html+=`<div class="card"><div class="card-title"><span class="icon">⚠️</span> 저마진 상품 (30% 미만)</div>`;
+    if(worstRank.length===0){html+=`<div style="text-align:center;color:#0f9b58;padding:30px;">모든 상품 마진 30% 이상! 👍</div>`;}
+    else{
+        html+=`<table class="rank-table"><thead><tr><th>플랫폼</th><th>상품</th><th>매출</th><th>마진</th><th>제안</th></tr></thead><tbody>`;
+        worstRank.slice(0,8).forEach(p=>{
+            const tag=p.margin<10?'tag-high':p.margin<20?'tag-mid':'tag-low';
+            const suggest=p.margin<10?'가격인상 필수':p.margin<20?'원가 재검토':'모니터링';
+            html+=`<tr><td><span class="platform-badge ${PFCLASS[p.platform]}">${p.platform}</span></td>
+                <td style="text-align:left;font-size:11px;">${p.name.substring(0,20)}</td>
+                <td>${fmt(p.sales)}원</td>
+                <td style="font-weight:700;color:#e94560">${p.margin.toFixed(0)}%</td>
+                <td><span class="tag ${tag}">${suggest}</span></td></tr>`;
+        });
+        html+=`</tbody></table>`;
+    }
+    html+=`</div></div>`;
+
+    // ── 4. 일별 매출 추이 차트 ──
+    html+=`<div class="card"><div class="card-title"><span class="icon">📈</span> 일별 매출 추이</div>
+    <div class="chart-container"><canvas id="dailyChart"></canvas></div></div>`;
+
+    // ── 5. 플랫폼별 매출 비중 차트 ──
+    html+=`<div class="two-col">
+    <div class="card"><div class="card-title"><span class="icon">🥧</span> 플랫폼별 매출 비중</div>
+    <div class="chart-container"><canvas id="pieChart"></canvas></div></div>`;
+
+    // ── 6. 실행 제안 ──
+    html+=`<div class="card"><div class="card-title"><span class="icon">🎯</span> 실행 제안</div><ul class="action-list">`;
+    
+    // 데이터 기반 제안
+    if(pfData['쿠팡'].sales===0)html+=`<li><strong>[데이터]</strong> 쿠팡 주문서를 업로드하세요. 전체 매출의 한 축이 빠져있어 정확한 분석이 불가능합니다.</li>`;
+    
+    if(topPct>55)html+=`<li><strong>[플랫폼]</strong> ${topPlatform} 의존도를 줄이세요. 2위 플랫폼 광고를 소폭 늘려 매출 분산을 시도하세요.</li>`;
+    
+    const idusData=pfData['아이디어스'];
+    if(idusData.sales>0){
+        const lowPriceRatio=Object.values(idusData.products).filter(p=>p.sales/p.qty<15000).reduce((s,p)=>s+p.sales,0)/idusData.sales;
+        if(lowPriceRatio>0.3)html+=`<li><strong>[아이디어스]</strong> 저가 상품(15,000원 미만) 비중이 ${(lowPriceRatio*100).toFixed(0)}%. 배송비 부담이 커서 고가 상품 위주로 전환을 추천합니다.</li>`;
+    }
+
+    if(adRate>12)html+=`<li><strong>[광고]</strong> 광고비율 ${adRate.toFixed(1)}%. ROAS가 500% 미만인 광고 캠페인을 줄이고, 자연유입(SEO) 강화를 고려하세요.</li>`;
+    
+    html+=`<li><strong>[상품]</strong> 현재 카테고리가 액막이 명태에 집중돼있어요. 같은 장비(레이저 각인기)로 만들 수 있는 열쇠고리, 명패, 반려동물 이름표 등으로 확장을 검토하세요.</li>`;
+    html+=`<li><strong>[데이터]</strong> 매월 데이터를 쌓으면 성장 트렌드, 계절성, 상품 수명주기를 자동 분석할 수 있어요. 4월 데이터도 꼭 업로드하세요!</li>`;
+    
+    html+=`</ul></div></div>`;
+
+    document.getElementById('reportArea').innerHTML=html;
+
+    // ── 차트 렌더링 ──
+    // 일별 매출
+    const sortedDays=Object.keys(dailySales).sort();
+    const labels=sortedDays.map(d=>d.substring(5));
+    const datasets=PLATFORMS.filter(p=>pfData[p].sales>0).map(p=>({
+        label:p,data:sortedDays.map(d=>dailySales[d]?.[p]||0),
+        backgroundColor:PFC[p]+'33',borderColor:PFC[p],borderWidth:1.5,fill:true,tension:0.3,pointRadius:1
+    }));
+    new Chart(document.getElementById('dailyChart'),{
+        type:'line',data:{labels,datasets},
+        options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{position:'top',labels:{font:{size:11,family:'Noto Sans KR'},boxWidth:12}}},
+            scales:{y:{ticks:{callback:v=>v>=10000?(v/10000)+'만':v.toLocaleString(),font:{size:10}},grid:{color:'#f0ebe3'}},
+                x:{ticks:{font:{size:9},maxRotation:0},grid:{display:false}}},
+            interaction:{intersect:false,mode:'index'}}
+    });
+
+    // 파이 차트
+    const pieData=PLATFORMS.filter(p=>pfData[p].sales>0);
+    new Chart(document.getElementById('pieChart'),{
+        type:'doughnut',
+        data:{labels:pieData.map(p=>p),datasets:[{data:pieData.map(p=>pfData[p].sales),backgroundColor:pieData.map(p=>PFC[p]),borderWidth:2,borderColor:'#fff'}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11,family:'Noto Sans KR'},padding:12,boxWidth:12}}}}
+    });
+}
+
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
+document.addEventListener('DOMContentLoaded',()=>{updateMonthLabel();loadAnalysis();});
+</script>
+</body>
+</html>
