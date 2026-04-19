@@ -298,7 +298,10 @@ async function classifyTx(selectEl){
     // 로컬 데이터 업데이트
     const tx=allTxs.find(t=>t.id===txId);
     if(tx){tx.category=cat;tx.sub_category=sub;tx.is_confirmed=true;tx.is_auto_categorized=false;}
+    const savedPage=currentPage;
     applyFilters();
+    currentPage=Math.min(savedPage,Math.ceil(filteredTxs.length/PAGE_SIZE)||1);
+    renderTable();
 }
 
 function renderPagination(){
