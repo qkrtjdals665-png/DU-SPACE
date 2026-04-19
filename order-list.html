@@ -93,7 +93,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#f4a900;cursor:pointe
                 <th style="width:30px"><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
                 <th>플랫폼</th><th>주문일</th><th>상품명</th><th>옵션</th>
                 <th class="text-center">수량</th><th class="text-right">단가</th><th class="text-right">금액</th>
-                <th class="text-right">원가</th><th class="text-right">개당순익</th>
+                <th class="text-right">개당원가</th><th class="text-right">순익</th>
                 <th>수취인</th><th>송장</th>
             </tr></thead>
             <tbody id="orderBody"><tr><td colspan="12" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
@@ -197,8 +197,9 @@ function renderTable(){
         }
         const unitCost=getCost(o);
         const unitProfit=unitCost!==null?Math.round((o.price||0)-(o.price||0)*(CR[o.platform]||0)-unitCost):null;
+        const totalProfit=unitProfit!==null?unitProfit*qty:null;
         const costStr=unitCost!==null?`${Math.round(unitCost).toLocaleString()}`:'<span style="color:#ccc">-</span>';
-        const profitStr=unitProfit!==null?`<span style="color:${unitProfit>=0?'#0f9b58':'#e94560'};font-weight:600;">${unitProfit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
+        const profitStr=totalProfit!==null?`<span style="color:${totalProfit>=0?'#0f9b58':'#e94560'};font-weight:600;">${totalProfit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
 
         html+=`<tr>
             <td><input type="checkbox" class="row-check" value="${o.id}"></td>
@@ -222,10 +223,9 @@ function renderTable(){
 function renderSummary(){
     const qty=allOrders.reduce((s,o)=>s+(o.quantity||1),0);
     const amt=allOrders.reduce((s,o)=>s+Math.round((o.price||0)*(o.quantity||1)),0);
-    const totalCost=allOrders.reduce((s,o)=>{const c=getCost(o);return s+(c!==null?Math.round(c*(o.quantity||1)):0);},0);
     const totalProfit=allOrders.reduce((s,o)=>{const p=getProfit(o);return s+(p||0);},0);
     const margin=amt>0?Math.round(totalProfit/amt*100):0;
-    document.getElementById('summaryBar').innerHTML=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>금액 <strong>${amt.toLocaleString()}원</strong></div><div>원가 <strong>${totalCost.toLocaleString()}원</strong></div><div>순익 <strong style="color:#0f9b58">${totalProfit.toLocaleString()}원</strong> <span style="font-size:11px;color:#888;">(${margin}%)</span></div>`;
+    document.getElementById('summaryBar').innerHTML=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>매출 <strong>${amt.toLocaleString()}원</strong></div><div>순익 <strong style="color:#0f9b58">${totalProfit.toLocaleString()}원</strong> <span style="font-size:11px;color:#888;">(마진 ${margin}%)</span></div>`;
 }
 
 function renderPagination(){
