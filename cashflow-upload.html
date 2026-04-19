@@ -75,6 +75,25 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 
 .toast{position:fixed;bottom:30px;right:30px;padding:14px 24px;border-radius:10px;color:white;font-size:13px;font-weight:600;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
 .toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#1976d2;}
+
+/* 캘린더 */
+.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.cal-nav{display:flex;gap:8px;align-items:center;}
+.cal-nav button{background:#f5f0e8;border:none;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:14px;font-weight:600;font-family:'Noto Sans KR',sans-serif;}
+.cal-nav button:hover{background:#e8e3da;}
+.cal-month{font-size:16px;font-weight:700;color:#1a1a2e;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day-name{text-align:center;font-size:11px;font-weight:600;color:#888;padding:6px 0;}
+.cal-day{border:1px solid #f0ebe3;border-radius:8px;padding:6px 4px;min-height:60px;font-size:11px;position:relative;transition:all 0.15s;}
+.cal-day:hover{border-color:#f4a900;}
+.cal-day.today{border-color:#1976d2;background:#e3f2fd;}
+.cal-day.empty{background:transparent;border:none;}
+.cal-day .day-num{font-weight:600;color:#333;margin-bottom:4px;text-align:center;}
+.cal-day .day-cnt{font-size:10px;text-align:center;font-weight:600;color:#0f9b58;}
+.cal-day .day-banks{display:flex;gap:2px;justify-content:center;flex-wrap:wrap;margin-top:2px;}
+.cal-day .mini-badge{font-size:8px;padding:1px 4px;border-radius:4px;font-weight:700;color:white;}
+.cal-day.has-data{background:#f0faf4;}
+.cal-day.no-data .day-num{color:#ccc;}
 </style>
 </head>
 <body>
@@ -84,6 +103,23 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 <div class="container">
     <div class="info-box">
         💡 <strong>비밀번호 자동 해제:</strong> 은행에서 다운받은 암호화된 엑셀을 그대로 업로드하세요. 비밀번호를 자동으로 풀어줍니다.
+    </div>
+
+    <div class="card">
+        <div class="card-title">📅 업로드 현황</div>
+        <div class="cal-header">
+            <div class="cal-nav">
+                <button onclick="changeMonth(-1)">◀</button>
+                <span class="cal-month" id="calMonth"></span>
+                <button onclick="changeMonth(1)">▶</button>
+            </div>
+            <div style="font-size:11px;color:#888;">
+                <span style="display:inline-block;width:8px;height:8px;background:#009688;border-radius:2px;margin-right:2px;"></span>하나
+                <span style="display:inline-block;width:8px;height:8px;background:#eab308;border-radius:2px;margin-left:6px;margin-right:2px;"></span>KB
+                <span style="display:inline-block;width:8px;height:8px;background:#2196f3;border-radius:2px;margin-left:6px;margin-right:2px;"></span>농협
+            </div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
     </div>
 
     <div class="card">
@@ -153,6 +189,86 @@ async function init(){
 
     const{data:rls}=await db.from('categorization_rules').select('*').order('priority');
     rules=rls||[];
+
+    loadCalendar();
+}
+
+// ── 캘린더 ──
+let calYear,calMonth;
+(function(){const n=new Date();calYear=n.getFullYear();calMonth=n.getMonth();})();
+
+function changeMonth(dir){
+    calMonth+=dir;
+    if(calMonth<0){calMonth=11;calYear--;}
+    if(calMonth>11){calMonth=0;calYear++;}
+    loadCalendar();
+}
+
+async function loadCalendar(){
+    const from=`${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
+    const lastDay=new Date(calYear,calMonth+1,0).getDate();
+    const to=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+
+    document.getElementById('calMonth').textContent=`${calYear}년 ${calMonth+1}월`;
+
+    // DB에서 날짜별 건수 + 은행 조회
+    const{data}=await db.from('cash_transactions').select('tx_date,account_id').gte('tx_date',from).lte('tx_date',to);
+    const txs=data||[];
+
+    // 날짜별 집계
+    const dayMap={};
+    txs.forEach(t=>{
+        if(!dayMap[t.tx_date])dayMap[t.tx_date]={cnt:0,banks:new Set()};
+        dayMap[t.tx_date].cnt++;
+        const acct=accounts.find(a=>a.id===t.account_id);
+        if(acct)dayMap[t.tx_date].banks.add(acct.bank);
+    });
+
+    renderCalendar(dayMap,lastDay);
+}
+
+function renderCalendar(dayMap,lastDay){
+    const grid=document.getElementById('calGrid');
+    const today=new Date();
+    const todayStr=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    // 요일 헤더
+    let html=['일','월','화','수','목','금','토'].map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+
+    // 1일의 요일
+    const firstDow=new Date(calYear,calMonth,1).getDay();
+    for(let i=0;i<firstDow;i++)html+=`<div class="cal-day empty"></div>`;
+
+    const bankColors={'하나':'#009688','KB국민':'#eab308','농협':'#2196f3'};
+
+    for(let d=1;d<=lastDay;d++){
+        const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const info=dayMap[dateStr];
+        const isToday=dateStr===todayStr;
+        const hasData=info&&info.cnt>0;
+
+        let cls='cal-day';
+        if(isToday)cls+=' today';
+        if(hasData)cls+=' has-data';
+        else cls+=' no-data';
+
+        let inner=`<div class="day-num">${d}</div>`;
+        if(hasData){
+            inner+=`<div class="day-cnt">${info.cnt}건</div>`;
+            inner+=`<div class="day-banks">`;
+            ['하나','KB국민','농협'].forEach(b=>{
+                if(info.banks.has(b)){
+                    const label=b==='KB국민'?'KB':b;
+                    inner+=`<span class="mini-badge" style="background:${bankColors[b]}">${label}</span>`;
+                }
+            });
+            inner+=`</div>`;
+        }
+
+        html+=`<div class="${cls}">${inner}</div>`;
+    }
+
+    grid.innerHTML=html;
 }
 
 function renderAccountButtons(){
@@ -531,6 +647,7 @@ async function saveToDb(){
         resultBox.className='result-box show success';
         resultBox.innerHTML=`✅ <strong>${success}건 저장!</strong>${fail?` (${fail}건 실패: ${lastError})`:''} ${dupCount?`| 중복 ${dupCount}건 스킵`:''} ${noAccount.length?`| 통장미매칭 ${noAccount.length}건 제외`:''}`;
         showToast(`${success}건 저장 완료!`,'success');
+        loadCalendar();
     }
 }
 
