@@ -93,7 +93,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#f4a900;cursor:pointe
                 <th style="width:30px"><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
                 <th>플랫폼</th><th>주문일</th><th>상품명</th><th>옵션</th>
                 <th class="text-center">수량</th><th class="text-right">단가</th><th class="text-right">금액</th>
-                <th class="text-right">원가</th><th class="text-right">순익</th>
+                <th class="text-right">원가</th><th class="text-right">개당순익</th>
                 <th>수취인</th><th>송장</th>
             </tr></thead>
             <tbody id="orderBody"><tr><td colspan="12" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
@@ -189,15 +189,16 @@ function renderTable(){
         const d=o.order_date||'';
         if(d!==lastDate){
             const dayOrders=allOrders.filter(x=>x.order_date===d);
+            const dayQty=dayOrders.reduce((s,x)=>s+(x.quantity||1),0);
             const dayTotal=dayOrders.reduce((s,x)=>s+Math.round((x.price||0)*(x.quantity||1)),0);
             const dayProfit=dayOrders.reduce((s,x)=>{const p=getProfit(x);return s+(p||0);},0);
-            html+=`<tr><td colspan="12" class="date-group">📅 ${d} (${dayOrders.length}건, ${dayTotal.toLocaleString()}원${dayProfit?` / 순익 ${dayProfit.toLocaleString()}원`:''})</td></tr>`;
+            html+=`<tr><td colspan="12" class="date-group">📅 ${d} (${dayOrders.length}건, ${dayQty}개, 매출 ${dayTotal.toLocaleString()}원${dayProfit?` / <span style="color:#0f9b58;font-weight:700;">순익 ${dayProfit.toLocaleString()}원</span>`:''})</td></tr>`;
             lastDate=d;
         }
-        const cost=getCost(o);
-        const profit=getProfit(o);
-        const costStr=cost!==null?`${Math.round(cost*qty).toLocaleString()}`:'<span style="color:#ccc">-</span>';
-        const profitStr=profit!==null?`<span style="color:${profit>=0?'#0f9b58':'#e94560'};font-weight:600;">${profit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
+        const unitCost=getCost(o);
+        const unitProfit=unitCost!==null?Math.round((o.price||0)-(o.price||0)*(CR[o.platform]||0)-unitCost):null;
+        const costStr=unitCost!==null?`${Math.round(unitCost).toLocaleString()}`:'<span style="color:#ccc">-</span>';
+        const profitStr=unitProfit!==null?`<span style="color:${unitProfit>=0?'#0f9b58':'#e94560'};font-weight:600;">${unitProfit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
 
         html+=`<tr>
             <td><input type="checkbox" class="row-check" value="${o.id}"></td>
