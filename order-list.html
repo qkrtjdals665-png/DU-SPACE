@@ -162,12 +162,24 @@ async function loadOrders(){
     costMap={};
     (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
 
-    // 광고비 로드
-    const{data:ads}=await db.from('ad_costs').select('ad_date,platform,cost');
+    // 광고비 로드 (일별 + 기간별 일할 계산)
     adMap={};
+    const{data:ads}=await db.from('ad_costs').select('ad_date,platform,cost');
     (ads||[]).forEach(a=>{
         if(!adMap[a.ad_date])adMap[a.ad_date]=0;
         adMap[a.ad_date]+=(a.cost||0);
+    });
+    // 기간별 광고비 → 일할 계산
+    const{data:periodAds}=await db.from('product_ad_costs').select('start_date,end_date,total_cost,platform');
+    (periodAds||[]).forEach(a=>{
+        const s=new Date(a.start_date),e=new Date(a.end_date);
+        const days=Math.round((e-s)/(86400000))+1;
+        const daily=Math.round((a.total_cost||0)/days);
+        for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
+            const ds=d.toISOString().slice(0,10);
+            if(!adMap[ds])adMap[ds]=0;
+            adMap[ds]+=daily;
+        }
     });
 
     let q=db.from('orders').select('id,platform,order_date,order_no,product,option,quantity,price,recipient,tracking');
