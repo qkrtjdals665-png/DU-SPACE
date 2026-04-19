@@ -75,7 +75,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
             <label>통장: <select id="filterAccount"><option value="">전체</option></select></label>
             <label>분류: <select id="filterCategory">
                 <option value="">전체</option>
-                <option value="__unclassified__">⚠️ 미분류만</option>
+                <option value="__unclassified__">⚠️ 미확인만 (수동분류 필요)</option>
                 <option value="__review__">🔍 검토필요만</option>
                 <option value="매출">매출</option>
                 <option value="사업지출">사업지출</option>
@@ -169,7 +169,7 @@ function applyFilters(){
     filteredTxs=allTxs.filter(tx=>{
         if(accountId&&tx.account_id!=accountId)return false;
         if(catFilter==='__unclassified__'){
-            if(tx.category||tx.is_confirmed)return false; // 분류된 건 제외
+            if(tx.is_confirmed)return false; // 수동 확인된 건만 제외 → 자동분류도 미확인이면 보임
         }else if(catFilter==='__review__'){
             if(!(tx.sub_category||'').includes('검토필요'))return false;
         }else if(catFilter){
@@ -188,14 +188,14 @@ function renderSummary(){
     const total=filteredTxs.length;
     const totalIn=filteredTxs.filter(t=>(t.deposit||0)>0).reduce((s,t)=>s+(t.deposit||0),0);
     const totalOut=filteredTxs.filter(t=>(t.withdraw||0)>0).reduce((s,t)=>s+(t.withdraw||0),0);
-    const unclassified=filteredTxs.filter(t=>!t.category&&!t.is_confirmed).length;
-    const review=filteredTxs.filter(t=>(t.sub_category||'').includes('검토필요')).length;
+    const unconfirmed=allTxs.filter(t=>!t.is_confirmed).length;
+    const review=allTxs.filter(t=>(t.sub_category||'').includes('검토필요')).length;
 
     document.getElementById('summaryGrid').innerHTML=`
         <div class="stat-card"><div class="stat-label">전체 건수</div><div class="stat-value" style="color:#1976d2">${total}건</div></div>
         <div class="stat-card"><div class="stat-label">총 입금</div><div class="stat-value" style="color:#0f9b58">+${fmt(totalIn)}</div></div>
         <div class="stat-card"><div class="stat-label">총 출금</div><div class="stat-value" style="color:#e94560">-${fmt(totalOut)}</div></div>
-        <div class="stat-card"><div class="stat-label">미분류</div><div class="stat-value" style="color:#c62828">${unclassified}건</div></div>
+        <div class="stat-card"><div class="stat-label">미확인 (수동분류 필요)</div><div class="stat-value" style="color:#c62828">${unconfirmed}건</div></div>
         <div class="stat-card"><div class="stat-label">검토필요</div><div class="stat-value" style="color:#f57f17">${review}건</div></div>`;
 }
 
@@ -210,24 +210,21 @@ function renderTable(){
         const acct=accounts.find(a=>a.id===tx.account_id);
         const bankClass=acct?getBankClass(acct.bank):'';
         const bankName=acct?acct.bank:'?';
-        const isUnclassified=!tx.category&&!tx.is_confirmed;
-        const isReview=(tx.sub_category||'').includes('검토필요');
-        const rowClass=isUnclassified?'unclassified':'';
+        const rowClass=!tx.is_confirmed?'unclassified':'';
 
         const amtIn=(tx.deposit||0)>0?`<span class="amount-in">+${fmt(tx.deposit)}</span>`:'';
         const amtOut=(tx.withdraw||0)>0?`<span class="amount-out">-${fmt(tx.withdraw)}</span>`:'';
 
         let statusBadge='';
         if(tx.is_confirmed)statusBadge='<span class="cat-badge cat-confirmed">확인됨</span>';
-        else if(tx.is_auto_categorized)statusBadge='<span class="cat-badge cat-auto">자동</span>';
-        else if(isReview)statusBadge='<span class="cat-badge cat-review">검토</span>';
+        else if(tx.category)statusBadge='<span class="cat-badge cat-auto">자동(미확인)</span>';
         else statusBadge='<span class="cat-badge cat-unclassified">미분류</span>';
 
         const catDisplay=tx.category?`${tx.category}${tx.sub_category?' / '+tx.sub_category:''}`:'-';
 
-        // 수동 분류 UI
+        // 수동 분류 UI — 확인 안 된 건은 전부 보여줌
         let classifyUI='';
-        if(!tx.is_confirmed||isUnclassified||isReview){
+        if(!tx.is_confirmed){
             const options=CATEGORIES.map(c=>{
                 const val=`${c.cat}|${c.sub}`;
                 const selected=(tx.category===c.cat&&tx.sub_category===c.sub)?'selected':'';
@@ -240,7 +237,7 @@ function renderTable(){
                 <label style="font-size:9px;color:#888;white-space:nowrap;"><input type="checkbox" class="cb-rule" data-id="${tx.id}" title="같은 적요 자동분류">룰</label>
             </div>`;
         }else{
-            classifyUI='<span style="font-size:10px;color:#aaa;">-</span>';
+            classifyUI='<span style="font-size:10px;color:#aaa;">✓</span>';
         }
 
         return `<tr class="${rowClass}">
