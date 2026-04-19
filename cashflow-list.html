@@ -168,10 +168,13 @@ function applyFilters(){
 
     filteredTxs=allTxs.filter(tx=>{
         if(accountId&&tx.account_id!=accountId)return false;
-        if(catFilter==='__unclassified__'&&(tx.category||tx.is_confirmed))return false;
-        if(catFilter==='__unclassified__'&&!tx.category&&!tx.is_confirmed)return true;
-        if(catFilter==='__review__'&&!(tx.sub_category||'').includes('검토필요'))return false;
-        if(catFilter&&catFilter!=='__unclassified__'&&catFilter!=='__review__'&&tx.category!==catFilter)return false;
+        if(catFilter==='__unclassified__'){
+            if(tx.category||tx.is_confirmed)return false; // 분류된 건 제외
+        }else if(catFilter==='__review__'){
+            if(!(tx.sub_category||'').includes('검토필요'))return false;
+        }else if(catFilter){
+            if(tx.category!==catFilter)return false;
+        }
         if(search&&!(tx.counterparty||'').toLowerCase().includes(search)&&!(tx.raw_description||'').toLowerCase().includes(search)&&!(tx.memo||'').toLowerCase().includes(search))return false;
         return true;
     });
