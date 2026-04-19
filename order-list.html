@@ -93,9 +93,10 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#f4a900;cursor:pointe
                 <th style="width:30px"><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
                 <th>플랫폼</th><th>주문일</th><th>상품명</th><th>옵션</th>
                 <th class="text-center">수량</th><th class="text-right">단가</th><th class="text-right">금액</th>
+                <th class="text-right">원가</th><th class="text-right">순익</th>
                 <th>수취인</th><th>송장</th>
             </tr></thead>
-            <tbody id="orderBody"><tr><td colspan="10" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
+            <tbody id="orderBody"><tr><td colspan="12" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
         </table>
     </div>
     <div class="pagination" id="pagination"></div>
@@ -124,7 +125,25 @@ const {createClient}=window.supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 const PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
 
-let currentPage=1,PAGE_SIZE=100,allOrders=[];
+let currentPage=1,PAGE_SIZE=100,allOrders=[],costMap={};
+const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
+
+function getCost(o){
+    const key=`${o.platform}|${o.product}|${o.option||''}`;
+    if(costMap[key]!==undefined)return costMap[key];
+    // 옵션 없이도 매칭 시도
+    const key2=`${o.platform}|${o.product}|`;
+    if(costMap[key2]!==undefined)return costMap[key2];
+    return null;
+}
+function getProfit(o){
+    const qty=o.quantity||1;
+    const amt=Math.round((o.price||0)*qty);
+    const commission=Math.round(amt*(CR[o.platform]||0));
+    const cost=getCost(o);
+    if(cost===null)return null;
+    return amt-commission-Math.round(cost*qty);
+}
 
 function initDates(){
     const now=new Date(),y=now.getFullYear(),m=now.getMonth();
@@ -137,6 +156,11 @@ async function loadOrders(){
     const from=document.getElementById('filterFrom').value;
     const to=document.getElementById('filterTo').value;
     const search=document.getElementById('filterSearch').value.trim();
+
+    // 원가 로드
+    const{data:costs}=await db.from('product_costs').select('platform,product,option,cost');
+    costMap={};
+    (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
 
     let q=db.from('orders').select('id,platform,order_date,order_no,product,option,quantity,price,recipient,tracking');
     if(from)q=q.gte('order_date',from);
@@ -157,26 +181,35 @@ function renderTable(){
     const tbody=document.getElementById('orderBody');
     const start=(currentPage-1)*PAGE_SIZE;
     const page=allOrders.slice(start,start+PAGE_SIZE);
-    if(!allOrders.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:#ccc;padding:40px;">조회된 주문 없음</td></tr>';document.getElementById('pagination').innerHTML='';return;}
+    if(!allOrders.length){tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:#ccc;padding:40px;">조회된 주문 없음</td></tr>';document.getElementById('pagination').innerHTML='';return;}
     let lastDate='',html='';
     page.forEach(o=>{
-        const amt=Math.round((o.price||0)*(o.quantity||1));
+        const qty=o.quantity||1;
+        const amt=Math.round((o.price||0)*qty);
         const d=o.order_date||'';
         if(d!==lastDate){
             const dayOrders=allOrders.filter(x=>x.order_date===d);
             const dayTotal=dayOrders.reduce((s,x)=>s+Math.round((x.price||0)*(x.quantity||1)),0);
-            html+=`<tr><td colspan="10" class="date-group">📅 ${d} (${dayOrders.length}건, ${dayTotal.toLocaleString()}원)</td></tr>`;
+            const dayProfit=dayOrders.reduce((s,x)=>{const p=getProfit(x);return s+(p||0);},0);
+            html+=`<tr><td colspan="12" class="date-group">📅 ${d} (${dayOrders.length}건, ${dayTotal.toLocaleString()}원${dayProfit?` / 순익 ${dayProfit.toLocaleString()}원`:''})</td></tr>`;
             lastDate=d;
         }
+        const cost=getCost(o);
+        const profit=getProfit(o);
+        const costStr=cost!==null?`${Math.round(cost*qty).toLocaleString()}`:'<span style="color:#ccc">-</span>';
+        const profitStr=profit!==null?`<span style="color:${profit>=0?'#0f9b58':'#e94560'};font-weight:600;">${profit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
+
         html+=`<tr>
             <td><input type="checkbox" class="row-check" value="${o.id}"></td>
             <td><span class="platform-badge" style="background:${PFC[o.platform]||'#999'}">${o.platform}</span></td>
             <td>${d}</td>
             <td title="${o.product}">${(o.product||'').substring(0,35)}</td>
             <td title="${o.option||''}">${(o.option||'').substring(0,20)||'-'}</td>
-            <td class="text-center">${o.quantity||1}</td>
+            <td class="text-center">${qty}</td>
             <td class="text-right amount">${Math.round(o.price||0).toLocaleString()}</td>
             <td class="text-right amount">${amt.toLocaleString()}</td>
+            <td class="text-right" style="font-size:11px;">${costStr}</td>
+            <td class="text-right">${profitStr}</td>
             <td>${(o.recipient||'').substring(0,6)||'-'}</td>
             <td style="font-size:11px;color:#999;">${(o.tracking||'').substring(0,15)||'-'}</td>
         </tr>`;
@@ -188,7 +221,10 @@ function renderTable(){
 function renderSummary(){
     const qty=allOrders.reduce((s,o)=>s+(o.quantity||1),0);
     const amt=allOrders.reduce((s,o)=>s+Math.round((o.price||0)*(o.quantity||1)),0);
-    document.getElementById('summaryBar').innerHTML=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>금액 <strong>${amt.toLocaleString()}원</strong></div>`;
+    const totalCost=allOrders.reduce((s,o)=>{const c=getCost(o);return s+(c!==null?Math.round(c*(o.quantity||1)):0);},0);
+    const totalProfit=allOrders.reduce((s,o)=>{const p=getProfit(o);return s+(p||0);},0);
+    const margin=amt>0?Math.round(totalProfit/amt*100):0;
+    document.getElementById('summaryBar').innerHTML=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>금액 <strong>${amt.toLocaleString()}원</strong></div><div>원가 <strong>${totalCost.toLocaleString()}원</strong></div><div>순익 <strong style="color:#0f9b58">${totalProfit.toLocaleString()}원</strong> <span style="font-size:11px;color:#888;">(${margin}%)</span></div>`;
 }
 
 function renderPagination(){
