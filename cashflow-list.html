@@ -75,7 +75,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
             <label>통장: <select id="filterAccount"><option value="">전체</option></select></label>
             <label>분류: <select id="filterCategory">
                 <option value="">전체</option>
-                <option value="__unclassified__">⚠️ 미확인만 (수동분류 필요)</option>
+                <option value="__unclassified__">⚠️ 미분류만</option>
                 <option value="__review__">🔍 검토필요만</option>
                 <option value="매출">매출</option>
                 <option value="사업지출">사업지출</option>
@@ -169,7 +169,7 @@ function applyFilters(){
     filteredTxs=allTxs.filter(tx=>{
         if(accountId&&tx.account_id!=accountId)return false;
         if(catFilter==='__unclassified__'){
-            if(tx.is_confirmed)return false; // 수동 확인된 건만 제외 → 자동분류도 미확인이면 보임
+            if(tx.category)return false; // 카테고리 있으면 제외 (자동이든 수동이든)
         }else if(catFilter==='__review__'){
             if(!(tx.sub_category||'').includes('검토필요'))return false;
         }else if(catFilter){
@@ -188,14 +188,14 @@ function renderSummary(){
     const total=filteredTxs.length;
     const totalIn=filteredTxs.filter(t=>(t.deposit||0)>0).reduce((s,t)=>s+(t.deposit||0),0);
     const totalOut=filteredTxs.filter(t=>(t.withdraw||0)>0).reduce((s,t)=>s+(t.withdraw||0),0);
-    const unconfirmed=allTxs.filter(t=>!t.is_confirmed).length;
+    const unclassified=allTxs.filter(t=>!t.category).length;
     const review=allTxs.filter(t=>(t.sub_category||'').includes('검토필요')).length;
 
     document.getElementById('summaryGrid').innerHTML=`
         <div class="stat-card"><div class="stat-label">전체 건수</div><div class="stat-value" style="color:#1976d2">${total}건</div></div>
         <div class="stat-card"><div class="stat-label">총 입금</div><div class="stat-value" style="color:#0f9b58">+${fmt(totalIn)}</div></div>
         <div class="stat-card"><div class="stat-label">총 출금</div><div class="stat-value" style="color:#e94560">-${fmt(totalOut)}</div></div>
-        <div class="stat-card"><div class="stat-label">미확인 (수동분류 필요)</div><div class="stat-value" style="color:#c62828">${unconfirmed}건</div></div>
+        <div class="stat-card"><div class="stat-label">미분류</div><div class="stat-value" style="color:#c62828">${unclassified}건</div></div>
         <div class="stat-card"><div class="stat-label">검토필요</div><div class="stat-value" style="color:#f57f17">${review}건</div></div>`;
 }
 
@@ -210,35 +210,30 @@ function renderTable(){
         const acct=accounts.find(a=>a.id===tx.account_id);
         const bankClass=acct?getBankClass(acct.bank):'';
         const bankName=acct?acct.bank:'?';
-        const rowClass=!tx.is_confirmed?'unclassified':'';
+        const hasCategory=!!tx.category;
+        const rowClass=!hasCategory?'unclassified':'';
 
         const amtIn=(tx.deposit||0)>0?`<span class="amount-in">+${fmt(tx.deposit)}</span>`:'';
         const amtOut=(tx.withdraw||0)>0?`<span class="amount-out">-${fmt(tx.withdraw)}</span>`:'';
 
         let statusBadge='';
-        if(tx.is_confirmed)statusBadge='<span class="cat-badge cat-confirmed">확인됨</span>';
-        else if(tx.category)statusBadge='<span class="cat-badge cat-auto">자동(미확인)</span>';
+        if(hasCategory)statusBadge='<span class="cat-badge cat-confirmed">분류됨</span>';
         else statusBadge='<span class="cat-badge cat-unclassified">미분류</span>';
 
-        const catDisplay=tx.category?`${tx.category}${tx.sub_category?' / '+tx.sub_category:''}`:'-';
+        const catDisplay=hasCategory?`${tx.category}${tx.sub_category?' / '+tx.sub_category:''}`:'-';
 
-        // 수동 분류 UI — 확인 안 된 건은 전부 보여줌
-        let classifyUI='';
-        if(!tx.is_confirmed){
-            const options=CATEGORIES.map(c=>{
-                const val=`${c.cat}|${c.sub}`;
-                const selected=(tx.category===c.cat&&tx.sub_category===c.sub)?'selected':'';
-                return `<option value="${val}" ${selected}>${c.cat} / ${c.sub}</option>`;
-            }).join('');
-            classifyUI=`<div style="display:flex;gap:4px;align-items:center;">
-                <select class="classify-select" data-id="${tx.id}" onchange="classifyTx(this)">
-                    <option value="">선택...</option>${options}
-                </select>
-                <label style="font-size:9px;color:#888;white-space:nowrap;"><input type="checkbox" class="cb-rule" data-id="${tx.id}" title="같은 적요 자동분류">룰</label>
-            </div>`;
-        }else{
-            classifyUI='<span style="font-size:10px;color:#aaa;">✓</span>';
-        }
+        // 수동 분류 드롭다운 — 모든 건에 표시 (분류된 건도 수정 가능)
+        const options=CATEGORIES.map(c=>{
+            const val=`${c.cat}|${c.sub}`;
+            const selected=(tx.category===c.cat&&tx.sub_category===c.sub)?'selected':'';
+            return `<option value="${val}" ${selected}>${c.cat} / ${c.sub}</option>`;
+        }).join('');
+        const classifyUI=`<div style="display:flex;gap:4px;align-items:center;">
+            <select class="classify-select" data-id="${tx.id}" onchange="classifyTx(this)" style="${hasCategory?'border-color:#0f9b58;':''}">
+                <option value="">선택...</option>${options}
+            </select>
+            <label style="font-size:9px;color:#888;white-space:nowrap;"><input type="checkbox" class="cb-rule" data-id="${tx.id}" title="같은 적요 자동분류">룰</label>
+        </div>`;
 
         return `<tr class="${rowClass}">
             <td><span class="bank-badge ${bankClass}">${bankName}</span></td>
