@@ -112,7 +112,7 @@ const CATEGORIES=[
     {cat:'사업지출',sub:'포장재'},{cat:'사업지출',sub:'세금(국세)'},{cat:'사업지출',sub:'카드결제대금'},{cat:'사업지출',sub:'구독/SaaS'},{cat:'사업지출',sub:'기타'},
     {cat:'고정비',sub:'통신비'},{cat:'고정비',sub:'보험'},{cat:'고정비',sub:'임대료'},{cat:'고정비',sub:'기타'},
     {cat:'통장간이체',sub:'본인 이체'},{cat:'통장간이체',sub:'택배비 충당이체'},{cat:'통장간이체',sub:'저축 이체'},
-    {cat:'개인',sub:'생활비'},{cat:'개인',sub:'투자/적금'},{cat:'개인',sub:'기타'},
+    {cat:'개인',sub:'식비'},{cat:'개인',sub:'교통비'},{cat:'개인',sub:'쇼핑'},{cat:'개인',sub:'유흥/카페'},{cat:'개인',sub:'의료'},{cat:'개인',sub:'투자/적금'},{cat:'개인',sub:'기타'},
     {cat:'플랫폼결제',sub:'네이버페이(검토필요)'},{cat:'플랫폼결제',sub:'쿠팡(검토필요)'},{cat:'플랫폼결제',sub:'카카오페이(검토필요)'},
 ];
 
@@ -150,7 +150,7 @@ async function loadTransactions(){
         let q=db.from('cash_transactions').select('*');
         if(from)q=q.gte('tx_date',from);
         if(to)q=q.lte('tx_date',to);
-        q=q.order('tx_date',{ascending:false}).order('id',{ascending:false});
+        q=q.order('tx_date',{ascending:false}).order('tx_time',{ascending:false}).order('id',{ascending:false});
         const{data}=await q.range(offset,offset+PAGE-1);
         if(!data||!data.length)break;
         all=all.concat(data);
@@ -237,7 +237,7 @@ function renderTable(){
 
         return `<tr class="${rowClass}">
             <td><span class="bank-badge ${bankClass}">${bankName}</span></td>
-            <td style="font-size:11px;white-space:nowrap;">${tx.tx_date}</td>
+            <td style="font-size:11px;white-space:nowrap;">${tx.tx_date}${tx.tx_time?'<br><span style="color:#888;font-size:9px;">'+tx.tx_time+'</span>':''}</td>
             <td style="text-align:left;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${tx.raw_description||tx.counterparty||''}">${tx.counterparty||'-'}</td>
             <td>${amtIn}</td><td>${amtOut}</td>
             <td style="font-size:11px;">${tx.balance_after?fmt(tx.balance_after):'-'}</td>

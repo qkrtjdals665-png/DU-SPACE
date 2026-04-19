@@ -307,18 +307,19 @@ function parseWorkbook(wb,filename){
             for(let i=headerIdx+1;i<rows.length;i++){
                 const r=rows[i];
                 const dateStr=parseDate(String(r[0]||''));
+                const timeStr=parseTime(String(r[0]||'')); // "2026-04-16 22:09:17" → "22:09:17"
                 if(!dateStr)continue;
 
                 const inAmt=parseAmount(r[3]);
                 const outAmt=parseAmount(r[4]);
                 if(inAmt===0&&outAmt===0)continue;
 
-                const counterparty=String(r[1]||'').trim(); // 적요
-                const recipient=String(r[2]||'').trim(); // 의뢰인/수취인
+                const counterparty=String(r[1]||'').trim();
+                const recipient=String(r[2]||'').trim();
                 const desc=recipient?`${counterparty} ${recipient}`.trim():counterparty;
 
                 txs.push({
-                    account_id:accountId, bank:bankType, tx_date:dateStr,
+                    account_id:accountId, bank:bankType, tx_date:dateStr, tx_time:timeStr,
                     tx_type:inAmt>0?'입금':'출금', amount:inAmt>0?inAmt:outAmt,
                     balance_after:parseAmount(r[5]),
                     counterparty:counterparty, memo:recipient,
@@ -339,16 +340,17 @@ function parseWorkbook(wb,filename){
             for(let i=headerIdx+1;i<rows.length;i++){
                 const r=rows[i];
                 const dateStr=parseDate(String(r[0]||''));
+                const timeStr=String(r[1]||'').trim(); // "18:51:58"
                 if(!dateStr)continue;
 
                 const inAmt=parseAmount(r[4]);
                 const outAmt=parseAmount(r[5]);
                 if(inAmt===0&&outAmt===0)continue;
 
-                const counterparty=String(r[8]||'').trim(); // 적요 (마지막 열)
+                const counterparty=String(r[8]||'').trim();
 
                 txs.push({
-                    account_id:accountId, bank:bankType, tx_date:dateStr,
+                    account_id:accountId, bank:bankType, tx_date:dateStr, tx_time:timeStr,
                     tx_type:inAmt>0?'입금':'출금', amount:inAmt>0?inAmt:outAmt,
                     balance_after:parseAmount(r[6]),
                     counterparty:counterparty, memo:'',
@@ -367,6 +369,14 @@ function parseDate(s){
     s=String(s).trim();
     let m=s.match(/(\d{4})[-./](\d{2})[-./](\d{2})/);
     if(m)return `${m[1]}-${m[2]}-${m[3]}`;
+    return null;
+}
+
+function parseTime(s){
+    if(!s)return null;
+    s=String(s).trim();
+    let m=s.match(/(\d{2}):(\d{2}):(\d{2})/);
+    if(m)return `${m[1]}:${m[2]}:${m[3]}`;
     return null;
 }
 
@@ -458,7 +468,7 @@ function renderPreview(){
 
         return `<tr style="${tx.is_duplicate?'opacity:0.4':''}">
             <td><span class="bank-badge ${bankClass}">${tx.bank||'?'}</span></td>
-            <td style="font-size:11px;">${tx.tx_date}</td>
+            <td style="font-size:11px;">${tx.tx_date}${tx.tx_time?'<br><span style="color:#888;font-size:9px;">'+tx.tx_time+'</span>':''}</td>
             <td style="text-align:left;font-size:11px;">${tx.counterparty||'-'}</td>
             <td>${amtIn}</td><td>${amtOut}</td>
             <td style="font-size:11px;">${tx.balance_after?tx.balance_after.toLocaleString():'-'}</td>
@@ -494,6 +504,7 @@ async function saveToDb(){
         const row={
             account_id:tx.account_id,
             tx_date:tx.tx_date,
+            tx_time:tx.tx_time||null,
             deposit:tx.tx_type==='입금'?tx.amount:0,
             withdraw:tx.tx_type==='출금'?tx.amount:0,
             balance_after:tx.balance_after||0,
