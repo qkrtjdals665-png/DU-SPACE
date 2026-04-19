@@ -93,10 +93,10 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#f4a900;cursor:pointe
                 <th style="width:30px"><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
                 <th>플랫폼</th><th>주문일</th><th>상품명</th><th>옵션</th>
                 <th class="text-center">수량</th><th class="text-right">단가</th><th class="text-right">금액</th>
-                <th class="text-right">개당원가</th><th class="text-right">순익</th>
+                <th class="text-right">개당원가</th><th class="text-right">개당순익</th><th class="text-right">순익</th>
                 <th>수취인</th><th>송장</th>
             </tr></thead>
-            <tbody id="orderBody"><tr><td colspan="12" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
+            <tbody id="orderBody"><tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
         </table>
     </div>
     <div class="pagination" id="pagination"></div>
@@ -125,7 +125,7 @@ const {createClient}=window.supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 const PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
 
-let currentPage=1,PAGE_SIZE=100,allOrders=[],costMap={};
+let currentPage=1,PAGE_SIZE=100,allOrders=[],costMap={},adMap={};
 const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
 
 function getCost(o){
@@ -162,6 +162,14 @@ async function loadOrders(){
     costMap={};
     (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
 
+    // 광고비 로드
+    const{data:ads}=await db.from('ad_costs').select('ad_date,platform,cost');
+    adMap={};
+    (ads||[]).forEach(a=>{
+        if(!adMap[a.ad_date])adMap[a.ad_date]=0;
+        adMap[a.ad_date]+=(a.cost||0);
+    });
+
     let q=db.from('orders').select('id,platform,order_date,order_no,product,option,quantity,price,recipient,tracking');
     if(from)q=q.gte('order_date',from);
     if(to)q=q.lte('order_date',to);
@@ -181,7 +189,7 @@ function renderTable(){
     const tbody=document.getElementById('orderBody');
     const start=(currentPage-1)*PAGE_SIZE;
     const page=allOrders.slice(start,start+PAGE_SIZE);
-    if(!allOrders.length){tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:#ccc;padding:40px;">조회된 주문 없음</td></tr>';document.getElementById('pagination').innerHTML='';return;}
+    if(!allOrders.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px;">조회된 주문 없음</td></tr>';document.getElementById('pagination').innerHTML='';return;}
     let lastDate='',html='';
     page.forEach(o=>{
         const qty=o.quantity||1;
@@ -192,13 +200,20 @@ function renderTable(){
             const dayQty=dayOrders.reduce((s,x)=>s+(x.quantity||1),0);
             const dayTotal=dayOrders.reduce((s,x)=>s+Math.round((x.price||0)*(x.quantity||1)),0);
             const dayProfit=dayOrders.reduce((s,x)=>{const p=getProfit(x);return s+(p||0);},0);
-            html+=`<tr><td colspan="12" class="date-group">📅 ${d} (${dayOrders.length}건, ${dayQty}개, 매출 ${dayTotal.toLocaleString()}원${dayProfit?` / <span style="color:#0f9b58;font-weight:700;">순익 ${dayProfit.toLocaleString()}원</span>`:''})</td></tr>`;
+            const dayAd=Math.round(adMap[d]||0);
+            const dayNet=dayProfit-dayAd;
+            let dayInfo=`📅 ${d} (${dayOrders.length}건, ${dayQty}개, 매출 ${dayTotal.toLocaleString()}원`;
+            if(dayProfit) dayInfo+=` / <span style="color:#0f9b58;font-weight:700;">순익 ${dayProfit.toLocaleString()}원</span>`;
+            if(dayAd>0) dayInfo+=` - <span style="color:#e94560;">광고 ${dayAd.toLocaleString()}원</span> = <span style="color:#1976d2;font-weight:700;">최종 ${dayNet.toLocaleString()}원</span>`;
+            dayInfo+=`)`;
+            html+=`<tr><td colspan="13" class="date-group">${dayInfo}</td></tr>`;
             lastDate=d;
         }
         const unitCost=getCost(o);
         const unitProfit=unitCost!==null?Math.round((o.price||0)-(o.price||0)*(CR[o.platform]||0)-unitCost):null;
         const totalProfit=unitProfit!==null?unitProfit*qty:null;
         const costStr=unitCost!==null?`${Math.round(unitCost).toLocaleString()}`:'<span style="color:#ccc">-</span>';
+        const unitProfitStr=unitProfit!==null?`<span style="color:${unitProfit>=0?'#0f9b58':'#e94560'}">${unitProfit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
         const profitStr=totalProfit!==null?`<span style="color:${totalProfit>=0?'#0f9b58':'#e94560'};font-weight:600;">${totalProfit.toLocaleString()}</span>`:'<span style="color:#ccc">-</span>';
 
         html+=`<tr>
@@ -211,6 +226,7 @@ function renderTable(){
             <td class="text-right amount">${Math.round(o.price||0).toLocaleString()}</td>
             <td class="text-right amount">${amt.toLocaleString()}</td>
             <td class="text-right" style="font-size:11px;">${costStr}</td>
+            <td class="text-right" style="font-size:11px;">${unitProfitStr}</td>
             <td class="text-right">${profitStr}</td>
             <td>${(o.recipient||'').substring(0,6)||'-'}</td>
             <td style="font-size:11px;color:#999;">${(o.tracking||'').substring(0,15)||'-'}</td>
@@ -224,8 +240,15 @@ function renderSummary(){
     const qty=allOrders.reduce((s,o)=>s+(o.quantity||1),0);
     const amt=allOrders.reduce((s,o)=>s+Math.round((o.price||0)*(o.quantity||1)),0);
     const totalProfit=allOrders.reduce((s,o)=>{const p=getProfit(o);return s+(p||0);},0);
-    const margin=amt>0?Math.round(totalProfit/amt*100):0;
-    document.getElementById('summaryBar').innerHTML=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>매출 <strong>${amt.toLocaleString()}원</strong></div><div>순익 <strong style="color:#0f9b58">${totalProfit.toLocaleString()}원</strong> <span style="font-size:11px;color:#888;">(마진 ${margin}%)</span></div>`;
+    // 조회 기간 내 광고비 합산
+    const dates=[...new Set(allOrders.map(o=>o.order_date))];
+    const totalAd=dates.reduce((s,d)=>s+Math.round(adMap[d]||0),0);
+    const netProfit=totalProfit-totalAd;
+    const margin=amt>0?Math.round(netProfit/amt*100):0;
+    let summary=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>매출 <strong>${amt.toLocaleString()}원</strong></div><div>순익 <strong style="color:#0f9b58">${totalProfit.toLocaleString()}원</strong></div>`;
+    if(totalAd>0) summary+=`<div>광고 <strong style="color:#e94560">-${totalAd.toLocaleString()}원</strong></div><div>최종 <strong style="color:#1976d2">${netProfit.toLocaleString()}원</strong> <span style="font-size:11px;color:#888;">(${margin}%)</span></div>`;
+    else summary+=`<div style="font-size:11px;color:#888;">마진 ${amt>0?Math.round(totalProfit/amt*100):0}%</div>`;
+    document.getElementById('summaryBar').innerHTML=summary;
 }
 
 function renderPagination(){
