@@ -89,9 +89,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
         <div style="max-height:600px;overflow-y:auto;">
             <table class="tx-table">
                 <thead><tr>
-                    <th>통장</th><th>날짜</th><th>거래처/적요</th><th>입금</th><th>출금</th><th>잔액</th><th>분류</th><th>상태</th><th>수동 분류</th>
+                    <th>통장</th><th>날짜</th><th>거래처/적요</th><th>입금</th><th>출금</th><th>잔액</th><th>분류</th><th>상태</th><th>메모</th><th>수동 분류</th>
                 </tr></thead>
-                <tbody id="txBody"><tr><td colspan="9" class="no-data">로딩 중...</td></tr></tbody>
+                <tbody id="txBody"><tr><td colspan="10" class="no-data">로딩 중...</td></tr></tbody>
             </table>
         </div>
         <div class="pagination" id="pagination"></div>
@@ -111,7 +111,7 @@ const CATEGORIES=[
     {cat:'사업지출',sub:'택배비'},{cat:'사업지출',sub:'원재료(편백)'},{cat:'사업지출',sub:'원재료(목재)'},{cat:'사업지출',sub:'외주(프리랜서)'},
     {cat:'사업지출',sub:'포장재'},{cat:'사업지출',sub:'세금(국세)'},{cat:'사업지출',sub:'카드결제대금'},{cat:'사업지출',sub:'구독/SaaS'},{cat:'사업지출',sub:'기타'},
     {cat:'고정비',sub:'통신비'},{cat:'고정비',sub:'보험'},{cat:'고정비',sub:'임대료'},{cat:'고정비',sub:'기타'},
-    {cat:'통장간이체',sub:'본인 이체'},{cat:'통장간이체',sub:'택배비 충당이체'},
+    {cat:'통장간이체',sub:'본인 이체'},{cat:'통장간이체',sub:'택배비 충당이체'},{cat:'통장간이체',sub:'저축 이체'},
     {cat:'개인',sub:'생활비'},{cat:'개인',sub:'투자/적금'},{cat:'개인',sub:'기타'},
     {cat:'플랫폼결제',sub:'네이버페이(검토필요)'},{cat:'플랫폼결제',sub:'쿠팡(검토필요)'},{cat:'플랫폼결제',sub:'카카오페이(검토필요)'},
 ];
@@ -201,7 +201,7 @@ function renderTable(){
     const page=filteredTxs.slice(start,start+PAGE_SIZE);
     const tbody=document.getElementById('txBody');
 
-    if(!page.length){tbody.innerHTML='<tr><td colspan="9" class="no-data">거래 내역이 없습니다</td></tr>';renderPagination();return;}
+    if(!page.length){tbody.innerHTML='<tr><td colspan="10" class="no-data">거래 내역이 없습니다</td></tr>';renderPagination();return;}
 
     tbody.innerHTML=page.map(tx=>{
         const acct=accounts.find(a=>a.id===tx.account_id);
@@ -248,11 +248,23 @@ function renderTable(){
             <td style="font-size:11px;">${tx.balance_after?fmt(tx.balance_after):'-'}</td>
             <td style="font-size:10px;">${catDisplay}</td>
             <td>${statusBadge}</td>
+            <td><input type="text" class="memo-input" data-id="${tx.id}" value="${(tx.memo||'').replace(/"/g,'&quot;')}" placeholder="메모 입력" onchange="saveMemo(this)" style="padding:3px 6px;border:1px solid #e0e0e0;border-radius:5px;font-size:10px;width:100px;font-family:'Noto Sans KR',sans-serif;"></td>
             <td>${classifyUI}</td>
         </tr>`;
     }).join('');
 
     renderPagination();
+}
+
+async function saveMemo(el){
+    const txId=Number(el.dataset.id);
+    const memo=el.value.trim();
+    const{error}=await db.from('cash_transactions').update({memo}).eq('id',txId);
+    if(error){showToast('메모 저장 실패','error');}
+    else{
+        const tx=allTxs.find(t=>t.id===txId);if(tx)tx.memo=memo;
+        showToast('메모 저장!','success');
+    }
 }
 
 async function classifyTx(selectEl){
