@@ -145,6 +145,21 @@ function getProfit(o){
     return amt-commission-Math.round(cost*qty);
 }
 
+// 해당 날짜의 광고비 (필터된 플랫폼 기준)
+function getDayAd(date){
+    const pf=document.getElementById('filterPlatform').value;
+    let total=0;
+    if(pf==='전체'){
+        // 전체: 그날 주문이 있는 플랫폼의 광고비만
+        const dayPlatforms=[...new Set(allOrders.filter(o=>o.order_date===date).map(o=>o.platform))];
+        dayPlatforms.forEach(p=>{total+=(adMap[`${date}|${p}`]||0);});
+    }else{
+        // 특정 플랫폼: 해당 플랫폼 광고비만
+        total=adMap[`${date}|${pf}`]||0;
+    }
+    return Math.round(total);
+}
+
 function initDates(){
     const now=new Date(),y=now.getFullYear(),m=now.getMonth();
     document.getElementById('filterFrom').value=`${y}-${String(m+1).padStart(2,'0')}-01`;
@@ -162,12 +177,12 @@ async function loadOrders(){
     costMap={};
     (costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
 
-    // 광고비 로드 (일별 + 기간별 일할 계산)
+    // 광고비 로드 (일별 + 기간별 일할 계산) — 플랫폼별 분리
     adMap={};
     const{data:ads}=await db.from('ad_costs').select('ad_date,platform,cost');
     (ads||[]).forEach(a=>{
-        if(!adMap[a.ad_date])adMap[a.ad_date]=0;
-        adMap[a.ad_date]+=(a.cost||0);
+        const key=`${a.ad_date}|${a.platform}`;
+        adMap[key]=(adMap[key]||0)+(a.cost||0);
     });
     // 기간별 광고비 → 일할 계산
     const{data:periodAds}=await db.from('product_ad_costs').select('start_date,end_date,total_cost,platform');
@@ -177,8 +192,8 @@ async function loadOrders(){
         const daily=Math.round((a.total_cost||0)/days);
         for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
             const ds=d.toISOString().slice(0,10);
-            if(!adMap[ds])adMap[ds]=0;
-            adMap[ds]+=daily;
+            const key=`${ds}|${a.platform}`;
+            adMap[key]=(adMap[key]||0)+daily;
         }
     });
 
@@ -212,7 +227,7 @@ function renderTable(){
             const dayQty=dayOrders.reduce((s,x)=>s+(x.quantity||1),0);
             const dayTotal=dayOrders.reduce((s,x)=>s+Math.round((x.price||0)*(x.quantity||1)),0);
             const dayProfit=dayOrders.reduce((s,x)=>{const p=getProfit(x);return s+(p||0);},0);
-            const dayAd=Math.round(adMap[d]||0);
+            const dayAd=getDayAd(d);
             const dayNet=dayProfit-dayAd;
             let dayInfo=`📅 ${d} (${dayOrders.length}건, ${dayQty}개, 매출 ${dayTotal.toLocaleString()}원`;
             if(dayProfit) dayInfo+=` / <span style="color:#0f9b58;font-weight:700;">순익 ${dayProfit.toLocaleString()}원</span>`;
@@ -254,7 +269,7 @@ function renderSummary(){
     const totalProfit=allOrders.reduce((s,o)=>{const p=getProfit(o);return s+(p||0);},0);
     // 조회 기간 내 광고비 합산
     const dates=[...new Set(allOrders.map(o=>o.order_date))];
-    const totalAd=dates.reduce((s,d)=>s+Math.round(adMap[d]||0),0);
+    const totalAd=dates.reduce((s,d)=>s+getDayAd(d),0);
     const netProfit=totalProfit-totalAd;
     const margin=amt>0?Math.round(netProfit/amt*100):0;
     let summary=`<div>총 <strong>${allOrders.length}건</strong></div><div>수량 <strong>${qty.toLocaleString()}개</strong></div><div>매출 <strong>${amt.toLocaleString()}원</strong></div><div>순익 <strong style="color:#0f9b58">${totalProfit.toLocaleString()}원</strong></div>`;
