@@ -23,7 +23,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .filter-bar select,.filter-bar input{padding:7px 12px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;}.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:#f4a900;}
 .btn{padding:7px 15px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}.btn-primary{background:#1a1a2e;color:#fff}.btn-success{background:#0f9b58;color:#fff}.btn-danger{background:#e94560;color:#fff}.btn-warn{background:#f4a900;color:#1a1a2e}.btn-info{background:#4285f4;color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed;}
 .action-help{font-size:11px;color:#777;line-height:1.5;}.change-count{font-size:12px;color:#e94560;font-weight:700;margin-left:auto;}
-.table-section{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;overflow-x:auto;}table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:1450px;}
+.table-section{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;overflow-x:auto;}table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:1340px;}
 thead th{background:#f5f0e8;padding:9px 5px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;white-space:nowrap;font-size:11px;position:relative;overflow:hidden;text-overflow:ellipsis;}thead th .resize-handle{position:absolute;right:0;top:0;width:8px;height:100%;cursor:col-resize;background:rgba(0,0,0,.08);z-index:5;}thead th .resize-handle:hover,thead th .resize-handle.active{background:#f4a900;}
 tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;vertical-align:middle;}tbody tr:hover td{background:#faf8f4}.text-left{text-align:left}.text-right{text-align:right}.amount{font-variant-numeric:tabular-nums;font-weight:600;}
 .platform-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;color:#fff;}.editable{padding:5px 6px;border:1.5px solid #D9D4CA;border-radius:6px;font-family:'Noto Sans KR',sans-serif;font-size:11px;width:100%;}.editable.num{text-align:right}.editable:focus{outline:none;border-color:#f4a900;background:#fffbf0}.editable.changed{border-color:#0f9b58;background:#f0faf4}.no-cost{border-color:#e94560}.has-cost{border-color:#0f9b58}.readonly-price{font-size:10px;line-height:1.45;color:#333;word-break:keep-all;}.muted{color:#aaa}.warning-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e94560;margin-right:4px;}.del-btn{background:none;border:none;color:#ddd;cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px}.del-btn:hover{color:#e94560;background:#fef0f3}input[type="checkbox"]{width:15px;height:15px;accent-color:#f4a900;cursor:pointer;}
@@ -39,7 +39,7 @@ tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;verti
 </div>
 <div class="container">
     <div class="notice" id="migrationNotice">
-        <strong>계산 기준:</strong> 상품명·옵션·판매가는 주문서 업로드 자료를 그대로 사용합니다. 판매가 평균값은 만들지 않으며, 원가만 직접 입력합니다. 원가는 적용 시작일 이후 주문에만 반영되고 주문별로 고정됩니다.
+        <strong>계산 기준:</strong> 선택한 달에 실제 판매된 상품만 자동으로 표시합니다. 상품명·옵션·판매가는 주문서 업로드 자료를 그대로 사용하고, 원가만 직접 입력합니다. 원가를 변경하면 변경한 날짜부터 새 원가가 적용되며 이전 주문의 원가는 그대로 유지됩니다.
     </div>
     <div class="month-nav">
         <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
@@ -60,14 +60,14 @@ tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;verti
         <button class="btn btn-info" onclick="syncCatalogFromOrders(true)">🔄 주문서 상품 동기화</button>
         <button class="btn btn-warn" onclick="backfillExistingOrders(this)">🧾 기존 주문 원가 채우기</button>
         <button class="btn btn-danger" onclick="deleteSelected()">선택 삭제</button>
-        <span class="action-help">동기화는 기존 주문서에 있는 상품명·옵션을 원가관리 목록에 추가합니다. 기존 주문 원가 채우기는 비어 있는 주문만 채우며 이미 고정된 과거 원가는 덮어쓰지 않습니다.</span>
+        <span class="action-help">동기화는 주문서의 상품명·옵션을 원가관리 목록에 연결합니다. 화면에는 선택한 달에 실제 판매된 상품만 표시됩니다. 기존 주문 원가 채우기는 비어 있는 주문만 채우며 이미 고정된 과거 원가는 덮어쓰지 않습니다.</span>
     </div>
     <div class="table-section">
         <table id="costTable">
             <colgroup>
                 <col style="width:30px"><col style="width:40px"><col style="width:70px">
                 <col style="width:270px"><col style="width:210px"><col style="width:210px">
-                <col style="width:105px"><col style="width:95px"><col style="width:150px">
+                <col style="width:95px"><col style="width:150px">
                 <col style="width:75px"><col style="width:105px"><col style="width:105px"><col style="width:70px"><col style="width:40px">
             </colgroup>
             <thead><tr>
@@ -76,11 +76,11 @@ tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;verti
                 <th class="text-left">업로드 상품명<span class="resize-handle"></span></th>
                 <th class="text-left">업로드 옵션<span class="resize-handle"></span></th>
                 <th>원가 묶음명<span class="resize-handle"></span></th>
-                <th>적용 시작일<span class="resize-handle"></span></th><th>개당 원가<span class="resize-handle"></span></th>
+                <th>개당 원가<span class="resize-handle"></span></th>
                 <th>실제 판매가<span class="resize-handle"></span></th><th>판매수량<span class="resize-handle"></span></th>
                 <th>월매출<span class="resize-handle"></span></th><th>월순익<span class="resize-handle"></span></th><th>이익률<span class="resize-handle"></span></th><th>삭제</th>
             </tr></thead>
-            <tbody id="costBody"><tr><td colspan="14" style="text-align:center;color:#ccc;padding:40px">로딩 중...</td></tr></tbody>
+            <tbody id="costBody"><tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px">로딩 중...</td></tr></tbody>
         </table>
     </div>
 </div>
@@ -201,10 +201,10 @@ async function loadCosts(){
         });
         let rows=(allCatalog||[]).map(c=>{
             const latest=latestCostFor(c,historyByGroup);return{...c,cost_group:(c.cost_group||'').trim()||defaultGroup(c),latest_cost:latest.cost,effective_from:latest.effective_from,sales:byKey[keyOf(c.platform,c.product,c.option||'')]||{qty:0,revenue:0,profit:0,prices:new Set(),missingCost:0}};
-        });
+        }).filter(r=>r.sales.qty>0);
         if(st==='미입력')rows=rows.filter(r=>!r.latest_cost);else if(st==='입력완료')rows=rows.filter(r=>r.latest_cost>0);
-        allRows=rows;renderTable();renderSummary(allCatalog,byKey,historyByGroup);
-    }catch(err){console.error(err);document.getElementById('costBody').innerHTML='<tr><td colspan="14" style="text-align:center;color:#e94560;padding:40px">로드 실패: '+esc(err.message)+'</td></tr>';showToast('로드 실패','error');}
+        allRows=rows;renderTable();renderSummary(rows,byKey,historyByGroup);
+    }catch(err){console.error(err);document.getElementById('costBody').innerHTML='<tr><td colspan="13" style="text-align:center;color:#e94560;padding:40px">로드 실패: '+esc(err.message)+'</td></tr>';showToast('로드 실패','error');}
 }
 
 function priceText(set){
@@ -216,7 +216,7 @@ function priceText(set){
 
 function renderTable(){
     const tbody=document.getElementById('costBody');
-    if(!allRows.length){tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:#ccc;padding:40px">주문서에서 확인된 상품이 없습니다.</td></tr>';return;}
+    if(!allRows.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px">선택한 달에 판매된 상품이 없습니다.</td></tr>';return;}
     tbody.innerHTML=allRows.map((r,i)=>{
         const s=r.sales,p=priceText(s.prices),margin=s.revenue>0?(s.profit/s.revenue*100):null;
         const costClass=r.latest_cost>0?'has-cost':'no-cost',profitColor=s.profit>=0?'#0f9b58':'#e94560',marginColor=margin===null?'#888':margin>=30?'#0f9b58':margin>0?'#f4a900':'#e94560';
@@ -226,7 +226,6 @@ function renderTable(){
             <td class="text-left" title="${esc(r.product)}" style="font-size:11px">${esc(r.product||'')}</td>
             <td class="text-left" title="${esc(r.option||'')}" style="font-size:10px;color:#666">${esc(r.option||'-')}</td>
             <td><input class="editable group-input" value="${esc(r.cost_group)}" data-field="cost_group" onchange="markRowChanged(this)" onfocus="this.select()" title="같은 원가를 사용할 상품끼리 같은 묶음명을 입력하세요"></td>
-            <td><input class="editable date-input" type="date" value="${esc(r.effective_from||today())}" data-field="effective_from" onchange="markRowChanged(this)"></td>
             <td><input class="editable num cost-input ${costClass}" value="${r.latest_cost?fmt(r.latest_cost):''}" placeholder="0" data-field="cost" onchange="formatCostInput(this);markRowChanged(this)" onfocus="this.select()"></td>
             <td class="readonly-price" title="${esc(p.title)}">${p.html}</td>
             <td>${s.qty?fmt(s.qty)+'개':'-'}</td><td class="text-right amount">${s.revenue?fmt(s.revenue)+'원':'-'}</td>
@@ -240,10 +239,12 @@ function renderTable(){
 function formatCostInput(input){const v=Number(String(input.value).replace(/[^\d.-]/g,''))||0;input.value=v>0?fmt(v):'';}
 function markRowChanged(input){
     const row=input.closest('tr'),id=Number(row.dataset.id);row.querySelectorAll('.editable').forEach(el=>el.classList.add('changed'));
+    const original=allRows.find(r=>Number(r.id)===id);
     changes[id]={
         cost_group:row.querySelector('[data-field="cost_group"]').value.trim(),
-        effective_from:row.querySelector('[data-field="effective_from"]').value||today(),
-        cost:Number(row.querySelector('[data-field="cost"]').value.replace(/[^\d.-]/g,''))||0
+        cost:Number(row.querySelector('[data-field="cost"]').value.replace(/[^\d.-]/g,''))||0,
+        original_cost:Number(original?.latest_cost)||0,
+        original_group:(original?.cost_group||'').trim()
     };updateChangeCount();
 }
 function updateChangeCount(){const n=Object.keys(changes).length;document.getElementById('changeCount').textContent=n?`⚠️ ${n}개 변경됨 — 저장 필요!`:'';}
@@ -252,21 +253,29 @@ function toggleAll(){const v=document.getElementById('checkAll').checked;documen
 async function saveAllChanges(){
     const ids=Object.keys(changes);if(!ids.length){showToast('변경사항이 없습니다.','info');return;}if(!migrationReady){showToast('먼저 Supabase 마이그레이션을 실행해주세요.','error');return;}
     let saved=0,refreshed=0;
+    const effectiveFrom=today();
     for(const id of ids){
         const ch=changes[id];if(!ch.cost_group){showToast('원가 묶음명은 비워둘 수 없습니다.','error');return;}
-        const{error}=await db.from('product_costs').update({cost_group:ch.cost_group,cost:ch.cost,cost_effective_from:ch.effective_from}).eq('id',Number(id));
+        const costChanged=Number(ch.cost)!==Number(ch.original_cost);
+        const groupChanged=ch.cost_group!==ch.original_group;
+        const updateData={cost_group:ch.cost_group,cost:ch.cost};
+        if(costChanged)updateData.cost_effective_from=effectiveFrom;
+        const{error}=await db.from('product_costs').update(updateData).eq('id',Number(id));
         if(error){showToast('저장 실패: '+error.message,'error');continue;}
-        // 같은 원가 묶음으로 연결된 업로드 상품의 현재 원가 표시도 함께 맞춤
-        await db.from('product_costs').update({cost:ch.cost,cost_effective_from:ch.effective_from}).eq('cost_group',ch.cost_group);
-        if(ch.cost>0){
-            const{error:hErr}=await db.from('product_cost_history').upsert({cost_group:ch.cost_group,cost:ch.cost,effective_from:ch.effective_from},{onConflict:'cost_group,effective_from'});
+
+        if(costChanged&&ch.cost>0){
+            // 원가 변경일을 자동으로 오늘로 기록합니다. 과거 주문 스냅샷은 유지하고 오늘 이후 주문만 새 원가로 갱신합니다.
+            const{error:hErr}=await db.from('product_cost_history').upsert({cost_group:ch.cost_group,cost:ch.cost,effective_from:effectiveFrom},{onConflict:'cost_group,effective_from'});
             if(hErr){showToast('원가 이력 저장 실패: '+hErr.message,'error');continue;}
-            const{data:rData,error:rErr}=await db.rpc('du_refresh_order_costs',{p_force:true,p_from:ch.effective_from,p_cost_group:ch.cost_group,p_order_nos:null});
+            await db.from('product_costs').update({cost:ch.cost,cost_effective_from:effectiveFrom}).eq('cost_group',ch.cost_group);
+            const{data:rData,error:rErr}=await db.rpc('du_refresh_order_costs',{p_force:true,p_from:effectiveFrom,p_cost_group:ch.cost_group,p_order_nos:null});
             if(!rErr)refreshed+=Number(rData)||0;
+        }else if(groupChanged){
+            // 묶음명 변경은 과거 주문의 고정 원가를 건드리지 않습니다.
         }
         saved++;
     }
-    changes={};updateChangeCount();showToast(`${saved}개 원가 저장, 주문 ${refreshed}건 적용 완료`,'success');await loadCosts();
+    changes={};updateChangeCount();showToast(`${saved}개 원가 저장 · 오늘 이후 주문 ${refreshed}건 반영`,'success');await loadCosts();
 }
 
 async function backfillExistingOrders(btn){
@@ -283,10 +292,10 @@ async function deleteSelected(){const ids=[...document.querySelectorAll('.cost-c
 function showDeleteModal(msg,cnt,onConfirm){document.getElementById('deleteMsg').textContent=msg;document.getElementById('deleteCount').textContent=cnt;document.getElementById('deleteModal').classList.add('show');document.getElementById('deleteConfirmBtn').onclick=()=>{closeModal();onConfirm();};}
 function closeModal(){document.getElementById('deleteModal').classList.remove('show');}
 
-function renderSummary(catalog,byKey,historyByGroup){
+function renderSummary(rows,byKey,historyByGroup){
     let entered=0,revenue=0,profit=0,qty=0,missingOrders=0;
-    (catalog||[]).forEach(c=>{if(latestCostFor(c,historyByGroup).cost>0)entered++;const s=byKey[keyOf(c.platform,c.product,c.option||'')];if(s){revenue+=s.revenue;profit+=s.profit;qty+=s.qty;missingOrders+=s.missingCost;}});
-    document.getElementById('summaryCards').innerHTML=`<div class="sc"><div class="sc-label">업로드 상품</div><div class="sc-value">${fmt(catalog.length)}개</div></div><div class="sc"><div class="sc-label">원가 입력 완료</div><div class="sc-value" style="color:#0f9b58">${fmt(entered)}개</div></div><div class="sc"><div class="sc-label">선택월 판매수량</div><div class="sc-value">${fmt(qty)}개</div></div><div class="sc"><div class="sc-label">선택월 실제 매출</div><div class="sc-value" style="color:#4285f4">${fmt(revenue)}</div></div><div class="sc"><div class="sc-label">선택월 실제 순익${missingOrders?` · 원가미정 ${fmt(missingOrders)}개`:''}</div><div class="sc-value" style="color:${profit>=0?'#0f9b58':'#e94560'}">${fmt(profit)}</div></div>`;
+    (rows||[]).forEach(r=>{if(Number(r.latest_cost)>0)entered++;const s=r.sales;if(s){revenue+=s.revenue;profit+=s.profit;qty+=s.qty;missingOrders+=s.missingCost;}});
+    document.getElementById('summaryCards').innerHTML=`<div class="sc"><div class="sc-label">선택월 판매 상품</div><div class="sc-value">${fmt((rows||[]).length)}개</div></div><div class="sc"><div class="sc-label">원가 입력 완료</div><div class="sc-value" style="color:#0f9b58">${fmt(entered)}개</div></div><div class="sc"><div class="sc-label">선택월 판매수량</div><div class="sc-value">${fmt(qty)}개</div></div><div class="sc"><div class="sc-label">선택월 실제 매출</div><div class="sc-value" style="color:#4285f4">${fmt(revenue)}</div></div><div class="sc"><div class="sc-label">선택월 실제 순익${missingOrders?` · 원가미정 ${fmt(missingOrders)}개`:''}</div><div class="sc-value" style="color:${profit>=0?'#0f9b58':'#e94560'}">${fmt(profit)}</div></div>`;
 }
 function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3500);}
 if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
