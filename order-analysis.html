@@ -108,7 +108,7 @@ async function fetchAll(table,select,filters={}){
 async function loadAnalysis(){
     const{start,end,lastDay,month,year}=getMonthRange();
 
-    const orders=await fetchAll('orders','order_no,order_date,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
+    const orders=await fetchAll('orders','*',{gte:[['order_date',start]],lte:[['order_date',end]]});
     const costs=await fetchAll('product_costs','platform,product,option,cost');
     const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
     const dailyAds=await fetchAll('ad_costs','ad_date,platform,cost',{gte:[['ad_date',start]],lte:[['ad_date',end]]});
@@ -118,7 +118,7 @@ async function loadAnalysis(){
     const prevDate=new Date(year,month-2,1);
     const prevStart=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}-01`;
     const prevEnd=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}-${String(new Date(prevDate.getFullYear(),prevDate.getMonth()+1,0).getDate()).padStart(2,'0')}`;
-    const prevOrders=await fetchAll('orders','order_date,platform,product,option,quantity,price',{gte:[['order_date',prevStart]],lte:[['order_date',prevEnd]]});
+    const prevOrders=await fetchAll('orders','*',{gte:[['order_date',prevStart]],lte:[['order_date',prevEnd]]});
 
     // ── 플랫폼별 집계 ──
     const pfData={};
@@ -127,7 +127,8 @@ async function loadAnalysis(){
         const p=o.platform;if(!pfData[p])return;
         const amt=(o.price||0)*(o.quantity||1);
         const ck=`${p}|${o.product}|${o.option||''}`;
-        const uc=(costMap[ck]||0)*(o.quantity||1);
+        const unitCost=(o.unit_cost!==null&&o.unit_cost!==undefined)?Number(o.unit_cost):(costMap[ck]||0);
+        const uc=unitCost*(o.quantity||1);
         pfData[p].sales+=amt;pfData[p].cost+=uc;pfData[p].qty+=(o.quantity||1);pfData[p].orderCount++;
         if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');pfData[p].uniqueOrders.add(base);}
         // 상품별

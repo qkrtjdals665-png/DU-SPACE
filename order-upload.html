@@ -226,10 +226,12 @@ async function processFile(file,platform){
 
         el.textContent=`💾 ${orders.length}건 저장 중...`;
         const result=await saveOrders(orders);
-        el.className='result-box success';
-        el.innerHTML=`✅ <strong>${result.added}건</strong> 저장 완료! (신규+업데이트 포함)`;        showToast(`${platform} ${result.added}건 업로드!`,'success');
-        loadRecentOrders();
         await autoAddProductCosts(orders);
+        const snapped=await refreshUploadedOrderCosts(orders);
+        el.className='result-box success';
+        el.innerHTML=`✅ <strong>${result.added}건</strong> 저장 완료! (주문서 상품명·옵션·실제 판매가 반영${snapped>0?`, 원가 ${snapped}건 재적용`:''})`;
+        showToast(`${platform} ${result.added}건 업로드!`,'success');
+        loadRecentOrders();
 
     }catch(err){
         console.error(platform+' 오류:',err);
@@ -332,8 +334,36 @@ async function saveOrders(orders){
 
 async function autoAddProductCosts(orders){
     const seen=new Set(),arr=[];
-    for(const o of orders){const k=`${o.platform}|${o.product}|${o.option||''}`;if(seen.has(k))continue;seen.add(k);arr.push({platform:o.platform,product:o.product,option:o.option||'',cost:0,selling_price:0});}
-    if(arr.length) await db.from('product_costs').upsert(arr,{onConflict:'platform,product,option',ignoreDuplicates:true});
+    for(const o of orders){
+        const k=`${o.platform}|${o.product}|${o.option||''}`;
+        if(seen.has(k))continue;
+        seen.add(k);
+        arr.push({platform:o.platform,product:o.product,option:o.option||'',cost:0,selling_price:0,cost_group:k,cost_effective_from:'1900-01-01'});
+    }
+    if(!arr.length)return;
+    let{error}=await db.from('product_costs').upsert(arr,{onConflict:'platform,product,option',ignoreDuplicates:true});
+    // 마이그레이션 전 DB에서도 주문 업로드 자체는 유지
+    if(error&&String(error.message||'').includes('cost_group')){
+        const legacy=arr.map(({platform,product,option,cost,selling_price})=>({platform,product,option,cost,selling_price}));
+        ({error}=await db.from('product_costs').upsert(legacy,{onConflict:'platform,product,option',ignoreDuplicates:true}));
+    }
+    if(error)console.warn('상품 원가 목록 자동 추가 실패:',error.message);
+}
+
+async function refreshUploadedOrderCosts(orders){
+    const orderNos=[...new Set((orders||[]).map(o=>o.order_no).filter(Boolean))];
+    if(!orderNos.length)return 0;
+    let updated=0;
+    for(let i=0;i<orderNos.length;i+=200){
+        const batch=orderNos.slice(i,i+200);
+        const{data,error}=await db.rpc('du_refresh_order_costs',{p_force:true,p_from:null,p_cost_group:null,p_order_nos:batch});
+        if(error){
+            console.warn('주문 원가 스냅샷 재적용 실패:',error.message);
+            return updated;
+        }
+        updated+=Number(data)||0;
+    }
+    return updated;
 }
 
 async function loadRecentOrders(){
