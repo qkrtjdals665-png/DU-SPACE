@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주문관리 - 일별 매출/순익/ROAS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
+.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
+.nav-links{display:flex;gap:8px;}
+.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
+.container{max-width:1500px;margin:0 auto;padding:24px;}
+.month-nav{display:flex;align-items:center;gap:8px;background:#fff;padding:14px 20px;border-radius:14px;border:1px solid #D9D4CA;margin-bottom:16px;}
+.month-nav button{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
+.month-nav .nav-btn{background:#f5f0e8;color:#555;}.month-nav .current-btn{background:#f4a900;color:#1a1a2e;}
+.month-label{font-size:18px;font-weight:700;min-width:140px;text-align:center;}
+.month-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:12px;}
+.cost-ratio-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.ratio-section-title{font-size:13px;font-weight:800;color:#555;margin:16px 2px 8px;}
+.platform-ratio-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.platform-ratio-card{background:#fff;border-radius:14px;padding:14px 16px;border:1px solid #D9D4CA;}
+.platform-ratio-card .platform-name{font-size:13px;font-weight:800;margin-bottom:10px;}
+.platform-ratio-card .platform-sales{font-size:11px;color:#888;margin-bottom:10px;}
+.platform-ratio-row{display:flex;justify-content:space-between;gap:10px;font-size:11px;padding:4px 0;border-top:1px solid #f1ede6;}
+.platform-ratio-row:first-of-type{border-top:none;}
+.platform-ratio-row span:last-child{font-weight:700;color:#333;}
+.ratio-card{background:#fffdf8;border-radius:14px;padding:14px 16px;border:1px solid #D9D4CA;text-align:center;}
+.ratio-card .ratio-label{font-size:11px;color:#888;font-weight:600;margin-bottom:4px;}
+.ratio-card .ratio-value{font-size:19px;font-weight:800;}
+.ratio-card .ratio-amount{font-size:10px;color:#aaa;margin-top:3px;}
+.ms-card{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;text-align:center;}
+.ms-card .ms-label{font-size:11px;color:#888;font-weight:600;margin-bottom:4px;}
+.ms-card .ms-value{font-size:18px;font-weight:800;}
+.table-section{background:#fff;border-radius:14px;padding:12px;border:1px solid #D9D4CA;overflow-x:auto;}
+.daily-table{width:100%;border-collapse:collapse;font-size:11px;min-width:1400px;}
+.daily-table thead th{padding:6px 4px;text-align:center;font-weight:700;font-size:10px;white-space:nowrap;color:white;border:1px solid rgba(255,255,255,0.2);}
+.daily-table tbody td{padding:6px 4px;text-align:right;border:1px solid #f0ebe3;font-variant-numeric:tabular-nums;font-size:11px;}
+.daily-table tbody tr:hover td{background:#faf8f4;}
+.daily-table .date-col{text-align:center;font-weight:600;color:#555;background:#faf8f4;position:sticky;left:0;z-index:1;}
+.daily-table .total-row td{background:#1a1a2e !important;color:white !important;font-weight:700;}
+.positive{color:#0f9b58;}.negative{color:#e94560;}
+.profit-cell{font-weight:700;}
+.roas-cell{font-weight:700;color:#9b59b6;}
+.ad-cell{color:#e94560;font-size:10px;}
+.ph-naver{background:#00C73C;}.ph-coupang{background:#E31837;}.ph-ohouse{background:#35C5F0;}.ph-idus{background:#FF6F61;}.ph-total{background:#1a1a2e;}.ph-date{background:#7f8c8d;}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
+.toast.show{opacity:1;transform:translateY(0);}
+@media(max-width:1000px){.platform-ratio-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:768px){.month-summary,.cost-ratio-summary,.platform-ratio-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>📈 일별 <span>매출/순익/ROAS</span></h1>
+    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-upload.html">📦 업로드</a><a href="order-list.html">📋 주문목록</a></div>
+</div>
+<div class="container">
+    <div class="month-nav">
+        <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button class="nav-btn" onclick="changeMonth(1)">다음달 ▶</button>
+        <button class="current-btn" onclick="goCurrentMonth()">이번달</button>
+    </div>
+    <div class="month-summary" id="monthSummary"></div>
+    <div class="ratio-section-title">전체 비용 비율</div>
+    <div class="cost-ratio-summary" id="costRatioSummary"></div>
+    <div class="ratio-section-title">플랫폼별 비율</div>
+    <div class="platform-ratio-grid" id="platformRatioSummary"></div>
+    <div class="table-section">
+        <table class="daily-table">
+            <thead>
+                <tr>
+                    <th class="ph-date" rowspan="2" style="min-width:70px;position:sticky;left:0;z-index:2;">날짜</th>
+                    <th class="ph-naver" colspan="4">네이버</th>
+                    <th class="ph-coupang" colspan="4">쿠팡</th>
+                    <th class="ph-ohouse" colspan="4">오늘의집</th>
+                    <th class="ph-idus" colspan="4">아이디어스</th>
+                    <th class="ph-total" colspan="3">전체</th>
+                </tr>
+                <tr>
+                    <th class="ph-naver">매출</th><th class="ph-naver">순익</th><th class="ph-naver">광고</th><th class="ph-naver">ROAS</th>
+                    <th class="ph-coupang">매출</th><th class="ph-coupang">순익</th><th class="ph-coupang">광고</th><th class="ph-coupang">ROAS</th>
+                    <th class="ph-ohouse">매출</th><th class="ph-ohouse">순익</th><th class="ph-ohouse">광고</th><th class="ph-ohouse">ROAS</th>
+                    <th class="ph-idus">매출</th><th class="ph-idus">순익</th><th class="ph-idus">광고</th><th class="ph-idus">ROAS</th>
+                    <th class="ph-total">매출</th><th class="ph-total">광고</th><th class="ph-total">실순익</th>
+                </tr>
+            </thead>
+            <tbody id="dailyBody"><tr><td colspan="20" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
+const PLATFORMS=["네이버","쿠팡","오늘의집","아이디어스"];
+
+let currentDate=new Date();
+function updateMonthLabel(){document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;}
+function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);updateMonthLabel();loadDaily();}
+function goCurrentMonth(){currentDate=new Date();updateMonthLabel();loadDaily();}
+function getMonthRange(){
+    const y=currentDate.getFullYear(),m=currentDate.getMonth();
+    const start=`${y}-${String(m+1).padStart(2,'0')}-01`;
+    const lastDay=new Date(y,m+1,0).getDate();
+    return{start,end:`${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,lastDay};
+}
+function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
+
+async function loadDaily(){
+    const {start,end,lastDay}=getMonthRange();
+    const m=currentDate.getMonth()+1;
+
+    // 페이지네이션 함수 (1000건씩 전부 가져오기)
+    async function fetchAll(table, select, filters={}){
+        const PAGE=1000; let all=[], from=0;
+        while(true){
+            let q=db.from(table).select(select);
+            if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
+            if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
+            const {data}=await q.range(from,from+PAGE-1);
+            if(!data||!data.length) break;
+            all=all.concat(data);
+            if(data.length<PAGE) break;
+            from+=PAGE;
+        }
+        return all;
+    }
+
+    // 주문
+    const orders=await fetchAll('orders','order_date,order_no,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
+    // 원가
+    const costs=await fetchAll('product_costs','platform,product,option,cost');
+    const costMap={};(costs||[]).forEach(c=>{costMap[`${c.platform}|${c.product}|${c.option||''}`]=c.cost||0;});
+    // 일별 광고비
+    const dailyAds=await fetchAll('ad_costs','ad_date,platform,cost',{gte:[['ad_date',start]],lte:[['ad_date',end]]});
+    // 기간 광고비
+    const periodAds=await fetchAll('product_ad_costs','platform,start_date,end_date,total_cost',{lte:[['start_date',end]],gte:[['end_date',start]]});
+    // 입출금 관리에서 월세/세금 가져오기
+    const cashTxs=await fetchAll('cash_transactions','tx_date,category,sub_category,withdraw',{gte:[['tx_date',start]],lte:[['tx_date',end]]});
+    const rentTotal=(cashTxs||[])
+        .filter(t=>t.category==='고정비'&&t.sub_category==='임대료')
+        .reduce((sum,t)=>sum+(t.withdraw||0),0);
+
+    // 일별 집계
+    const daily={};
+    (orders||[]).forEach(o=>{
+        const d=o.order_date,p=o.platform;
+        if(!daily[d]) daily[d]={};
+        if(!daily[d][p]) daily[d][p]={sales:0,cost:0,qty:0,orderCount:0,uniqueOrders:new Set()};
+        const amt=(o.price||0)*(o.quantity||1);
+        const ck=`${p}|${o.product}|${o.option||''}`;
+        daily[d][p].sales+=amt;
+        daily[d][p].cost+=(costMap[ck]||0)*(o.quantity||1);
+        daily[d][p].qty+=(o.quantity||1);
+        daily[d][p].orderCount++;
+        if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');daily[d][p].uniqueOrders.add(base);}
+    });
+
+    // 일별 광고비 매핑
+    const adDaily={};// {date: {platform: cost}}
+    (dailyAds||[]).forEach(a=>{
+        if(!adDaily[a.ad_date]) adDaily[a.ad_date]={};
+        adDaily[a.ad_date][a.platform]=(adDaily[a.ad_date][a.platform]||0)+(a.cost||0);
+    });
+
+    // 기간 광고비 → 일별 분배
+    (periodAds||[]).forEach(pa=>{
+        const pS=new Date(pa.start_date),pE=new Date(pa.end_date);
+        const totalDays=Math.max(1,Math.ceil((pE-pS)/86400000)+1);
+        const dailyCost=pa.total_cost/totalDays;
+        // 해당 월과 겹치는 날짜에 분배
+        const mS=new Date(start),mE=new Date(end);
+        const oS=new Date(Math.max(pS,mS)),oE=new Date(Math.min(pE,mE));
+        for(let d=new Date(oS);d<=oE;d.setDate(d.getDate()+1)){
+            const ds=d.toISOString().slice(0,10);
+            if(!adDaily[ds]) adDaily[ds]={};
+            adDaily[ds][pa.platform]=(adDaily[ds][pa.platform]||0)+dailyCost;
+        }
+    });
+
+    // 렌더링
+    const tbody=document.getElementById('dailyBody');
+    let totals={};PLATFORMS.forEach(p=>{totals[p]={sales:0,profit:0,ad:0,cost:0};});
+    let grandSales=0,grandProfit=0,grandAd=0,grandCost=0;
+    let hasData=false;
+    let html='';
+
+    for(let day=lastDay;day>=1;day--){
+        const dateStr=`${currentDate.getFullYear()}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const dayData=daily[dateStr];
+        const dayAd=adDaily[dateStr]||{};
+        if(!dayData&&!Object.keys(dayAd).length) continue;
+        hasData=true;
+
+        const shortDate=`${String(m).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
+        const dow=['일','월','화','수','목','금','토'][new Date(dateStr+'T00:00:00').getDay()];
+        const isWe=dow==='일'||dow==='토';
+
+        let daySales=0,dayProfit=0,dayAdTotal=0;
+        let cells='';
+
+        PLATFORMS.forEach(p=>{
+            const d=(dayData&&dayData[p])||{sales:0,cost:0,qty:0,orderCount:0};
+            const idusShip=p==='아이디어스'?(d.uniqueOrders?d.uniqueOrders.size:d.orderCount)*2500:0;
+            const comm=d.sales*CR[p]+idusShip;
+            const profit=d.sales-comm-d.cost;
+            const ad=Math.round(dayAd[p]||0);
+            const realProfit=profit-ad;
+            const roas=ad>0?Math.round((d.sales/ad)*100):0;
+
+            totals[p].sales+=d.sales;totals[p].profit+=profit;totals[p].ad+=ad;totals[p].cost+=d.cost;
+            grandCost+=d.cost;
+            daySales+=d.sales;dayProfit+=profit;dayAdTotal+=ad;
+
+            const pc=realProfit>0?'positive':realProfit<0?'negative':'';
+            cells+=`<td>${d.sales?fmt(d.sales):'-'}</td>`;
+            cells+=`<td class="profit-cell ${pc}">${d.sales?fmt(realProfit):'-'}</td>`;
+            cells+=`<td class="ad-cell">${ad>0?fmt(ad):'-'}</td>`;
+            cells+=`<td class="roas-cell">${ad>0?roas+'%':'-'}</td>`;
+        });
+
+        grandSales+=daySales;grandProfit+=dayProfit;grandAd+=dayAdTotal;
+        const dayReal=dayProfit-dayAdTotal;
+        const drpc=dayReal>0?'positive':dayReal<0?'negative':'';
+        cells+=`<td style="font-weight:700">${fmt(daySales)}</td>`;
+        cells+=`<td class="ad-cell" style="font-weight:600">${dayAdTotal>0?fmt(dayAdTotal):'-'}</td>`;
+        cells+=`<td class="profit-cell ${drpc}" style="font-weight:700">${fmt(dayReal)}</td>`;
+
+        html+=`<tr><td class="date-col" style="${isWe?'color:#e94560':''}">${shortDate} (${dow})</td>${cells}</tr>`;
+    }
+
+    if(!hasData){
+        tbody.innerHTML='<tr><td colspan="20" style="text-align:center;color:#ccc;padding:40px;">이 달의 데이터 없음</td></tr>';
+        document.getElementById('monthSummary').innerHTML='';
+        document.getElementById('costRatioSummary').innerHTML='';
+        document.getElementById('platformRatioSummary').innerHTML='';
+        return;
+    }
+
+    // 합계 행
+    let tCells='';
+    PLATFORMS.forEach(p=>{
+        const realP=totals[p].profit-totals[p].ad;
+        const roas=totals[p].ad>0?Math.round((totals[p].sales/totals[p].ad)*100):0;
+        tCells+=`<td>${fmt(totals[p].sales)}</td><td>${fmt(realP)}</td>`;
+        tCells+=`<td>${totals[p].ad>0?fmt(totals[p].ad):'-'}</td>`;
+        tCells+=`<td>${totals[p].ad>0?roas+'%':'-'}</td>`;
+    });
+    const grandReal=grandProfit-grandAd;
+    tCells+=`<td>${fmt(grandSales)}</td><td>${grandAd>0?fmt(grandAd):'-'}</td><td>${fmt(grandReal)}</td>`;
+    html+=`<tr class="total-row"><td class="date-col" style="background:#1a1a2e !important;color:white !important">[합계]</td>${tCells}</tr>`;
+    tbody.innerHTML=html;
+
+    // 요약
+    const profitRate=grandSales>0?((grandReal/grandSales)*100).toFixed(1):0;
+    const totalRoas=grandAd>0?Math.round((grandSales/grandAd)*100):0;
+    document.getElementById('monthSummary').innerHTML=`
+        <div class="ms-card"><div class="ms-label">${m}월 매출</div><div class="ms-value" style="color:#4285f4">${fmt(grandSales)}원</div></div>
+        <div class="ms-card"><div class="ms-label">${m}월 실순익</div><div class="ms-value" style="color:${grandReal>=0?'#0f9b58':'#e94560'}">${fmt(grandReal)}원</div></div>
+        <div class="ms-card"><div class="ms-label">순이익률</div><div class="ms-value" style="color:#f4a900">${profitRate}%</div></div>
+        <div class="ms-card"><div class="ms-label">총 광고비</div><div class="ms-value" style="color:#e94560">${fmt(grandAd)}원</div></div>
+        <div class="ms-card"><div class="ms-label">전체 ROAS</div><div class="ms-value" style="color:#9b59b6">${totalRoas>0?totalRoas+'%':'-'}</div></div>
+    `;
+
+    // 전체: 총매출 대비 주요 비용 비율 + 세금 적립 권장액(매출의 7%)
+    const ratio=(amount,base=grandSales)=>base>0?((amount/base)*100).toFixed(1):'0.0';
+    const taxReserve=grandSales*0.07;
+    document.getElementById('costRatioSummary').innerHTML=`
+        <div class="ratio-card">
+            <div class="ratio-label">전체 광고비율</div>
+            <div class="ratio-value" style="color:#e94560">${ratio(grandAd)}%</div>
+            <div class="ratio-amount">광고비 ${fmt(grandAd)}원 / 총매출</div>
+        </div>
+        <div class="ratio-card">
+            <div class="ratio-label">전체 원가율</div>
+            <div class="ratio-value" style="color:#d9822b">${ratio(grandCost)}%</div>
+            <div class="ratio-amount">상품 원가 ${fmt(grandCost)}원 / 총매출</div>
+        </div>
+        <div class="ratio-card">
+            <div class="ratio-label">월세비율</div>
+            <div class="ratio-value" style="color:#7a6fbe">${ratio(rentTotal)}%</div>
+            <div class="ratio-amount">임대료 ${fmt(rentTotal)}원 / 총매출</div>
+        </div>
+        <div class="ratio-card">
+            <div class="ratio-label">세금으로 빼둘 금액</div>
+            <div class="ratio-value" style="color:#557a46">${fmt(taxReserve)}원</div>
+            <div class="ratio-amount">현재 총매출의 7% 적립 기준</div>
+        </div>
+    `;
+
+    // 플랫폼별: 해당 플랫폼 매출을 기준으로 광고비율/원가율만 표시
+    const platformColors={
+        '네이버':'#00A83A',
+        '쿠팡':'#D91837',
+        '오늘의집':'#22A7D6',
+        '아이디어스':'#E65F55'
+    };
+    document.getElementById('platformRatioSummary').innerHTML=PLATFORMS.map(p=>{
+        const t=totals[p];
+        const adRate=ratio(t.ad,t.sales);
+        const costRate=ratio(t.cost,t.sales);
+        return `
+            <div class="platform-ratio-card">
+                <div class="platform-name" style="color:${platformColors[p]}">${p}</div>
+                <div class="platform-sales">매출 <strong>${fmt(t.sales)}원</strong></div>
+                <div class="platform-ratio-row"><span>광고비율</span><span>${adRate}% · ${fmt(t.ad)}원</span></div>
+                <div class="platform-ratio-row"><span>원가율</span><span>${costRate}% · ${fmt(t.cost)}원</span></div>
+            </div>`;
+    }).join('');
+}
+
+if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
+document.addEventListener('DOMContentLoaded',()=>{updateMonthLabel();loadDaily();});
+</script>
+</body>
+</html>
