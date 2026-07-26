@@ -61,6 +61,7 @@ input[type="checkbox"]{width:16px;height:16px;accent-color:#f4a900;cursor:pointe
 .modal-btns button{padding:12px 28px;border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
 @media(max-width:768px){.filter-bar,.delete-options{flex-direction:column;align-items:stretch;}}
 </style>
+<link rel="stylesheet" href="du-theme.css">
 </head>
 <body>
 <div class="header">
@@ -129,8 +130,6 @@ let currentPage=1,PAGE_SIZE=100,allOrders=[],costMap={},adMap={};
 const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
 
 function getCost(o){
-    // 주문 당시 원가 스냅샷이 있으면 최우선 사용
-    if(o.unit_cost!==null&&o.unit_cost!==undefined)return Number(o.unit_cost)||0;
     const key=`${o.platform}|${o.product}|${o.option||''}`;
     if(costMap[key]!==undefined)return costMap[key];
     // 옵션 없이도 매칭 시도
@@ -199,7 +198,7 @@ async function loadOrders(){
         }
     });
 
-    let q=db.from('orders').select('*');
+    let q=db.from('orders').select('id,platform,order_date,order_no,product,option,quantity,price,recipient,tracking');
     if(from)q=q.gte('order_date',from);
     if(to)q=q.lte('order_date',to);
     if(pf!=='전체')q=q.eq('platform',pf);

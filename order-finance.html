@@ -48,6 +48,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}
 @media(max-width:768px){.platform-grid{grid-template-columns:1fr 1fr;}.summary-big{grid-template-columns:1fr;}}
 </style>
+<link rel="stylesheet" href="du-theme.css">
 </head>
 <body>
 <div class="header">
@@ -116,7 +117,7 @@ async function loadReport(){
     }
 
     // 주문
-    const orders=await fetchAll('orders','*',{gte:[['order_date',start]],lte:[['order_date',end]]});
+    const orders=await fetchAll('orders','order_no,platform,product,option,quantity,price',{gte:[['order_date',start]],lte:[['order_date',end]]});
     // 원가
     const costs=await fetchAll('product_costs','platform,product,option,cost');
     const costMap={};
@@ -144,8 +145,7 @@ async function loadReport(){
         const amt=(o.price||0)*(o.quantity||1);
         const ck=`${p}|${o.product}|${o.option||''}`;
         pfData[p].sales+=amt;
-        const unitCost=(o.unit_cost!==null&&o.unit_cost!==undefined)?Number(o.unit_cost):(costMap[ck]||0);
-        pfData[p].cost+=unitCost*(o.quantity||1);
+        pfData[p].cost+=(costMap[ck]||0)*(o.quantity||1);
         pfData[p].qty+=(o.quantity||1);
         pfData[p].orderCount++;
         if(p==='아이디어스'&&o.order_no){const base=o.order_no.replace(/_\d+$/,'');pfData[p].uniqueOrders.add(base);}

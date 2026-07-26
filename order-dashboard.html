@@ -378,6 +378,7 @@ body {
     .commission-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>
+<link rel="stylesheet" href="du-theme.css">
 </head>
 <body>
 
@@ -640,7 +641,7 @@ async function fetchAll(table, select, filters={}){
 
 // ── 하루 데이터 조회 ──
 async function fetchDayData(dateStr) {
-    const orders=await fetchAll('orders','*',{eq:[['order_date',dateStr]]});
+    const orders=await fetchAll('orders','order_no, platform, product, option, quantity, price',{eq:[['order_date',dateStr]]});
     const costs=await fetchAll('product_costs','platform, product, option, cost');
 
     const costMap = {};
@@ -658,7 +659,7 @@ async function fetchDayData(dateStr) {
         if (!result[p]) return;
         const amount = (o.price || 0) * (o.quantity || 1);
         const costKey = `${p}|${o.product}|${o.option || ''}`;
-        const unitCost = (o.unit_cost!==null&&o.unit_cost!==undefined)?Number(o.unit_cost):(costMap[costKey] || 0);
+        const unitCost = costMap[costKey] || 0;
         result[p].revenue += amount;
         result[p].qty += (o.quantity || 1);
         result[p].costTotal += unitCost * (o.quantity || 1);
@@ -671,7 +672,7 @@ async function fetchDayData(dateStr) {
 
 // ── 기간 데이터 조회 ──
 async function fetchPeriodData(startDate, endDate) {
-    const orders=await fetchAll('orders','*',{gte:[['order_date',startDate]],lte:[['order_date',endDate]]});
+    const orders=await fetchAll('orders','order_no, platform, product, option, quantity, price',{gte:[['order_date',startDate]],lte:[['order_date',endDate]]});
     const costs=await fetchAll('product_costs','platform, product, option, cost');
 
     const costMap = {};
@@ -689,7 +690,7 @@ async function fetchPeriodData(startDate, endDate) {
         if (!result[p]) return;
         const amount = (o.price || 0) * (o.quantity || 1);
         const costKey = `${p}|${o.product}|${o.option || ''}`;
-        const unitCost = (o.unit_cost!==null&&o.unit_cost!==undefined)?Number(o.unit_cost):(costMap[costKey] || 0);
+        const unitCost = costMap[costKey] || 0;
         result[p].revenue += amount;
         result[p].qty += (o.quantity || 1);
         result[p].costTotal += unitCost * (o.quantity || 1);

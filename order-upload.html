@@ -25,6 +25,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .drop-zone .dz-icon{font-size:32px;margin-bottom:8px;}
 .drop-zone .dz-text{font-size:13px;color:#888;font-weight:500;}
 .drop-zone input{display:none;}
+.auto-sync{background:#f3fff6;border:1px solid #b7e6c1;border-radius:10px;padding:14px;margin-bottom:14px;}
+.auto-sync-title{font-size:13px;font-weight:800;color:#087c36;margin-bottom:9px;}
+.auto-sync-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px;}
+.auto-sync-fields label{display:block;font-size:10px;color:#718078;margin-bottom:3px;}
+.auto-sync-fields input{width:100%;border:1px solid #cfe3d3;border-radius:7px;padding:8px;font:inherit;font-size:12px;background:white;}
+.auto-sync-btn{width:100%;border:0;border-radius:8px;background:#00a846;color:white;padding:10px 12px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;}
+.auto-sync-btn:hover{background:#008f3c;}
+.auto-sync-btn:disabled{background:#9ecaaa;cursor:wait;}
+.upload-divider{display:flex;align-items:center;gap:8px;color:#aaa;font-size:11px;margin:14px 0;}
+.upload-divider::before,.upload-divider::after{content:"";height:1px;background:#e8e3da;flex:1;}
 .result-box{margin-top:16px;padding:16px;border-radius:10px;font-size:13px;display:none;line-height:1.7;}
 .result-box.success{display:block;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;}
 .result-box.error{display:block;background:#ffebee;color:#c62828;border:1px solid #ef9a9a;}
@@ -45,6 +55,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#4285f4;}
 @media(max-width:768px){.upload-grid{grid-template-columns:1fr;}}
 </style>
+<link rel="stylesheet" href="du-theme.css">
 </head>
 <body>
 
@@ -76,6 +87,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
                 <span>🟢 네이버</span><span style="font-size:12px;opacity:0.8;">발주발송/구매확정</span>
             </div>
             <div class="upload-card-body">
+                <div class="auto-sync">
+                    <div class="auto-sync-title">🔄 네이버 주문 자동 수집</div>
+                    <div class="auto-sync-fields">
+                        <div><label for="naverSyncFrom">시작일</label><input type="date" id="naverSyncFrom"></div>
+                        <div><label for="naverSyncTo">종료일</label><input type="date" id="naverSyncTo"></div>
+                    </div>
+                    <button type="button" class="auto-sync-btn" id="naverSyncBtn" onclick="syncNaverOrders()">선택 기간 주문 가져오기</button>
+                </div>
+                <div class="upload-divider">또는 엑셀 직접 업로드</div>
                 <p>발주발송관리 또는 구매확정내역 파일<br>🔓 암호 자동 해제 — 바로 업로드!</p>
                 <div class="drop-zone" onclick="this.querySelector('input').click()">
                     <div class="dz-icon">📂</div><div class="dz-text">클릭 또는 파일 드래그</div>
@@ -153,6 +173,55 @@ document.querySelectorAll('.drop-zone').forEach(dz=>{
 
 function handleFile(input,platform){const f=input.files[0];if(f)processFile(f,platform);input.value='';}
 
+function localDateString(date){
+    const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
+    return`${y}-${m}-${d}`;
+}
+
+function initNaverSyncDates(){
+    const today=new Date();
+    const weekAgo=new Date(today);
+    weekAgo.setDate(today.getDate()-6);
+    document.getElementById('naverSyncFrom').value=localDateString(weekAgo);
+    document.getElementById('naverSyncTo').value=localDateString(today);
+}
+
+async function syncNaverOrders(){
+    const from=document.getElementById('naverSyncFrom').value;
+    const to=document.getElementById('naverSyncTo').value;
+    const btn=document.getElementById('naverSyncBtn');
+    const el=document.getElementById('result-네이버');
+    if(!from||!to){showToast('조회 기간을 선택해주세요.','error');return;}
+    if(from>to){showToast('시작일과 종료일을 확인해주세요.','error');return;}
+
+    btn.disabled=true;
+    btn.textContent='네이버 주문 수집 중...';
+    el.className='result-box loading';
+    el.style.display='block';
+    el.textContent='🔄 네이버에서 주문을 불러와 저장하고 있습니다...';
+
+    try{
+        const response=await fetch('/api/naver-orders',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({from,to})
+        });
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.ok)throw new Error(result.message||'네이버 주문 수집에 실패했습니다.');
+        el.className='result-box success';
+        el.textContent=`✅ ${result.synced}건 저장 완료${result.canceled?` · 취소/반품 ${result.canceled}건 제외`:''}`;
+        showToast(`네이버 주문 ${result.synced}건 동기화 완료!`,'success');
+        await loadRecentOrders();
+    }catch(error){
+        el.className='result-box error';
+        el.textContent='❌ '+error.message;
+        showToast('네이버 주문 수집 실패','error');
+    }finally{
+        btn.disabled=false;
+        btn.textContent='선택 기간 주문 가져오기';
+    }
+}
+
 async function processFile(file,platform){
     const el=document.getElementById('result-'+platform);
     el.className='result-box loading';el.style.display='block';
@@ -226,12 +295,10 @@ async function processFile(file,platform){
 
         el.textContent=`💾 ${orders.length}건 저장 중...`;
         const result=await saveOrders(orders);
-        await autoAddProductCosts(orders);
-        const snapped=await refreshUploadedOrderCosts(orders);
         el.className='result-box success';
-        el.innerHTML=`✅ <strong>${result.added}건</strong> 저장 완료! (주문서 상품명·옵션·실제 판매가 반영${snapped>0?`, 원가 ${snapped}건 재적용`:''})`;
-        showToast(`${platform} ${result.added}건 업로드!`,'success');
+        el.innerHTML=`✅ <strong>${result.added}건</strong> 저장 완료! (신규+업데이트 포함)`;        showToast(`${platform} ${result.added}건 업로드!`,'success');
         loadRecentOrders();
+        await autoAddProductCosts(orders);
 
     }catch(err){
         console.error(platform+' 오류:',err);
@@ -334,36 +401,8 @@ async function saveOrders(orders){
 
 async function autoAddProductCosts(orders){
     const seen=new Set(),arr=[];
-    for(const o of orders){
-        const k=`${o.platform}|${o.product}|${o.option||''}`;
-        if(seen.has(k))continue;
-        seen.add(k);
-        arr.push({platform:o.platform,product:o.product,option:o.option||'',cost:0,selling_price:0,cost_group:k,cost_effective_from:'1900-01-01'});
-    }
-    if(!arr.length)return;
-    let{error}=await db.from('product_costs').upsert(arr,{onConflict:'platform,product,option',ignoreDuplicates:true});
-    // 마이그레이션 전 DB에서도 주문 업로드 자체는 유지
-    if(error&&String(error.message||'').includes('cost_group')){
-        const legacy=arr.map(({platform,product,option,cost,selling_price})=>({platform,product,option,cost,selling_price}));
-        ({error}=await db.from('product_costs').upsert(legacy,{onConflict:'platform,product,option',ignoreDuplicates:true}));
-    }
-    if(error)console.warn('상품 원가 목록 자동 추가 실패:',error.message);
-}
-
-async function refreshUploadedOrderCosts(orders){
-    const orderNos=[...new Set((orders||[]).map(o=>o.order_no).filter(Boolean))];
-    if(!orderNos.length)return 0;
-    let updated=0;
-    for(let i=0;i<orderNos.length;i+=200){
-        const batch=orderNos.slice(i,i+200);
-        const{data,error}=await db.rpc('du_refresh_order_costs',{p_force:true,p_from:null,p_cost_group:null,p_order_nos:batch});
-        if(error){
-            console.warn('주문 원가 스냅샷 재적용 실패:',error.message);
-            return updated;
-        }
-        updated+=Number(data)||0;
-    }
-    return updated;
+    for(const o of orders){const k=`${o.platform}|${o.product}|${o.option||''}`;if(seen.has(k))continue;seen.add(k);arr.push({platform:o.platform,product:o.product,option:o.option||'',cost:0,selling_price:0});}
+    if(arr.length) await db.from('product_costs').upsert(arr,{onConflict:'platform,product,option',ignoreDuplicates:true});
 }
 
 async function loadRecentOrders(){
@@ -381,7 +420,7 @@ async function loadRecentOrders(){
 function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
 
 if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
-document.addEventListener('DOMContentLoaded',()=>loadRecentOrders());
+document.addEventListener('DOMContentLoaded',()=>{initNaverSyncDates();loadRecentOrders();});
 </script>
 </body>
 </html>
