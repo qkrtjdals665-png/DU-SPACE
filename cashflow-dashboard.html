@@ -29,14 +29,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
 .chart-container{position:relative;height:280px;margin:12px 0;}
 
-/* 통장 카드 */
-.account-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
-.account-card{background:#fff;border-radius:14px;padding:18px;border:1px solid #D9D4CA;}
-.account-card .bank-name{font-size:12px;color:#888;font-weight:600;margin-bottom:4px;}
-.account-card .account-name{font-size:14px;font-weight:700;margin-bottom:8px;}
-.account-card .balance{font-size:20px;font-weight:800;color:#1976d2;}
-.account-card .change{font-size:11px;margin-top:4px;}
-
 /* 카테고리 테이블 */
 .cat-table{width:100%;border-collapse:collapse;font-size:13px;}
 .cat-table th{background:#f5f0e8;padding:10px 8px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;font-size:11px;}
@@ -48,12 +40,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .amount-in{color:#0f9b58;font-weight:700;}
 .amount-out{color:#e94560;font-weight:700;}
 .no-data{text-align:center;padding:40px;color:#bbb;font-size:14px;}
-@media(max-width:768px){.summary-grid{grid-template-columns:1fr 1fr;}.two-col{grid-template-columns:1fr;}.account-cards{grid-template-columns:1fr;}}
+@media(max-width:768px){.summary-grid{grid-template-columns:1fr 1fr;}.two-col{grid-template-columns:1fr;}}
 </style>
 <link rel="stylesheet" href="du-theme.css">
 </head>
 <body>
-<div class="header"><h1>💰 입출금 <span>대시보드</span></h1></div>
+<div class="header"><h1>💰 실제 사업지출 <span>현황</span></h1></div>
 <div class="container">
     <div class="month-nav">
         <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
@@ -62,7 +54,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
         <button class="current-btn" onclick="goCurrentMonth()">이번달</button>
     </div>
     <div class="summary-grid" id="summaryGrid"></div>
-    <div class="account-cards" id="accountCards"></div>
     <div id="reportArea"><div class="card no-data">로딩 중...</div></div>
 </div>
 <script>
@@ -71,9 +62,9 @@ const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
 const{createClient}=window.supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const CAT_COLORS={'매출':'#0f9b58','사업지출':'#e94560','고정비':'#ff9800','통장간이체':'#9e9e9e','플랫폼결제':'#f4a900','개인':'#9c27b0'};
+const CAT_COLORS={'매출':'#0f9b58','사업지출':'#e94560','고정비':'#ff9800','플랫폼결제':'#f4a900','세금':'#805ad5'};
+const BUSINESS_EXPENSE_CATEGORIES=new Set(['사업지출','고정비','플랫폼결제','세금']);
 
-let accounts=[];
 let currentDate=new Date();
 
 function updateMonthLabel(){document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;}
@@ -102,46 +93,31 @@ async function loadDashboard(){
     const lastDay=new Date(y,m+1,0).getDate();
     const end=`${y}-${String(m+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
 
-    const{data:accts}=await db.from('bank_accounts').select('*').order('id');
-    accounts=accts||[];
-
     const txs=await fetchAll('cash_transactions','*',{gte:[['tx_date',start]],lte:[['tx_date',end]]});
 
     if(!txs.length){
         document.getElementById('summaryGrid').innerHTML='';
-        document.getElementById('accountCards').innerHTML='';
         document.getElementById('reportArea').innerHTML='<div class="card no-data">이 달의 입출금 데이터가 없습니다.<br>은행 엑셀을 업로드해주세요.</div>';
         return;
     }
 
     // ── 요약 ──
-    const totalIn=txs.filter(t=>(t.deposit||0)>0&&t.category!=='통장간이체').reduce((s,t)=>s+(t.deposit||0),0);
-    const totalOut=txs.filter(t=>(t.withdraw||0)>0&&t.category!=='통장간이체').reduce((s,t)=>s+(t.withdraw||0),0);
+    const incomeTxs=txs.filter(t=>(t.deposit||0)>0&&t.category==='매출');
+    const expenseTxs=txs.filter(t=>(t.withdraw||0)>0&&BUSINESS_EXPENSE_CATEGORIES.has(t.category));
+    const totalIn=incomeTxs.reduce((s,t)=>s+(t.deposit||0),0);
+    const totalOut=expenseTxs.reduce((s,t)=>s+(t.withdraw||0),0);
     const netFlow=totalIn-totalOut;
-    const unclassified=txs.filter(t=>!t.category&&!t.is_confirmed).length;
+    const latestDate=txs.map(t=>t.tx_date).filter(Boolean).sort().at(-1)||'-';
 
     document.getElementById('summaryGrid').innerHTML=`
-        <div class="stat-card"><div class="stat-label">실 입금 (이체 제외)</div><div class="stat-value amount-in">+${fmt(totalIn)}</div></div>
-        <div class="stat-card"><div class="stat-label">실 출금 (이체 제외)</div><div class="stat-value amount-out">-${fmt(totalOut)}</div></div>
-        <div class="stat-card"><div class="stat-label">순 현금흐름</div><div class="stat-value" style="color:${netFlow>=0?'#0f9b58':'#e94560'}">${netFlow>=0?'+':''}${fmt(netFlow)}</div></div>
-        <div class="stat-card"><div class="stat-label">미분류</div><div class="stat-value" style="color:${unclassified>0?'#c62828':'#0f9b58'}">${unclassified}건</div></div>`;
-
-    // ── 통장별 잔액 ──
-    document.getElementById('accountCards').innerHTML=accounts.filter(a=>a.current_balance>0).map(a=>{
-        const acctTxs=txs.filter(t=>t.account_id===a.id);
-        const acctIn=acctTxs.filter(t=>(t.deposit||0)>0).reduce((s,t)=>s+(t.deposit||0),0);
-        const acctOut=acctTxs.filter(t=>(t.withdraw||0)>0).reduce((s,t)=>s+(t.withdraw||0),0);
-        return `<div class="account-card">
-            <div class="bank-name">${a.bank}</div>
-            <div class="account-name">${a.name}</div>
-            <div class="balance">${fmt(a.current_balance)}원</div>
-            <div class="change"><span class="amount-in">+${fmt(acctIn)}</span> / <span class="amount-out">-${fmt(acctOut)}</span></div>
-        </div>`;
-    }).join('');
+        <div class="stat-card"><div class="stat-label">플랫폼 정산 입금</div><div class="stat-value amount-in">+${fmt(totalIn)}</div><div class="stat-sub">매출 분류 입금만</div></div>
+        <div class="stat-card"><div class="stat-label">실제 사업지출</div><div class="stat-value amount-out">-${fmt(totalOut)}</div><div class="stat-sub">개인·이체·제외 미포함</div></div>
+        <div class="stat-card"><div class="stat-label">정산 입금 - 사업지출</div><div class="stat-value" style="color:${netFlow>=0?'#0f9b58':'#e94560'}">${netFlow>=0?'+':''}${fmt(netFlow)}</div><div class="stat-sub">은행 업로드 기준</div></div>
+        <div class="stat-card"><div class="stat-label">데이터 기준일</div><div class="stat-value" style="font-size:18px;color:#555">${latestDate}</div><div class="stat-sub">${txs.length}건 반영</div></div>`;
 
     // ── 카테고리별 집계 ──
     const catData={};
-    txs.forEach(t=>{
+    [...incomeTxs,...expenseTxs].forEach(t=>{
         const cat=t.category||'미분류';
         if(!catData[cat])catData[cat]={in:0,out:0,count:0,subs:{}};
         if((t.deposit||0)>0)catData[cat].in+=t.deposit||0;
@@ -191,10 +167,10 @@ async function loadDashboard(){
 
     // 일별 차트
     const dailyData={};
-    txs.forEach(t=>{
+    [...incomeTxs,...expenseTxs].forEach(t=>{
         if(!dailyData[t.tx_date])dailyData[t.tx_date]={in:0,out:0};
-        if((t.deposit||0)>0&&t.category!=='통장간이체')dailyData[t.tx_date].in+=t.deposit||0;
-        if((t.withdraw||0)>0&&t.category!=='통장간이체')dailyData[t.tx_date].out+=t.withdraw||0;
+        if((t.deposit||0)>0&&t.category==='매출')dailyData[t.tx_date].in+=t.deposit||0;
+        if((t.withdraw||0)>0&&BUSINESS_EXPENSE_CATEGORIES.has(t.category))dailyData[t.tx_date].out+=t.withdraw||0;
     });
     const days=Object.keys(dailyData).sort();
 
@@ -212,7 +188,7 @@ async function loadDashboard(){
     });
 
     // 파이 차트 (지출만)
-    const expCats=Object.entries(catData).filter(([c,d])=>d.out>0&&c!=='통장간이체'&&c!=='미분류');
+    const expCats=Object.entries(catData).filter(([,d])=>d.out>0);
     new Chart(document.getElementById('pieChart'),{
         type:'doughnut',
         data:{labels:expCats.map(([c])=>c),

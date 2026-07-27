@@ -727,7 +727,7 @@ function renderYesterdaySummary(dateStr, data) {
         <div class="summary-card">
             <div class="accent-bar" style="background:${totalProfit >= 0 ? '#0f9b58' : '#e94560'};"></div>
             <div class="card-icon">📈</div>
-            <div class="card-label">순익</div>
+            <div class="card-label">예상 이익</div>
             <div class="card-value" style="color:${totalProfit >= 0 ? '#0f9b58' : '#e94560'};">${fmtWon(totalProfit)}</div>
             <div class="card-sub">수수료 + 원가 차감 후</div>
         </div>
@@ -772,7 +772,7 @@ function renderPlatformCards(dateStr, data) {
                         <span class="pf-stat-value negative">-${fmtWon(d.costTotal)}</span>
                     </div>
                     <div class="pf-stat">
-                        <span class="pf-stat-label">순익</span>
+                        <span class="pf-stat-label">예상 이익</span>
                         <span class="pf-stat-value ${profitClass}">${fmtWon(profit)}</span>
                     </div>
                 </div>
@@ -808,7 +808,7 @@ function renderMonthSummary(data) {
         <div class="summary-card">
             <div class="accent-bar" style="background:${totalProfit >= 0 ? '#0f9b58' : '#e94560'};"></div>
             <div class="card-icon">📈</div>
-            <div class="card-label">${m}월 순익</div>
+            <div class="card-label">${m}월 예상 이익</div>
             <div class="card-value" style="color:${totalProfit >= 0 ? '#0f9b58' : '#e94560'};">${fmtWon(totalProfit)}</div>
         </div>
         <div class="summary-card">
@@ -841,7 +841,7 @@ function renderMonthBarChart(data) {
                     </div>
                 </div>
                 <div class="bar-amount" style="color:${profit >= 0 ? '#0f9b58' : '#e94560'};">
-                    순익 ${fmtWon(profit)}
+                    예상 이익 ${fmtWon(profit)}
                 </div>
             </div>
         `;

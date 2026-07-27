@@ -1,2 +1,3 @@
 msoffcrypto-tool
 openpyxl
+bcrypt==5.0.0

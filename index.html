@@ -100,7 +100,8 @@
   <nav class="sidebar-nav">
     <div class="nav-group">
       <div class="nav-group-label">메인</div>
-      <div class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span> 대시보드</div>
+      <div class="nav-item active" data-page="overview"><span class="nav-icon">📊</span> 사업 현황</div>
+      <div class="nav-item" data-page="dashboard"><span class="nav-icon">🧰</span> 도구 모음</div>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">제작 도구</div>
@@ -108,15 +109,13 @@
     </div>
     <div class="nav-group">
       <div class="nav-group-label">주문 / 배송</div>
-      <div class="nav-item" data-page="order-dash"><span class="nav-icon">📊</span> 주문 대시보드 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-upload"><span class="nav-icon">📦</span> 주문서 업로드 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-list"><span class="nav-icon">📋</span> 주문 목록 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-daily"><span class="nav-icon">📈</span> 일별 매출/순익 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-daily"><span class="nav-icon">📈</span> 일별 매출/예상 이익 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-costs"><span class="nav-icon">💰</span> 상품 원가 관리 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-products"><span class="nav-icon">📊</span> 제품별 판매량 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-ads"><span class="nav-icon">📢</span> 광고비 관리 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-finance"><span class="nav-icon">🏦</span> 재무 리포트 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-inventory"><span class="nav-icon">📦</span> 재고 관리 <span class="nav-badge">LIVE</span></div>
+      <div class="nav-item" data-page="order-ads"><span class="nav-icon">📢</span> 광고비 관리 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="order-merge"><span class="nav-icon">📂</span> 주문서 정리 <span class="nav-badge">LIVE</span></div>
       <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
     </div>
@@ -124,11 +123,7 @@
       <div class="nav-group-label">입출금 관리</div>
       <div class="nav-item" data-page="cf-upload"><span class="nav-icon">📤</span> 은행 엑셀 업로드 <span class="nav-badge new">NEW</span></div>
       <div class="nav-item" data-page="cf-list"><span class="nav-icon">📋</span> 거래 목록/분류 <span class="nav-badge new">NEW</span></div>
-      <div class="nav-item" data-page="cf-dashboard"><span class="nav-icon">💰</span> 입출금 대시보드 <span class="nav-badge new">NEW</span></div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-label">사업 분석</div>
-      <div class="nav-item" data-page="analysis"><span class="nav-icon">🔍</span> 사업 분석 리포트 <span class="nav-badge new">NEW</span></div>
+      <div class="nav-item" data-page="cf-dashboard"><span class="nav-icon">💰</span> 실제 사업지출 <span class="nav-badge new">NEW</span></div>
     </div>
     <div class="nav-group">
       <div class="nav-group-label">재무 / 문서</div>
@@ -149,13 +144,14 @@
 <main class="main">
   <div class="topbar">
     <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-    <div class="topbar-title" id="topbarTitle"><span>📊</span> 대시보드</div>
+    <div class="topbar-title" id="topbarTitle"><span>📊</span> 사업 현황</div>
     <div class="topbar-actions">
-      <button class="topbar-btn" onclick="navigate('dashboard')">🏠 홈</button>
+      <button class="topbar-btn" onclick="navigate('dashboard')">🧰 도구 모음</button>
     </div>
   </div>
   <div class="content">
-    <div class="subpage active" id="page-dashboard">
+    <div class="subpage active" id="page-overview"></div>
+    <div class="subpage" id="page-dashboard">
       <div class="dashboard-home">
         <div class="greeting-text">안녕, <span>디유 스페이스</span> 👋</div>
         <div class="greeting-sub" id="greetingSub"></div>
@@ -243,6 +239,7 @@
 
 <script>
   const iframePages = {
+    overview: 'business-overview.html',
     laser: 'laser-tag.html',
     freelancer: 'payroll.html',
     quotation: 'quote.html',
@@ -256,7 +253,7 @@
     'order-products': 'order-products.html',
     'order-ads': 'order-ads.html',
     'order-finance': 'order-finance.html',
-    'order-inventory': 'order-inventory.html',
+    'order-inventory': 'inventory-preview.html',
     'order-merge': 'order-merge.html',
     'cf-upload': 'cashflow-upload.html',
     'cf-list': 'cashflow-list.html',
@@ -265,7 +262,8 @@
   };
 
   const pageInfo = {
-    dashboard: ['📊', '대시보드'],
+    overview: ['📊', '사업 현황'],
+    dashboard: ['🧰', '도구 모음'],
     laser: ['🏷️', '레이저 각인'],
     freelancer: ['👤', '프리랜서 급여'],
     quotation: ['📝', '견적서'],
@@ -273,7 +271,7 @@
     'order-dash': ['📊', '주문 대시보드'],
     'order-upload': ['📦', '주문서 업로드'],
     'order-list': ['📋', '주문 목록'],
-    'order-daily': ['📈', '일별 매출/순익'],
+    'order-daily': ['📈', '일별 매출/예상 이익'],
     'order-costs': ['💰', '상품 원가 관리'],
     'order-products': ['📊', '제품별 판매량'],
     'order-ads': ['📢', '광고비 관리'],
@@ -283,7 +281,7 @@
     invoice: ['🚚', '송장 변환기'],
     'cf-upload': ['📤', '은행 엑셀 업로드'],
     'cf-list': ['📋', '거래 목록/분류'],
-    'cf-dashboard': ['💰', '입출금 대시보드'],
+    'cf-dashboard': ['💰', '실제 사업지출'],
     'analysis': ['🔍', '사업 분석 리포트']
   };
 
@@ -318,6 +316,7 @@
   const h = now.getHours();
   const g = h < 12 ? '오전' : h < 18 ? '오후' : '저녁';
   document.getElementById('greetingSub').textContent = `${m}월 ${d}일 ${dn}요일 · 좋은 ${g}이에요`;
+  navigate('overview');
 </script>
 </body>
 </html>

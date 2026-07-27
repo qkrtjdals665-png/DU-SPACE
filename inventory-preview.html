@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디유 스페이스 - 재고 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh}
+.inventory{max-width:1480px;margin:0 auto;padding:28px}
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:20px}
+.eyebrow{font-size:11px;font-weight:750;letter-spacing:.08em;color:#087f63;margin-bottom:7px}
+h1{font-size:28px;line-height:1.2;letter-spacing:-.045em;margin-bottom:7px}
+.page-sub{font-size:13px;color:#777771;line-height:1.55}
+.preview-pill{display:flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid #cfe8df;border-radius:999px;background:#eef8f4;color:#087f63;font-size:11px;font-weight:700;white-space:nowrap}
+.preview-dot{width:7px;height:7px;border-radius:50%;background:#10a37f;box-shadow:0 0 0 4px rgba(16,163,127,.10)}
+.mode-tabs{display:flex;gap:5px;margin-bottom:14px;padding:5px;width:max-content;border:1px solid #e3e3de;border-radius:12px;background:#eeeeea}
+.mode-tab{border:0;border-radius:8px;background:transparent;color:#73736d;padding:8px 13px;font-size:11px;font-weight:680;cursor:pointer}
+.mode-tab.active{background:#fff;color:#20201e;box-shadow:0 1px 3px rgba(24,24,22,.08)}
+.mode-view{display:none}.mode-view.active{display:block}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.kpi{position:relative;background:#fff;border:1px solid #e3e3de;border-radius:16px;padding:18px 19px;box-shadow:0 1px 2px rgba(24,24,22,.04),0 8px 24px rgba(24,24,22,.04)}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}
+.kpi:nth-child(1){--accent:#2f6feb}.kpi:nth-child(2){--accent:#10a37f}.kpi:nth-child(3){--accent:#d99a2b}.kpi:nth-child(4){--accent:#805ad5}
+.kpi-label{font-size:11px;color:#777771;font-weight:650;margin-bottom:10px}
+.kpi-value{font-size:25px;font-weight:760;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.kpi-note{font-size:10px;color:#96968f;margin-top:6px}
+.setup-card{display:grid;grid-template-columns:minmax(210px,.75fr) minmax(0,2fr);gap:18px;align-items:center;background:#20201e;color:#fff;border-radius:17px;padding:20px 22px;margin-bottom:14px}
+.setup-title{font-size:15px;font-weight:720;margin-bottom:5px}
+.setup-copy{font-size:11px;color:#b7b7b1;line-height:1.55}
+.setup-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.setup-step{display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid #41413d;border-radius:11px;background:#292927}
+.step-no{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:#3b3b38;color:#d0d0ca;font-size:10px;font-weight:800;flex:0 0 auto}
+.setup-step.done .step-no{background:#10a37f;color:#fff}
+.step-name{font-size:11px;font-weight:650}
+.step-state{font-size:9px;color:#9e9e98;margin-top:2px}
+.panel{background:#fff;border:1px solid #e3e3de;border-radius:16px;padding:20px;box-shadow:0 1px 2px rgba(24,24,22,.04),0 8px 24px rgba(24,24,22,.04);margin-bottom:14px}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}
+.panel-title{font-size:15px;font-weight:720;letter-spacing:-.025em}
+.panel-desc{font-size:11px;color:#92928b;margin-top:4px}
+.panel-actions{display:flex;align-items:center;gap:7px}
+.filter-btn,.ghost-btn{border:1px solid #e3e3de;background:#f7f7f5;color:#64645f;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:650;cursor:pointer}
+.ghost-btn{background:#fff}
+.table-wrap{overflow:auto}
+.inventory-table{width:100%;border-collapse:separate;border-spacing:0;min-width:940px;font-size:12px}
+.inventory-table th,.inventory-table td{padding:11px 10px;border-bottom:1px solid #eeeeea;text-align:right}
+.inventory-table th{position:sticky;top:0;background:#f5f5f2;color:#777771;font-size:10px;font-weight:680}
+.inventory-table th:first-child,.inventory-table td:first-child{text-align:left}
+.inventory-table tbody tr:last-child td{border-bottom:0}
+.product-cell{display:flex;align-items:flex-start;gap:9px;max-width:360px}
+.product-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#edf3ff;flex:0 0 auto}
+.product-name{font-size:12px;font-weight:680;line-height:1.4;color:#33332f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.product-meta{display:flex;align-items:center;gap:6px;margin-top:4px;color:#999992;font-size:9px}
+.platform-dot{width:6px;height:6px;border-radius:50%;background:var(--dot)}
+.num{font-variant-numeric:tabular-nums;font-weight:650}
+.stock-missing{display:inline-flex;align-items:center;padding:4px 7px;border-radius:999px;background:#fff7e7;color:#98651b;font-size:9px;font-weight:700}
+.status{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:700}
+.status.setup{background:#fff7e7;color:#98651b}.status.good{background:#e8f6f1;color:#087f63}.status.low{background:#fff0f1;color:#bd3c47}
+.bar{width:70px;height:6px;margin-left:auto;border-radius:999px;background:#eeeeea;overflow:hidden}
+.bar-fill{height:100%;border-radius:999px;background:#10a37f}
+.empty{padding:42px 20px;text-align:center;color:#94948e;font-size:12px}
+.foot-note{display:flex;align-items:flex-start;gap:8px;padding:12px 14px;border-radius:11px;background:#f6f6f3;color:#777771;font-size:10px;line-height:1.55;margin-top:13px}
+.mapping-flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:10px;margin-bottom:14px}
+.flow-step{display:flex;align-items:center;gap:10px;padding:13px 14px;border:1px solid #e3e3de;border-radius:12px;background:#fff}
+.flow-no{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#20201e;color:#fff;font-size:10px;font-weight:800;flex:0 0 auto}
+.flow-title{font-size:11px;font-weight:700}.flow-copy{font-size:9px;color:#96968f;margin-top:2px}
+.flow-arrow{color:#ababa4;font-size:15px}
+.mapping-layout{display:grid;grid-template-columns:minmax(230px,.7fr) minmax(360px,1.25fr) minmax(250px,.8fr);gap:12px;align-items:stretch}
+.mapping-card{min-width:0;border:1px solid #e3e3de;border-radius:14px;background:#fff;padding:17px}
+.mapping-card.dark{background:#20201e;color:#fff;border-color:#20201e}
+.mapping-card-title{font-size:13px;font-weight:720;margin-bottom:4px}
+.mapping-card-copy{font-size:10px;color:#92928b;line-height:1.5;margin-bottom:15px}
+.mapping-card.dark .mapping-card-copy{color:#aaa9a4}
+.field{display:grid;gap:5px;margin-bottom:11px}
+.field label{font-size:10px;color:#6d6d68;font-weight:680}
+.field-row{display:flex;gap:6px}
+.field input{width:100%;min-width:0;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:12px;font-weight:600;color:#292925;outline:none}
+.field input:focus{border-color:#10a37f;box-shadow:0 0 0 3px rgba(16,163,127,.09)}
+.mini-btn{flex:0 0 auto;border:1px solid #deded8;border-radius:9px;background:#fff;padding:0 9px;font-size:9px;font-weight:700;cursor:pointer}
+.candidate-search{width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px;outline:none;margin-bottom:9px}
+.candidate-list{display:grid;gap:6px;max-height:360px;overflow:auto;padding-right:3px}
+.candidate-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;padding:9px;border:1px solid #ecece7;border-radius:10px;cursor:pointer;background:#fafaf8}
+.candidate-row:has(input:checked){border-color:#a7dccd;background:#eef8f4}
+.candidate-row input{accent-color:#10a37f;width:15px;height:15px}
+.candidate-platform{display:block;font-size:9px;font-weight:750;color:var(--pf);margin-bottom:3px}
+.candidate-name{display:block;font-size:10px;font-weight:650;color:#3e3e39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:310px}
+.candidate-option{display:block;font-size:9px;color:#999992;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:310px}
+.candidate-sales{font-size:10px;font-weight:750;color:#555550;white-space:nowrap}
+.sku-code{font-size:23px;font-weight:800;letter-spacing:-.03em;color:#66d6b7;margin:8px 0 3px}
+.sku-name{font-size:12px;color:#e2e2dd;margin-bottom:16px}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:13px}
+.result-cell{padding:10px;border:1px solid #41413d;border-radius:10px;background:#292927}
+.result-label{font-size:8px;color:#9e9e98;margin-bottom:4px}.result-value{font-size:14px;font-weight:740;font-variant-numeric:tabular-nums}
+.linked-list{display:grid;gap:6px;margin-bottom:14px}
+.linked-item{display:flex;align-items:center;gap:7px;padding:8px 9px;border-radius:9px;background:#30302e;font-size:9px;color:#d4d4cf}
+.linked-pf{padding:3px 5px;border-radius:5px;background:#444440;color:#fff;font-weight:700}
+.primary-preview{width:100%;border:0;border-radius:9px;background:#10a37f;color:#fff;padding:10px;font-size:11px;font-weight:750;cursor:pointer}
+.mapping-note{display:flex;gap:7px;margin-top:10px;color:#96968f;font-size:9px;line-height:1.45}
+.parser-layout{display:grid;grid-template-columns:minmax(260px,.82fr) minmax(340px,1.12fr) minmax(270px,.86fr);gap:12px;align-items:start}
+.parser-card{min-width:0;border:1px solid #e3e3de;border-radius:14px;background:#fff;padding:17px}
+.parser-card.dark{background:#20201e;color:#fff;border-color:#20201e}
+.parser-list{display:grid;gap:6px;max-height:560px;overflow-y:auto;overflow-x:hidden;padding-right:3px}
+.parser-order{width:100%;border:1px solid #ecece7;border-radius:10px;background:#fafaf8;padding:10px;text-align:left;cursor:pointer}
+.parser-order.active{border-color:#8bd2bd;background:#eef8f4;box-shadow:0 0 0 2px rgba(16,163,127,.08)}
+.parser-order-name{display:block;font-size:10px;font-weight:700;color:#33332f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.parser-order-option{display:block;font-size:9px;color:#94948e;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.parser-order-meta{display:flex;justify-content:space-between;gap:8px;margin-top:6px;color:#a0a099;font-size:8px}
+.raw-box{padding:12px;border-radius:11px;background:#f6f6f3;border:1px solid #e8e8e3;margin-bottom:13px}
+.raw-label{font-size:8px;font-weight:750;color:#8d8d86;letter-spacing:.04em;margin-bottom:5px}
+.raw-product{font-size:11px;font-weight:700;line-height:1.45;margin-bottom:8px}
+.raw-option{font-size:9px;color:#74746e;line-height:1.65;word-break:keep-all}
+.parse-section{margin-top:13px}
+.parse-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;font-weight:750;margin-bottom:7px}
+.parse-count{font-size:8px;color:#999992;font-weight:650}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:5px}
+.parse-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 7px;border-radius:7px;background:#edf3ff;color:#2859a6;font-size:9px;font-weight:680}
+.parse-chip.green{background:#e8f6f1;color:#087f63}.parse-chip.amber{background:#fff7e7;color:#946015}.parse-chip.gray{background:#f0f0ed;color:#777771}
+.parse-arrow{display:grid;place-items:center;width:34px;height:34px;margin:12px auto;border-radius:11px;background:#20201e;color:#fff;font-size:14px}
+.sku-result{padding:13px;border-radius:12px;background:#eef8f4;border:1px solid #d3ebe3}
+.sku-result-label{font-size:8px;color:#6f8f84;font-weight:700}.sku-result-code{font-size:20px;font-weight:820;color:#087f63;letter-spacing:-.025em;margin:5px 0}.sku-result-name{font-size:10px;color:#55726a}
+.movement-list{display:grid;gap:7px;margin-top:13px}
+.movement-row{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center;padding:10px;border-radius:10px;background:#2c2c2a;border:1px solid #41413d}
+.movement-sku{font-size:10px;font-weight:760;color:#74dfc0}.movement-name{font-size:8px;color:#aaa9a4;margin-top:3px}.movement-qty{font-size:14px;font-weight:800}
+.ignored-note{margin-top:12px;padding:10px;border-radius:9px;background:#292927;color:#aaa9a4;font-size:9px;line-height:1.5}
+.confidence{display:flex;align-items:center;gap:6px;margin-top:12px;font-size:9px;color:#b9b9b3}.confidence-dot{width:7px;height:7px;border-radius:50%;background:#10a37f}
+.loading{padding:64px;text-align:center;color:#8f8f89;font-size:13px}
+.error{padding:18px;color:#b33945;background:#fff0f1;border:1px solid #f0cfd2;border-radius:12px;font-size:12px}
+.toast{position:fixed;right:24px;bottom:24px;padding:12px 16px;border-radius:10px;background:#20201e;color:#fff;font-size:11px;font-weight:650;opacity:0;transform:translateY(12px);transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+.alert-strip{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;margin-bottom:14px;border:1px solid #f0cfd2;border-radius:14px;background:#fff5f5;color:#9f2933}
+.alert-strip.good{border-color:#cfe8df;background:#eef8f4;color:#087f63}
+.alert-title{font-size:12px;font-weight:760}.alert-copy{font-size:10px;line-height:1.5;margin-top:3px;opacity:.82}
+.alert-actions{display:flex;gap:7px;flex:0 0 auto}
+.action-btn{border:0;border-radius:9px;background:#20201e;color:#fff;padding:8px 11px;font-size:10px;font-weight:720;cursor:pointer}
+.action-btn.green{background:#10a37f}.action-btn.red{background:#c9424e}.action-btn:disabled{opacity:.45;cursor:not-allowed}
+.small-input{width:82px;border:1px solid #deded8;border-radius:8px;background:#fff;padding:7px 8px;font-size:10px;text-align:right}
+.inline-actions{display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+.sku-tag{display:inline-flex;align-items:center;padding:3px 6px;border-radius:6px;background:#edf3ff;color:#2859a6;font-size:8px;font-weight:750;margin-top:4px}
+.linked-badge{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;background:#e8f6f1;color:#087f63;font-size:8px;font-weight:720}
+.warning-badge{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;background:#fff7e7;color:#98651b;font-size:8px;font-weight:720}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.span-2{grid-column:1/-1}
+.movement-stock{display:grid;grid-template-columns:1fr 76px 76px;gap:6px;align-items:center;padding:10px;border-radius:10px;background:#2c2c2a;border:1px solid #41413d}
+.movement-stock input{width:100%;min-width:0;border:1px solid #51514d;border-radius:7px;background:#232321;color:#fff;padding:7px;font-size:9px;text-align:right}
+.movement-head{font-size:8px;color:#8f8f89;text-align:right;margin-bottom:4px}
+.method-note{padding:12px 14px;margin-bottom:14px;border-radius:12px;background:#edf3ff;color:#315e9e;font-size:10px;line-height:1.55}
+.runout-date{font-size:9px;color:#8f8f89;margin-top:3px}
+@media(max-width:1100px){.mapping-layout{grid-template-columns:1fr 1.3fr}.mapping-card.dark{grid-column:1/-1}.mapping-flow{grid-template-columns:1fr 1fr 1fr}.flow-arrow{display:none}.parser-layout{grid-template-columns:1fr 1.25fr}.parser-card.dark{grid-column:1/-1}}
+@media(max-width:1000px){.kpi-grid{grid-template-columns:1fr 1fr}.setup-card{grid-template-columns:1fr}.setup-steps{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:650px){.inventory{padding:15px;overflow-x:hidden}.page-head{display:block}.preview-pill{display:inline-flex;margin-top:14px}.kpi-grid{grid-template-columns:1fr 1fr}.setup-steps,.mapping-layout,.mapping-flow,.parser-layout{grid-template-columns:minmax(0,1fr)}.mapping-card.dark,.parser-card.dark{grid-column:auto}.panel{padding:15px}.panel-head{display:block}.panel-actions{margin-top:11px}.kpi-value{font-size:21px}.mode-tabs{width:100%;overflow:auto}.mode-tab{flex:1;white-space:nowrap}.candidate-row{grid-template-columns:auto minmax(0,1fr)}.candidate-sales{grid-column:2;justify-self:start}.candidate-name,.candidate-option{width:100%;max-width:none}.field-row{min-width:0}.mini-btn{padding:0 7px}.parser-list{max-height:310px}}
+</style>
+<link rel="stylesheet" href="du-theme.css">
+</head>
+<body>
+<main class="inventory">
+    <header class="page-head">
+        <div>
+            <div class="eyebrow">DU-SPACE INVENTORY</div>
+            <h1>재고 관리</h1>
+            <p class="page-sub">주문은 자동으로 반영하고, 최초 재고와 입고 수량만 직접 관리하는 방식입니다.</p>
+        </div>
+        <div class="preview-pill"><span class="preview-dot"></span>실시간 주문 연동 · 저장 가능</div>
+    </header>
+    <nav class="mode-tabs" aria-label="재고 관리 화면">
+        <button class="mode-tab active" data-view="dashboard" onclick="switchMode('dashboard')">재고 현황</button>
+        <button class="mode-tab" data-view="mapping" onclick="switchMode('mapping')">제품번호로 묶기</button>
+        <button class="mode-tab" data-view="idus" onclick="switchMode('idus')">아이디어스 옵션 분해</button>
+    </nav>
+    <section class="mode-view active" id="dashboardView">
+        <div id="app"><div class="loading">주문과 재고 데이터를 계산하고 있습니다.</div></div>
+    </section>
+    <section class="mode-view" id="mappingView">
+        <div id="mappingApp"><div class="loading">플랫폼 상품을 불러오고 있습니다.</div></div>
+    </section>
+    <section class="mode-view" id="idusView">
+        <div id="idusApp"><div class="loading">아이디어스 실제 옵션을 분석하고 있습니다.</div></div>
+    </section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+if(false){
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
+const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_KEY);
+const PLATFORM_COLORS={'네이버':'#10a37f','쿠팡':'#d94b55','오늘의집':'#2d9bc1','아이디어스':'#df7568'};
+let allRows=[];
+let currentFilter='all';
+let platformCandidates=[];
+let selectedCandidateIndexes=new Set();
+let idusCandidates=[];
+let selectedIdusIndex=0;
+
+const fmt=value=>Math.round(Number(value)||0).toLocaleString('ko-KR');
+const shortName=value=>{
+    const parts=String(value||'').split('|');
+    const raw=parts.length>1?parts[1]:parts[0];
+    return raw.replace(/^\[[^\]]+\]\s*/,'').trim()||'상품명 없음';
+};
+const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+
+async function fetchAll(table,select,configure=query=>query){
+    const pageSize=1000;
+    let result=[];
+    for(let from=0;;from+=pageSize){
+        const {data,error}=await configure(db.from(table).select(select)).range(from,from+pageSize-1);
+        if(error)throw error;
+        if(!data?.length)break;
+        result=result.concat(data);
+        if(data.length<pageSize)break;
+    }
+    return result;
+}
+
+function showToast(message){
+    const toast=document.getElementById('toast');
+    toast.textContent=message;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),2400);
+}
+
+function switchMode(mode){
+    document.querySelectorAll('.mode-tab').forEach(button=>button.classList.toggle('active',button.dataset.view===mode));
+    document.getElementById('dashboardView').classList.toggle('active',mode==='dashboard');
+    document.getElementById('mappingView').classList.toggle('active',mode==='mapping');
+    document.getElementById('idusView').classList.toggle('active',mode==='idus');
+}
+
+function setAutoSku(){
+    document.getElementById('skuCode').value='DU-MY-001';
+    updateGroupPreview();
+}
+
+function toggleCandidate(index,checked){
+    if(checked)selectedCandidateIndexes.add(index);
+    else selectedCandidateIndexes.delete(index);
+    updateGroupPreview();
+}
+
+function renderCandidateList(query=''){
+    const keyword=query.trim().toLowerCase();
+    const list=document.getElementById('candidateList');
+    const filtered=platformCandidates
+        .map((candidate,index)=>({candidate,index}))
+        .filter(({candidate})=>!keyword||`${candidate.platform} ${candidate.product} ${candidate.option}`.toLowerCase().includes(keyword))
+        .slice(0,20);
+    list.innerHTML=filtered.map(({candidate,index})=>`
+        <label class="candidate-row">
+            <input type="checkbox" ${selectedCandidateIndexes.has(index)?'checked':''} onchange="toggleCandidate(${index},this.checked)">
+            <span style="min-width:0">
+                <span class="candidate-platform" style="--pf:${PLATFORM_COLORS[candidate.platform]||'#777'}">${escapeHtml(candidate.platform)}</span>
+                <span class="candidate-name">${escapeHtml(candidate.product)}</span>
+                <span class="candidate-option">${escapeHtml(candidate.option||'옵션 전체')}</span>
+            </span>
+            <span class="candidate-sales">30일 ${fmt(candidate.sold30)}개</span>
+        </label>`).join('')||'<div class="empty">검색 결과가 없습니다.</div>';
+}
+
+function updateGroupPreview(){
+    const selected=[...selectedCandidateIndexes].map(index=>platformCandidates[index]).filter(Boolean);
+    const sku=document.getElementById('skuCode')?.value.trim()||'제품번호 없음';
+    const name=document.getElementById('skuName')?.value.trim()||'제품명 없음';
+    const initialStock=Math.max(0,Number(document.getElementById('skuStock')?.value)||0);
+    const totalSold=selected.reduce((sum,item)=>sum+item.sold30,0);
+    const daily=totalSold/30;
+    const remainDays=daily>0?Math.floor(initialStock/daily):0;
+    const platforms=[...new Set(selected.map(item=>item.platform))];
+    document.getElementById('groupPreview').innerHTML=`
+        <div class="mapping-card-title">묶은 결과</div>
+        <div class="mapping-card-copy">선택한 상품이 모두 아래 재고 하나를 사용합니다.</div>
+        <div class="sku-code">${escapeHtml(sku)}</div>
+        <div class="sku-name">${escapeHtml(name)}</div>
+        <div class="result-grid">
+            <div class="result-cell"><div class="result-label">연결 플랫폼</div><div class="result-value">${platforms.length}개</div></div>
+            <div class="result-cell"><div class="result-label">연결 상품</div><div class="result-value">${selected.length}개</div></div>
+            <div class="result-cell"><div class="result-label">30일 통합 판매</div><div class="result-value">${fmt(totalSold)}개</div></div>
+            <div class="result-cell"><div class="result-label">예상 소진</div><div class="result-value">${daily?remainDays+'일':'-'}</div></div>
+        </div>
+        <div class="linked-list">${selected.slice(0,4).map(item=>`
+            <div class="linked-item"><span class="linked-pf">${escapeHtml(item.platform)}</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(shortName(item.product))}</span></div>`).join('')||'<div class="linked-item">왼쪽 목록에서 플랫폼 상품을 선택하세요.</div>'}</div>
+        <button class="primary-preview" type="button" onclick="showToast('묶기 결과를 확인했습니다. 실제 저장은 하지 않았습니다.')">묶기 미리보기</button>
+        <div class="mapping-note"><span>ℹ️</span><span>실제 적용 시 주문이 어느 플랫폼에서 들어와도 ${escapeHtml(sku)} 재고에서 함께 차감됩니다.</span></div>`;
+}
+
+function renderMapping(){
+    selectedCandidateIndexes.clear();
+    ['네이버','오늘의집','아이디어스'].forEach(platform=>{
+        const index=platformCandidates.findIndex(item=>item.platform===platform&&item.product.includes('명태'));
+        if(index>=0)selectedCandidateIndexes.add(index);
+    });
+    document.getElementById('mappingApp').innerHTML=`
+        <section class="mapping-flow">
+            <div class="flow-step"><span class="flow-no">1</span><div><div class="flow-title">내부 제품번호 만들기</div><div class="flow-copy">변하지 않는 우리 상품 번호</div></div></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step"><span class="flow-no">2</span><div><div class="flow-title">플랫폼 상품 선택</div><div class="flow-copy">이름이 달라도 같은 제품 선택</div></div></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-step"><span class="flow-no">3</span><div><div class="flow-title">재고 하나로 통합</div><div class="flow-copy">어디서 팔려도 함께 차감</div></div></div>
+        </section>
+        <section class="mapping-layout">
+            <article class="mapping-card">
+                <div class="mapping-card-title">내부 제품</div>
+                <div class="mapping-card-copy">플랫폼과 무관하게 사용할 제품번호를 입력합니다.</div>
+                <div class="field"><label>제품번호</label><div class="field-row"><input id="skuCode" value="DU-MY-001" oninput="updateGroupPreview()"><button class="mini-btn" type="button" onclick="setAutoSku()">자동번호</button></div></div>
+                <div class="field"><label>내부 제품명</label><input id="skuName" value="액막이 명태 기본형" oninput="updateGroupPreview()"></div>
+                <div class="field"><label>초기 재고 · 예시</label><input id="skuStock" type="number" min="0" value="120" oninput="updateGroupPreview()"></div>
+                <div class="mapping-note"><span>💡</span><span>재질이나 구성품이 다르면 제품번호를 분리하고, 동일한 완제품만 하나로 묶습니다.</span></div>
+            </article>
+            <article class="mapping-card">
+                <div class="mapping-card-title">플랫폼 상품 선택</div>
+                <div class="mapping-card-copy">최근 30일 주문상품입니다. 같은 실물 상품을 여러 개 선택하세요.</div>
+                <input class="candidate-search" type="search" placeholder="상품명·옵션·플랫폼 검색" oninput="renderCandidateList(this.value)">
+                <div class="candidate-list" id="candidateList"></div>
+            </article>
+            <article class="mapping-card dark" id="groupPreview"></article>
+        </section>`;
+    renderCandidateList();
+    updateGroupPreview();
+}
+
+const cleanOptionValue=value=>String(value||'')
+    .replace(/\(\+[\d,]+\)/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+
+function parseIdusOrder(item){
+    const product=String(item.product||'');
+    const option=String(item.option||'');
+    const segments=option.split(/\s*\/\s*/).map(segment=>segment.trim()).filter(Boolean);
+    let family='기타 상품',familyCode='ITEM',material='',mount='',color='',phrase='';
+    const addons=[];
+    const ignored=[];
+
+    if(product.includes('붉은말')||product.includes('홍마')){family='붉은말 액막이명태';familyCode='MT-RED';}
+    else if(product.includes('차량용')||product.includes('룸미러')){family='차량용 액막이명태';familyCode='MT-CAR';}
+    else if(product.includes('명태')||product.includes('북어')){family='현관용 액막이명태';familyCode='MT';}
+    else if(product.includes('버니')){family='버니 홈캠거치대';familyCode='BUNNY';}
+    else if(product.includes('클로버')){family='클로버 벽선반';familyCode='CLOVER';}
+
+    segments.forEach(segment=>{
+        const colon=segment.indexOf(':');
+        const key=(colon>=0?segment.slice(0,colon):segment).trim();
+        const value=cleanOptionValue(colon>=0?segment.slice(colon+1):'');
+        const materialMatch=value.match(/메이플|월넛|편백/);
+        if(materialMatch)material=materialMatch[0];
+
+        if(key.includes('디자인')){
+            const mountMatch=value.match(/고리형|자석형/);
+            if(mountMatch)mount=mountMatch[0];
+            phrase=cleanOptionValue(value.split(' - ').slice(1).join(' - '));
+        }else if(key.includes('팬던트 문구')){
+            if(value.includes('룸미러'))mount='룸미러';
+            if(value.includes('송풍구'))mount='송풍구';
+            phrase=cleanOptionValue(value.split(' - ').slice(1).join(' - '));
+        }else if(key.includes('레드리본')){
+            if(value.includes('비구매'))ignored.push('레드리본 비구매');
+            else addons.push({sku:'DU-RIBBON-RED',name:'레드리본',qty:1});
+        }else if(key.includes('복주머니')){
+            if(value.includes('비구매'))ignored.push('복주머니 비구매');
+            else addons.push({sku:'DU-POUCH-GOLD',name:'황금 복주머니·엽전',qty:1});
+        }else if(key.includes('철판 스티커')){
+            if(value.includes('비구매'))ignored.push('철판 스티커 비구매');
+            else addons.push({sku:'DU-STEEL-STICKER',name:'철판 스티커',qty:1});
+        }else if(key.includes('포토리뷰')){
+            ignored.push('포토리뷰 약속');
+        }else if(key.includes('색상')){
+            color=value;
+        }else if(key.includes('옵션')&&value.includes('없음')){
+            ignored.push('추가 옵션 없음');
+        }
+    });
+
+    if(phrase)ignored.push(`각인·문구: ${phrase}`);
+    const materialCode={'메이플':'MAP','월넛':'WAL','편백':'HIN'}[material]||'GEN';
+    const mountCode={'고리형':'HOOK','자석형':'MAG','룸미러':'MIRROR','송풍구':'VENT'}[mount]||'BASE';
+    const colorCode={'화이트':'WHT','오트밀':'OAT'}[color]||'';
+    const baseSku=['DU',familyCode,materialCode,mountCode,colorCode].filter(Boolean).join('-');
+    const attributes=[
+        material&&{label:`재질 · ${material}`,className:'green'},
+        mount&&{label:`부착 · ${mount}`,className:'green'},
+        color&&{label:`색상 · ${color}`,className:'green'},
+        phrase&&{label:`문구 · ${phrase}`,className:'amber'}
+    ].filter(Boolean);
+    const confidence=familyCode!=='ITEM'&&(material||mount||color||familyCode==='MT-RED')?'자동 분해 완료':'확인 필요';
+    return{
+        family,
+        baseSku,
+        baseName:[family,material,mount,color].filter(Boolean).join(' · '),
+        attributes,
+        addons,
+        ignored:[...new Set(ignored)],
+        confidence
+    };
+}
+
+function selectIdus(index){
+    selectedIdusIndex=index;
+    renderIdusList(document.getElementById('idusSearch')?.value||'');
+    renderIdusDetail();
+}
+
+function renderIdusList(query=''){
+    const keyword=query.trim().toLowerCase();
+    const list=document.getElementById('idusList');
+    const filtered=idusCandidates
+        .map((item,index)=>({item,index}))
+        .filter(({item})=>!keyword||`${item.product} ${item.option}`.toLowerCase().includes(keyword))
+        .slice(0,40);
+    list.innerHTML=filtered.map(({item,index})=>`
+        <button class="parser-order ${index===selectedIdusIndex?'active':''}" type="button" onclick="selectIdus(${index})">
+            <span class="parser-order-name">${escapeHtml(item.product)}</span>
+            <span class="parser-order-option">${escapeHtml(item.option||'옵션 없음')}</span>
+            <span class="parser-order-meta"><span>${item.lastDate}</span><span>${fmt(item.soldQty)}개 판매</span></span>
+        </button>`).join('')||'<div class="empty">검색 결과가 없습니다.</div>';
+}
+
+function renderIdusDetail(){
+    const item=idusCandidates[selectedIdusIndex];
+    if(!item)return;
+    const parsed=parseIdusOrder(item);
+    const attributeChips=parsed.attributes.map(attribute=>`<span class="parse-chip ${attribute.className}">${escapeHtml(attribute.label)}</span>`).join('');
+    const addonChips=parsed.addons.map(addon=>`<span class="parse-chip green">+ ${escapeHtml(addon.name)}</span>`).join('');
+    const ignoredChips=parsed.ignored.map(label=>`<span class="parse-chip gray">${escapeHtml(label)}</span>`).join('');
+    document.getElementById('idusDetail').innerHTML=`
+        <div class="mapping-card-title">긴 옵션을 이렇게 나눕니다</div>
+        <div class="mapping-card-copy">원본은 그대로 보관하고 재고에 필요한 값만 구조화합니다.</div>
+        <div class="raw-box">
+            <div class="raw-label">원본 상품명</div><div class="raw-product">${escapeHtml(item.product)}</div>
+            <div class="raw-label">원본 옵션</div><div class="raw-option">${escapeHtml(item.option||'옵션 없음')}</div>
+        </div>
+        <div class="parse-section">
+            <div class="parse-title"><span>① 기본 제품</span><span class="parse-count">재고 필수</span></div>
+            <div class="chip-wrap"><span class="parse-chip">${escapeHtml(parsed.family)}</span>${attributeChips}</div>
+        </div>
+        <div class="parse-section">
+            <div class="parse-title"><span>② 추가 구성품</span><span class="parse-count">${parsed.addons.length}개 차감</span></div>
+            <div class="chip-wrap">${addonChips||'<span class="parse-chip gray">추가 차감 없음</span>'}</div>
+        </div>
+        <div class="parse-section">
+            <div class="parse-title"><span>③ 재고에서 제외</span><span class="parse-count">표시만 보관</span></div>
+            <div class="chip-wrap">${ignoredChips||'<span class="parse-chip gray">제외 항목 없음</span>'}</div>
+        </div>
+        <div class="parse-arrow">↓</div>
+        <div class="sku-result">
+            <div class="sku-result-label">자동 생성 기본 제품번호</div>
+            <div class="sku-result-code">${escapeHtml(parsed.baseSku)}</div>
+            <div class="sku-result-name">${escapeHtml(parsed.baseName)}</div>
+        </div>`;
+
+    const movements=[{sku:parsed.baseSku,name:parsed.baseName,qty:1},...parsed.addons];
+    document.getElementById('idusMovement').innerHTML=`
+        <div class="mapping-card-title">주문 1건의 재고 차감</div>
+        <div class="mapping-card-copy">상품명이 길어도 아래 항목만 각각 차감합니다.</div>
+        <div class="movement-list">${movements.map(movement=>`
+            <div class="movement-row">
+                <div><div class="movement-sku">${escapeHtml(movement.sku)}</div><div class="movement-name">${escapeHtml(movement.name)}</div></div>
+                <div class="movement-qty">-${movement.qty}</div>
+            </div>`).join('')}</div>
+        <div class="ignored-note">맞춤문구, 포토리뷰 선택, ‘비구매’ 항목은 주문 화면에는 남기지만 재고에서는 차감하지 않습니다.</div>
+        <div class="confidence"><span class="confidence-dot"></span>${parsed.confidence} · 원본 옵션은 변경하지 않음</div>
+        <button class="primary-preview" style="margin-top:14px" type="button" onclick="showToast('옵션 분해 결과를 확인했습니다. 실제 저장은 하지 않았습니다.')">분해 결과 미리보기</button>`;
+}
+
+function renderIdusParser(){
+    const preferred=idusCandidates.findIndex(item=>item.option.split('/').some(segment=>
+        /(레드리본|복주머니|철판 스티커)/.test(segment)&&!segment.includes('비구매')
+    ));
+    selectedIdusIndex=preferred>=0?preferred:0;
+    document.getElementById('idusApp').innerHTML=`
+        <section class="parser-layout">
+            <article class="parser-card">
+                <div class="mapping-card-title">아이디어스 실제 옵션</div>
+                <div class="mapping-card-copy">주문 ${fmt(idusCandidates.reduce((sum,item)=>sum+item.rowCount,0))}건에서 같은 옵션을 묶었습니다. 다른 주문을 눌러 비교해보세요.</div>
+                <input class="candidate-search" id="idusSearch" type="search" placeholder="상품명·옵션 검색" oninput="renderIdusList(this.value)">
+                <div class="parser-list" id="idusList"></div>
+            </article>
+            <article class="parser-card" id="idusDetail"></article>
+            <article class="parser-card dark" id="idusMovement"></article>
+        </section>`;
+    renderIdusList();
+    renderIdusDetail();
+}
+
+function rowStatus(row){
+    if(row.currentStock===null)return{label:'초기재고 필요',className:'setup'};
+    if(row.currentStock<=row.safeStock)return{label:'재고 부족',className:'low'};
+    return{label:'정상',className:'good'};
+}
+
+function applyFilter(filter){
+    currentFilter=filter;
+    document.querySelectorAll('.filter-btn').forEach(button=>button.dataset.filter===filter
+        ?button.style.cssText='background:#20201e;color:#fff;border-color:#20201e'
+        :button.style.cssText='');
+    renderRows();
+}
+
+function renderRows(){
+    let rows=allRows;
+    if(currentFilter==='setup')rows=rows.filter(row=>row.currentStock===null);
+    if(currentFilter==='fast')rows=rows.filter(row=>row.sold30>=10);
+    const tbody=document.getElementById('inventoryBody');
+    if(!rows.length){
+        tbody.innerHTML='<tr><td colspan="8"><div class="empty">이 조건에 해당하는 상품이 없습니다.</div></td></tr>';
+        return;
+    }
+    const maxSold=Math.max(...rows.map(row=>row.sold30),1);
+    tbody.innerHTML=rows.slice(0,30).map(row=>{
+        const state=rowStatus(row);
+        const days=row.currentStock===null||row.avgDaily<=0?'-':Math.floor(row.currentStock/row.avgDaily)+'일';
+        const stock=row.currentStock===null?'<span class="stock-missing">입력 필요</span>':`<span class="num">${fmt(row.currentStock)}개</span>`;
+        const dots=row.platforms.map(platform=>`<span class="platform-dot" style="--dot:${PLATFORM_COLORS[platform]||'#999'}" title="${platform}"></span>`).join('');
+        return`<tr>
+            <td>
+                <div class="product-cell">
+                    <span class="product-icon">📦</span>
+                    <div style="min-width:0">
+                        <div class="product-name" title="${escapeHtml(row.name)}">${escapeHtml(shortName(row.name))}</div>
+                        <div class="product-meta">${dots}<span>${row.platforms.join(' · ')}</span></div>
+                    </div>
+                </div>
+            </td>
+            <td><span class="num">${fmt(row.sold30)}개</span><div class="bar"><div class="bar-fill" style="width:${Math.max(4,row.sold30/maxSold*100)}%"></div></div></td>
+            <td class="num">${row.avgDaily.toFixed(1)}개</td>
+            <td class="num">${fmt(row.safeStock)}개</td>
+            <td>${stock}</td>
+            <td class="num">${days}</td>
+            <td><span class="status ${state.className}">${state.label}</span></td>
+            <td><button class="ghost-btn" onclick="showToast('미리보기에서는 저장하지 않습니다.')">등록</button></td>
+        </tr>`;
+    }).join('');
+}
+
+async function loadInventory(){
+    try{
+        const today=new Date();
+        const startDate=new Date(today);
+        startDate.setDate(startDate.getDate()-29);
+        const start=startDate.toISOString().slice(0,10);
+        const [orders,costs,myProducts,links,idusOrders]=await Promise.all([
+            fetchAll('orders','platform,order_date,product,option,quantity',query=>query.gte('order_date',start)),
+            fetchAll('product_costs','platform,product,option,cost_group'),
+            fetchAll('my_products','id,name,stock,safe_stock'),
+            fetchAll('product_links','my_product_id,platform,product,option'),
+            fetchAll('orders','order_date,product,option,quantity',query=>query.eq('platform','아이디어스').order('order_date',{ascending:false}))
+        ]);
+
+        const candidateMap=new Map();
+        orders.forEach(order=>{
+            const key=`${order.platform}|${order.product}|${order.option||''}`;
+            if(!candidateMap.has(key))candidateMap.set(key,{key,platform:order.platform,product:order.product,option:order.option||'',sold30:0});
+            candidateMap.get(key).sold30+=Number(order.quantity)||1;
+        });
+        platformCandidates=[...candidateMap.values()].sort((a,b)=>b.sold30-a.sold30);
+
+        const idusMap=new Map();
+        idusOrders.forEach(order=>{
+            const key=`${order.product}|${order.option||''}`;
+            if(!idusMap.has(key))idusMap.set(key,{
+                key,
+                product:order.product,
+                option:order.option||'',
+                soldQty:0,
+                rowCount:0,
+                lastDate:order.order_date
+            });
+            const item=idusMap.get(key);
+            item.soldQty+=Number(order.quantity)||1;
+            item.rowCount++;
+            if(order.order_date>item.lastDate)item.lastDate=order.order_date;
+        });
+        idusCandidates=[...idusMap.values()].sort((a,b)=>b.lastDate.localeCompare(a.lastDate)||b.soldQty-a.soldQty);
+
+        const costGroupMap=new Map(costs.map(item=>[
+            `${item.platform}|${item.product}|${item.option||''}`,
+            item.cost_group||`${item.platform}|${item.product}|${item.option||''}`
+        ]));
+        const myProductMap=new Map(myProducts.map(item=>[item.id,item]));
+        const linkMap=new Map(links.map(link=>[
+            `${link.platform}|${link.product}|${link.option||''}`,
+            myProductMap.get(link.my_product_id)
+        ]));
+        const groups=new Map();
+        orders.forEach(order=>{
+            const exactKey=`${order.platform}|${order.product}|${order.option||''}`;
+            const linked=linkMap.get(exactKey)||linkMap.get(`${order.platform}|${order.product}|`);
+            const groupName=linked?.name||costGroupMap.get(exactKey)||exactKey;
+            if(!groups.has(groupName))groups.set(groupName,{name:groupName,sold30:0,platforms:new Set(),linkedProduct:linked||null});
+            const group=groups.get(groupName);
+            group.sold30+=Number(order.quantity)||1;
+            group.platforms.add(order.platform);
+        });
+
+        allRows=[...groups.values()].map(group=>{
+            const avgDaily=group.sold30/30;
+            const suggested=Math.max(3,Math.ceil(avgDaily*14));
+            return{
+                name:group.name,
+                sold30:group.sold30,
+                avgDaily,
+                safeStock:group.linkedProduct?.safe_stock??suggested,
+                currentStock:group.linkedProduct?Number(group.linkedProduct.stock)||0:null,
+                platforms:[...group.platforms]
+            };
+        }).sort((a,b)=>b.sold30-a.sold30);
+
+        const totalSold=allRows.reduce((sum,row)=>sum+row.sold30,0);
+        const setupNeeded=allRows.filter(row=>row.currentStock===null).length;
+        const lowStock=allRows.filter(row=>row.currentStock!==null&&row.currentStock<=row.safeStock).length;
+        const mappedCount=links.length;
+
+        document.getElementById('app').innerHTML=`
+            <section class="kpi-grid">
+                <article class="kpi"><div class="kpi-label">관리 후보 상품</div><div class="kpi-value">${fmt(allRows.length)}개</div><div class="kpi-note">최근 30일 실제 판매 상품</div></article>
+                <article class="kpi"><div class="kpi-label">30일 판매수량</div><div class="kpi-value">${fmt(totalSold)}개</div><div class="kpi-note">중복 주문번호는 기존 업로드에서 방지</div></article>
+                <article class="kpi"><div class="kpi-label">초기 설정 필요</div><div class="kpi-value">${fmt(setupNeeded)}개</div><div class="kpi-note">현재 재고를 한 번 입력해야 합니다</div></article>
+                <article class="kpi"><div class="kpi-label">재고 부족</div><div class="kpi-value">${fmt(lowStock)}개</div><div class="kpi-note">설정 완료 상품 기준</div></article>
+            </section>
+
+            <section class="setup-card">
+                <div><div class="setup-title">처음 한 번만 설정하면 됩니다</div><div class="setup-copy">판매는 주문 데이터에서 자동 계산하고, 이후에는 입고와 실사 조정만 기록합니다.</div></div>
+                <div class="setup-steps">
+                    <div class="setup-step done"><span class="step-no">1</span><div><div class="step-name">주문 연결</div><div class="step-state">완료 · ${fmt(orders.length)}개 항목 반영</div></div></div>
+                    <div class="setup-step ${mappedCount?'done':''}"><span class="step-no">2</span><div><div class="step-name">상품 묶기</div><div class="step-state">${mappedCount?fmt(mappedCount)+'개 연결':'플랫폼 상품 연결 필요'}</div></div></div>
+                    <div class="setup-step"><span class="step-no">3</span><div><div class="step-name">초기 재고 입력</div><div class="step-state">실제 보유수량 1회 입력</div></div></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <div><div class="panel-title">재고 등록 추천 목록</div><div class="panel-desc">최근 30일 판매가 많은 순서입니다. 많이 팔리는 상품부터 재고를 등록하면 됩니다.</div></div>
+                    <div class="panel-actions">
+                        <button class="filter-btn" data-filter="all" onclick="applyFilter('all')">전체</button>
+                        <button class="filter-btn" data-filter="fast" onclick="applyFilter('fast')">월 10개 이상</button>
+                        <button class="filter-btn" data-filter="setup" onclick="applyFilter('setup')">설정 필요</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table class="inventory-table">
+                        <thead><tr><th>내부 상품</th><th>30일 판매</th><th>일평균</th><th>추천 안전재고</th><th>현재 재고</th><th>예상 소진</th><th>상태</th><th>관리</th></tr></thead>
+                        <tbody id="inventoryBody"></tbody>
+                    </table>
+                </div>
+                <div class="foot-note"><span>ℹ️</span><span>현재 재고 DB에는 등록된 상품이 없어 ‘입력 필요’로 표시됩니다. 이 미리보기는 주문 데이터를 읽기만 하며 재고를 저장하거나 주문을 변경하지 않습니다.</span></div>
+            </section>`;
+        applyFilter('all');
+        renderMapping();
+        renderIdusParser();
+    }catch(error){
+        console.error(error);
+        document.getElementById('app').innerHTML='<div class="error">재고 미리보기를 불러오지 못했습니다. 잠시 후 다시 열어주세요.</div>';
+    }
+}
+
+loadInventory();
+}
+</script>
+<script src="inventory-live.js"></script>
+</body>
+</html>

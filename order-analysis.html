@@ -195,8 +195,8 @@ async function loadAnalysis(){
 
     document.getElementById('summaryGrid').innerHTML=`
         <div class="stat-card"><div class="stat-label">${month}월 매출</div><div class="stat-value" style="color:#4285f4">${fmt(totalSales)}원</div></div>
-        <div class="stat-card"><div class="stat-label">${month}월 순익 (광고 후)</div><div class="stat-value" style="color:${totalProfit>=0?'#0f9b58':'#e94560'}">${fmt(totalProfit)}원</div></div>
-        <div class="stat-card"><div class="stat-label">순이익률</div><div class="stat-value" style="color:#f4a900">${profitRate}%</div></div>
+        <div class="stat-card"><div class="stat-label">${month}월 예상 판매이익 (광고 후)</div><div class="stat-value" style="color:${totalProfit>=0?'#0f9b58':'#e94560'}">${fmt(totalProfit)}원</div></div>
+        <div class="stat-card"><div class="stat-label">예상 이익률</div><div class="stat-value" style="color:#f4a900">${profitRate}%</div></div>
         <div class="stat-card"><div class="stat-label">전월 대비</div><div class="stat-value" style="color:${growthColor}">${growth==='–'?'데이터 없음':growth+'%'}</div></div>`;
 
     let html='';
@@ -213,9 +213,9 @@ async function loadAnalysis(){
     else insights.push({type:'good',text:`매출이 플랫폼별로 고르게 분산돼있어요. 안정적 구조!`});
 
     // 순이익률
-    if(profitRate>=40)insights.push({type:'good',text:`순이익률 <strong>${profitRate}%</strong>로 매우 건강해요. 현재 비용 구조 유지하세요.`});
-    else if(profitRate>=25)insights.push({type:'info',text:`순이익률 <strong>${profitRate}%</strong>. 괜찮지만 원가 절감이나 판가 인상 여지를 검토해보세요.`});
-    else insights.push({type:'bad',text:`순이익률 <strong>${profitRate}%</strong>로 낮습니다. 저마진 상품 비중이 높거나 광고비가 과다할 수 있어요.`});
+    if(profitRate>=40)insights.push({type:'good',text:`예상 이익률 <strong>${profitRate}%</strong>로 매우 건강해요. 현재 비용 구조 유지하세요.`});
+    else if(profitRate>=25)insights.push({type:'info',text:`예상 이익률 <strong>${profitRate}%</strong>. 괜찮지만 원가 절감이나 판가 인상 여지를 검토해보세요.`});
+    else insights.push({type:'bad',text:`예상 이익률 <strong>${profitRate}%</strong>로 낮습니다. 저마진 상품 비중이 높거나 광고비가 과다할 수 있어요.`});
 
     // 광고비
     const adRate=totalSales>0?(totalAd/totalSales*100):0;
@@ -251,7 +251,7 @@ async function loadAnalysis(){
 
     // ── 2. 플랫폼별 효율 비교 ──
     html+=`<div class="card"><div class="card-title"><span class="icon">📊</span> 플랫폼별 효율 비교</div>
-    <table class="rank-table"><thead><tr><th>플랫폼</th><th>매출</th><th>비용합계</th><th>순익</th><th>순이익률</th><th>매출비중</th><th>판정</th></tr></thead><tbody>`;
+    <table class="rank-table"><thead><tr><th>플랫폼</th><th>매출</th><th>비용합계</th><th>예상 이익</th><th>예상 이익률</th><th>매출비중</th><th>판정</th></tr></thead><tbody>`;
     
     const pfSorted=PLATFORMS.filter(p=>pfData[p].sales>0).sort((a,b)=>pfData[b].realProfit-pfData[a].realProfit);
     pfSorted.forEach((p,i)=>{
@@ -276,7 +276,7 @@ async function loadAnalysis(){
     
     // TOP 10
     html+=`<div class="card"><div class="card-title"><span class="icon">🏆</span> 수익성 TOP 10</div>
-    <table class="rank-table"><thead><tr><th>#</th><th>플랫폼</th><th>상품</th><th>순익</th><th>마진</th></tr></thead><tbody>`;
+    <table class="rank-table"><thead><tr><th>#</th><th>플랫폼</th><th>상품</th><th>예상 이익</th><th>마진</th></tr></thead><tbody>`;
     prodRank.slice(0,10).forEach((p,i)=>{
         const badgeClass=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-other';
         html+=`<tr><td><span class="rank-badge ${badgeClass}">${i+1}</span></td>

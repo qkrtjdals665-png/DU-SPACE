@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주문관리 - 일별 매출/순익/ROAS</title>
+<title>주문관리 - 일별 매출/예상 이익/ROAS</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
@@ -56,7 +56,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 </head>
 <body>
 <div class="header">
-    <h1>📈 일별 <span>매출/순익/ROAS</span></h1>
+    <h1>📈 일별 <span>매출/예상 이익/ROAS</span></h1>
     <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-upload.html">📦 업로드</a><a href="order-list.html">📋 주문목록</a></div>
 </div>
 <div class="container">
@@ -83,11 +83,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
                     <th class="ph-total" colspan="3">전체</th>
                 </tr>
                 <tr>
-                    <th class="ph-naver">매출</th><th class="ph-naver">순익</th><th class="ph-naver">광고</th><th class="ph-naver">ROAS</th>
-                    <th class="ph-coupang">매출</th><th class="ph-coupang">순익</th><th class="ph-coupang">광고</th><th class="ph-coupang">ROAS</th>
-                    <th class="ph-ohouse">매출</th><th class="ph-ohouse">순익</th><th class="ph-ohouse">광고</th><th class="ph-ohouse">ROAS</th>
-                    <th class="ph-idus">매출</th><th class="ph-idus">순익</th><th class="ph-idus">광고</th><th class="ph-idus">ROAS</th>
-                    <th class="ph-total">매출</th><th class="ph-total">광고</th><th class="ph-total">실순익</th>
+                    <th class="ph-naver">매출</th><th class="ph-naver">예상 이익</th><th class="ph-naver">광고</th><th class="ph-naver">ROAS</th>
+                    <th class="ph-coupang">매출</th><th class="ph-coupang">예상 이익</th><th class="ph-coupang">광고</th><th class="ph-coupang">ROAS</th>
+                    <th class="ph-ohouse">매출</th><th class="ph-ohouse">예상 이익</th><th class="ph-ohouse">광고</th><th class="ph-ohouse">ROAS</th>
+                    <th class="ph-idus">매출</th><th class="ph-idus">예상 이익</th><th class="ph-idus">광고</th><th class="ph-idus">ROAS</th>
+                    <th class="ph-total">매출</th><th class="ph-total">광고</th><th class="ph-total">예상 이익</th>
                 </tr>
             </thead>
             <tbody id="dailyBody"><tr><td colspan="20" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
@@ -265,8 +265,8 @@ async function loadDaily(){
     const totalRoas=grandAd>0?Math.round((grandSales/grandAd)*100):0;
     document.getElementById('monthSummary').innerHTML=`
         <div class="ms-card"><div class="ms-label">${m}월 매출</div><div class="ms-value" style="color:#4285f4">${fmt(grandSales)}원</div></div>
-        <div class="ms-card"><div class="ms-label">${m}월 실순익</div><div class="ms-value" style="color:${grandReal>=0?'#0f9b58':'#e94560'}">${fmt(grandReal)}원</div></div>
-        <div class="ms-card"><div class="ms-label">순이익률</div><div class="ms-value" style="color:#f4a900">${profitRate}%</div></div>
+        <div class="ms-card"><div class="ms-label">${m}월 예상 판매이익</div><div class="ms-value" style="color:${grandReal>=0?'#0f9b58':'#e94560'}">${fmt(grandReal)}원</div></div>
+        <div class="ms-card"><div class="ms-label">예상 이익률</div><div class="ms-value" style="color:#f4a900">${profitRate}%</div></div>
         <div class="ms-card"><div class="ms-label">총 광고비</div><div class="ms-value" style="color:#e94560">${fmt(grandAd)}원</div></div>
         <div class="ms-card"><div class="ms-label">전체 ROAS</div><div class="ms-value" style="color:#9b59b6">${totalRoas>0?totalRoas+'%':'-'}</div></div>
     `;

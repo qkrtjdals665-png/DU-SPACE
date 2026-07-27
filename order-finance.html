@@ -167,8 +167,8 @@ async function loadReport(){
     const profitRate=totalSales>0?((grossProfit/totalSales)*100).toFixed(1):0;
     document.getElementById('summaryBig').innerHTML=`
         <div class="sb-card"><div class="sb-label">${m}월 총 매출</div><div class="sb-value" style="color:#4285f4">${fmt(totalSales)}원</div></div>
-        <div class="sb-card"><div class="sb-label">${m}월 순이익</div><div class="sb-value" style="color:${grossProfit>=0?'#0f9b58':'#e94560'}">${fmt(grossProfit)}원</div></div>
-        <div class="sb-card"><div class="sb-label">${m}월 순이익률</div><div class="sb-value" style="color:#f4a900">${profitRate}%</div></div>
+        <div class="sb-card"><div class="sb-label">${m}월 예상 판매이익</div><div class="sb-value" style="color:${grossProfit>=0?'#0f9b58':'#e94560'}">${fmt(grossProfit)}원</div></div>
+        <div class="sb-card"><div class="sb-label">${m}월 예상 이익률</div><div class="sb-value" style="color:#f4a900">${profitRate}%</div></div>
     `;
 
     // ── 플랫폼 카드 ──
@@ -180,7 +180,7 @@ async function loadReport(){
             <div class="pf-row"><span>매출</span><span>${fmt(d.sales)}원</span></div>
             <div class="pf-row"><span>수수료 (${(CR[p]*100).toFixed(1)}%)</span><span>-${fmt(d.commission)}원</span></div>
             <div class="pf-row"><span>원가</span><span>-${fmt(d.cost)}원</span></div>
-            <div class="pf-row total"><span>순익</span><span>${fmt(d.profit)}원</span></div>
+            <div class="pf-row total"><span>예상 판매이익</span><span>${fmt(d.profit)}원</span></div>
         </div>`;
     }).join('');
 
@@ -197,7 +197,7 @@ async function loadReport(){
         <tr class="deduct"><td>　총 광고비</td><td>-${fmt(totalAd)}원</td></tr>
         ${totalAd>0?`<tr><td style="padding-left:40px;font-size:12px;color:#999;">　일별: ${fmt(dailyAdTotal)}원 / 기간: ${fmt(periodAdTotal)}원</td><td></td></tr>`:''}
         
-        <tr class="grand-total"><td>💵 순이익</td><td>${fmt(grossProfit)}원</td></tr>
+        <tr class="grand-total"><td>💵 예상 판매이익</td><td>${fmt(grossProfit)}원</td></tr>
     `;
 }
 

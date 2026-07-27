@@ -296,7 +296,8 @@ async function processFile(file,platform){
         el.textContent=`💾 ${orders.length}건 저장 중...`;
         const result=await saveOrders(orders);
         el.className='result-box success';
-        el.innerHTML=`✅ <strong>${result.added}건</strong> 저장 완료! (신규+업데이트 포함)`;        showToast(`${platform} ${result.added}건 업로드!`,'success');
+        el.innerHTML=`✅ <strong>${result.added}건</strong> 저장 완료! (신규+업데이트 포함)<br><span style="font-size:11px;opacity:.8">연결된 제품의 재고와 소진 예상에도 자동 반영됩니다.</span>`;
+        showToast(`${platform} ${result.added}건 업로드! 재고에도 반영됩니다.`,'success');
         loadRecentOrders();
         await autoAddProductCosts(orders);
 
