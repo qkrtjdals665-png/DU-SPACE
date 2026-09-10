@@ -1,358 +1,90 @@
 <!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>주문관리 - 상품 원가 관리</title>
+<html lang="ko"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>주문관리 - 원가 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
-.header{background:#1a1a2e;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
-.header h1{font-size:20px;font-weight:700;}.header h1 span{color:#f4a900;}
-.nav-links{display:flex;gap:8px;}
-.nav-links a{color:rgba(255,255,255,0.7);text-decoration:none;font-size:13px;padding:8px 16px;border-radius:8px;background:rgba(255,255,255,0.1);}
-.container{max-width:1400px;margin:0 auto;padding:24px;}
-.month-nav{display:flex;align-items:center;gap:8px;background:#fff;padding:14px 20px;border-radius:14px;border:1px solid #D9D4CA;margin-bottom:16px;}
-.month-nav button{padding:8px 18px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;cursor:pointer;}
-.month-nav .nav-btn{background:#f5f0e8;color:#555;}.month-nav .current-btn{background:#f4a900;color:#1a1a2e;}
-.month-label{font-size:18px;font-weight:700;min-width:140px;text-align:center;}
-.summary-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px;}
-.sc{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;text-align:center;}
-.sc .sc-label{font-size:11px;color:#888;font-weight:600;margin-bottom:4px;}
-.sc .sc-value{font-size:18px;font-weight:800;}
-.filter-bar{background:#fff;border-radius:14px;padding:14px 24px;border:1px solid #D9D4CA;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
-.filter-bar select,.filter-bar input{padding:7px 12px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;}
-.filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:#f4a900;}
-.btn{padding:7px 16px;border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
-.btn-primary{background:#1a1a2e;color:white;}
-.btn-success{background:#0f9b58;color:white;}
-.btn-danger{background:#e94560;color:white;}
-.btn-warn{background:#f4a900;color:#1a1a2e;}
-.delete-bar{background:#fff;border-radius:14px;padding:12px 24px;border:1px solid #D9D4CA;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-.delete-bar span{font-size:12px;color:#e94560;font-weight:600;}
-.table-section{background:#fff;border-radius:14px;padding:16px;border:1px solid #D9D4CA;overflow-x:auto;}
-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed;}
-thead th{background:#f5f0e8;padding:9px 5px;text-align:center;font-weight:600;color:#555;border-bottom:2px solid #D9D4CA;white-space:nowrap;font-size:11px;position:relative;overflow:hidden;text-overflow:ellipsis;}
-thead th .resize-handle{position:absolute;right:0;top:0;width:8px;height:100%;cursor:col-resize;background:rgba(0,0,0,0.08);z-index:5;border-radius:0 2px 2px 0;}
-thead th .resize-handle:hover,thead th .resize-handle.active{background:#f4a900;}
-tbody td{padding:7px 5px;border-bottom:1px solid #f0ebe3;text-align:center;}
-tbody td.text-left{white-space:normal;word-break:break-all;}
-tbody tr:hover td{background:#faf8f4;}
-.platform-badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;color:white;}
-.editable{padding:5px 6px;border:1.5px solid #D9D4CA;border-radius:6px;font-family:'Noto Sans KR',sans-serif;font-size:12px;text-align:right;width:75px;}
-.editable:focus{outline:none;border-color:#f4a900;background:#fffbf0;}
-.editable.changed{border-color:#0f9b58;background:#f0faf4;}
-.text-left{text-align:left;}
-.text-right{text-align:right;}
-.amount{font-variant-numeric:tabular-nums;font-weight:600;}
-.no-cost{border-color:#e94560;}
-.has-cost{border-color:#0f9b58;}
-.del-btn{background:none;border:none;color:#ddd;cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px;}
-.del-btn:hover{color:#e94560;background:#fef0f3;}
-input[type="checkbox"]{width:15px;height:15px;accent-color:#f4a900;cursor:pointer;}
-.change-count{font-size:12px;color:#f4a900;font-weight:600;margin-left:auto;}
-.toast{position:fixed;bottom:24px;right:24px;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;color:white;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
-.toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.error{background:#e94560;}.toast.info{background:#4285f4;}
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;justify-content:center;align-items:center;}
-.modal-overlay.show{display:flex;}
-.modal{background:#fff;border-radius:16px;padding:32px;max-width:440px;width:90%;text-align:center;}
-.modal h3{font-size:18px;margin-bottom:12px;color:#e94560;}
-.modal p{font-size:13px;color:#666;line-height:1.7;margin-bottom:16px;}
-.modal .modal-count{font-size:28px;font-weight:800;color:#e94560;margin:10px 0;}
-.modal-btns{display:flex;gap:12px;justify-content:center;}
-.modal-btns button{padding:12px 28px;border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;}
-@media(max-width:768px){.summary-cards{grid-template-columns:1fr 1fr;}}
-</style>
-<link rel="stylesheet" href="du-theme.css">
-</head>
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box}:root{--ink:#171717;--muted:#6b7280;--line:#dedbd4;--paper:#fff;--wash:#f4f2ed;--brand:#f4a900;--navy:#1a1a2e;--green:#0f9b58;--red:#e94560;--blue:#3b82f6}
+body{margin:0;min-height:100vh;background:#ede9e1;color:var(--ink);font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}button,input,select{font:inherit}
+.header{background:var(--navy);color:#fff;padding:18px 30px;display:flex;align-items:center;justify-content:space-between;gap:16px}.header h1{margin:0;font-size:20px}.header h1 span{color:var(--brand)}
+.nav-links{display:flex;gap:8px;flex-wrap:wrap}.nav-links a{color:#ddd;text-decoration:none;font-size:13px;padding:8px 13px;border-radius:9px;background:rgba(255,255,255,.08)}
+.container{max-width:1420px;margin:auto;padding:24px}.page-intro{margin-bottom:16px}.page-intro h2{font-size:24px;margin:0 0 6px}.page-intro p{margin:0;color:var(--muted);font-size:14px;line-height:1.55}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px}.tab-btn{border:0;background:transparent;color:#777;padding:11px 15px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent}.tab-btn.active{color:var(--ink);border-color:var(--brand)}.tab-panel{display:none}.tab-panel.active{display:block}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.03)}.builder-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,.8fr);gap:16px}.builder-main,.builder-side{padding:20px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px}.section-head h3{margin:0;font-size:17px}.section-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.product-picker{display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:12px;align-items:end;background:var(--wash);border-radius:13px;padding:14px;margin-bottom:16px}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:#555;font-weight:700}.field input,.field select{width:100%;border:1px solid #d4d0c7;border-radius:9px;background:#fff;padding:10px 11px;color:var(--ink);outline:none}.field input:focus,.field select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(244,169,0,.12)}
+.btn{border:0;border-radius:9px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}.btn-primary{background:var(--navy);color:#fff}.btn-brand{background:var(--brand);color:#231b06}.btn-soft{background:#eeece7;color:#444}.btn-danger{background:#fff1f3;color:var(--red)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.component-form{display:grid;grid-template-columns:1.5fr .55fr .8fr auto;gap:9px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:#fbfaf8}.component-form .form-actions{display:flex;align-items:end;gap:6px}.component-list{display:flex;flex-direction:column;gap:8px;max-height:500px;overflow:auto;padding-right:3px}
+.component-row{display:grid;grid-template-columns:28px minmax(150px,1fr) 115px 116px 64px;gap:10px;align-items:center;border:1px solid #e7e4dd;border-radius:11px;padding:11px 12px;transition:.15s;background:#fff}.component-row.selected{border-color:#f0bd43;background:#fffbef}.component-row:hover{border-color:#cfcac0}.component-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--brand)}.component-name{font-weight:700;font-size:13px}.component-meta{color:var(--muted);font-size:11px;margin-top:3px}.money{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}.qty-wrap{display:flex;align-items:center;gap:5px;justify-content:flex-end}.qty-wrap input{width:68px;padding:7px;border:1px solid #d5d1c8;border-radius:8px;text-align:right}.mini-btn{border:0;background:#efede8;color:#555;border-radius:7px;padding:7px 8px;cursor:pointer;font-size:11px}
+.empty{padding:38px 20px;text-align:center;color:#999;font-size:13px;border:1px dashed #d7d2c8;border-radius:12px}.empty strong{display:block;color:#555;font-size:14px;margin-bottom:6px}.total-box{background:var(--navy);color:#fff;border-radius:14px;padding:18px;margin-bottom:14px}.total-label{color:#c8c8d1;font-size:12px}.total-value{font-size:31px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums}.total-sub{color:#aaaabc;font-size:11px;margin-top:6px}
+.metric-list{display:flex;flex-direction:column;border-top:1px solid var(--line);margin:14px 0}.metric{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #ebe8e2;font-size:13px}.metric span:first-child{color:var(--muted)}.metric strong{text-align:right}.platforms{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.platform-chip{display:inline-flex;align-items:center;padding:5px 9px;border-radius:20px;color:#fff;font-size:11px;font-weight:700}.link-help{margin-top:9px;color:var(--muted);font-size:11px;line-height:1.5}.link-help a{color:var(--blue)}.save-note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:10px}
+.pricing-box{background:#f7f5f1;border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:14px}.price-input{display:flex;align-items:center;gap:8px}.price-input input{width:100%;min-width:0;border:1px solid #d4d0c7;border-radius:9px;padding:10px;text-align:right;font-weight:800;font-size:18px}.price-input span{font-size:13px;font-weight:700}.ratio-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.ratio-card{background:#fff;border:1px solid #e6e2da;border-radius:10px;padding:10px}.ratio-card small{display:block;color:var(--muted);font-size:10px}.ratio-card strong{display:block;margin-top:3px;font-size:17px}.fee-title{display:flex;align-items:end;justify-content:space-between;gap:10px;margin:16px 0 8px}.fee-title strong{font-size:13px}.fee-title span{font-size:10px;color:var(--muted)}.platform-profit-list{display:flex;flex-direction:column;gap:7px}.profit-row{border:1px solid #e5e1d9;border-radius:11px;padding:10px}.profit-row-top,.profit-row-bottom{display:flex;justify-content:space-between;align-items:center;gap:8px}.profit-platform{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800}.profit-dot{width:8px;height:8px;border-radius:50%}.fee-inputs{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}.fee-edit{display:flex;align-items:center;gap:3px;color:var(--muted);font-size:10px}.fee-edit input{width:54px;border:1px solid #d8d4cc;border-radius:6px;padding:4px;text-align:right}.fee-edit.fixed input{width:68px}.profit-row-bottom{margin-top:8px;padding-top:8px;border-top:1px solid #eeeae3;font-size:11px;color:var(--muted)}.profit-row-bottom strong{font-size:14px}.profit-positive{color:var(--green)}.profit-negative{color:var(--red)}
+.summary-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 14px}.summary-item{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px}.summary-item small{color:var(--muted);font-weight:600}.summary-item strong{display:block;margin-top:5px;font-size:19px}.legacy-tools{padding:14px;display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:12px}.legacy-tools select,.legacy-tools input{padding:8px 10px;border:1px solid #d4d0c7;border-radius:8px;background:#fff}.month-nav{display:flex;align-items:center;gap:7px;margin-right:auto}.month-label{min-width:115px;text-align:center;font-weight:800}
+.table-card{overflow:auto}.table-card table{width:100%;min-width:1100px;border-collapse:collapse;font-size:12px}.table-card th{background:#f5f3ee;color:#555;padding:10px 7px;border-bottom:1px solid var(--line);white-space:nowrap}.table-card td{padding:8px 7px;border-bottom:1px solid #eeeae3;text-align:center}.table-card tbody tr:hover{background:#faf9f6}.text-left{text-align:left!important}.text-right{text-align:right!important}.editable{width:84px;border:1px solid #d8d4cc;border-radius:7px;padding:6px;text-align:right}.editable.changed{border-color:var(--green);background:#f0faf4}.no-cost{border-color:var(--red)}.platform-badge{display:inline-block;padding:3px 8px;border-radius:12px;color:#fff;font-weight:700;font-size:10px}.delete-link{border:0;background:transparent;color:#bbb;cursor:pointer}.delete-link:hover{color:var(--red)}.change-count{color:#b57900;font-size:12px;font-weight:700}
+.toast{position:fixed;right:22px;bottom:22px;z-index:1000;opacity:0;transform:translateY(15px);transition:.2s;padding:12px 18px;border-radius:10px;color:#fff;font-size:13px;font-weight:700;pointer-events:none}.toast.show{opacity:1;transform:none}.toast.success{background:var(--green)}.toast.error{background:var(--red)}.toast.info{background:#4b5563}
+@media(max-width:900px){.builder-grid{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr 1fr}.component-row{grid-template-columns:28px minmax(130px,1fr) 95px 100px 48px}}@media(max-width:650px){.container{padding:14px}.header{padding:15px}.product-picker,.component-form{grid-template-columns:1fr}.component-row{grid-template-columns:25px 1fr auto}.component-row .qty-wrap{grid-column:2}.component-row .mini-btn{grid-column:3;grid-row:1}.component-row>.money{grid-column:3;grid-row:2}.summary-strip{grid-template-columns:1fr 1fr}.legacy-tools{align-items:stretch}.month-nav{width:100%}}
+</style><link rel="stylesheet" href="du-theme.css"></head>
 <body>
-<div class="header">
-    <h1>💰 상품 <span>원가 관리</span></h1>
-    <div class="nav-links"><a href="order-dashboard.html">📊 대시보드</a><a href="order-daily.html">📈 일별매출</a></div>
+<header class="header"><h1>상품 <span>원가 관리</span></h1><nav class="nav-links"><a href="order-dashboard.html">대시보드</a><a href="order-inventory.html">재고관리</a><a href="order-daily.html">일별매출</a></nav></header>
+<main class="container">
+<div class="page-intro"><h2>제품 한 개를 만드는 비용</h2><p>대표 제품을 고르고 들어가는 부속품과 수량을 선택하면 원가가 자동으로 계산됩니다.</p></div>
+<div class="tabs"><button class="tab-btn active" data-tab="builder" onclick="switchMainTab('builder')">대표 제품 구성</button><button class="tab-btn" data-tab="legacy" onclick="switchMainTab('legacy')">기존 플랫폼 원가</button></div>
+<section class="tab-panel active" id="panel-builder"><div class="builder-grid">
+<div class="card builder-main">
+<div class="section-head"><div><h3>1. 대표 제품 선택</h3><p>재고관리에 등록된 완제품을 기준으로 구성합니다.</p></div></div>
+<div class="product-picker"><div class="field"><label for="productSelect">대표 제품</label><select id="productSelect" onchange="selectFinishedProduct(this.value)"><option value="">제품을 불러오는 중...</option></select></div><a class="btn btn-soft" href="order-inventory.html" style="text-decoration:none">제품 연결 관리</a></div>
+<div class="section-head"><div><h3>2. 부속품 선택</h3><p>새 부속품을 등록하거나, 아래 목록에서 필요한 부속품을 체크하세요.</p></div></div>
+<div class="component-form"><div class="field"><label for="componentName">부속품 이름</label><input id="componentName" placeholder="예: 명태 나무판"></div><div class="field"><label for="componentUnit">단위</label><input id="componentUnit" value="개" placeholder="개, m, 장"></div><div class="field"><label for="componentCost">단가</label><input id="componentCost" type="number" min="0" placeholder="0"></div><div class="form-actions"><button class="btn btn-primary" id="componentSaveBtn" onclick="saveComponent()">부속품 추가</button><button class="mini-btn" id="componentCancelBtn" onclick="cancelComponentEdit()" style="display:none">취소</button></div></div>
+<div class="component-list" id="componentList"><div class="empty">부속품을 불러오는 중...</div></div>
 </div>
-<div class="container">
-    <div class="month-nav">
-        <button class="nav-btn" onclick="changeMonth(-1)">◀ 이전달</button>
-        <div class="month-label" id="monthLabel"></div>
-        <button class="nav-btn" onclick="changeMonth(1)">다음달 ▶</button>
-        <button class="current-btn" onclick="goCurrentMonth()">이번달</button>
-    </div>
-    <div class="summary-cards" id="summaryCards"></div>
-    <div class="filter-bar">
-        <select id="filterPlatform" onchange="loadCosts()"><option value="전체">전체 플랫폼</option><option value="네이버">네이버</option><option value="쿠팡">쿠팡</option><option value="오늘의집">오늘의집</option><option value="아이디어스">아이디어스</option></select>
-        <select id="filterCostStatus" onchange="loadCosts()"><option value="전체">전체</option><option value="미입력">❌ 원가 미입력</option><option value="입력완료">✅ 입력 완료</option></select>
-        <input type="text" id="filterSearch" placeholder="상품명 검색" style="width:150px;" onkeydown="if(event.key==='Enter')loadCosts()">
-        <button class="btn btn-primary" onclick="loadCosts()">🔍 조회</button>
-        <button class="btn btn-success" onclick="saveAllChanges()">💾 변경사항 저장</button>
-        <span class="change-count" id="changeCount"></span>
-    </div>
-    <div class="delete-bar">
-        <span>🗑 삭제:</span>
-        <button class="btn btn-danger" style="font-size:11px;padding:5px 12px;" onclick="deleteSelected()">선택 삭제</button>
-        <button class="btn btn-warn" style="font-size:11px;padding:5px 12px;" onclick="deleteByPlatform()">플랫폼별 삭제</button>
-        <button class="btn btn-danger" style="font-size:11px;padding:5px 12px;" onclick="deleteAllCosts()">⚠️ 전체 삭제</button>
-    </div>
-    <div class="table-section">
-        <table id="costTable">
-            <colgroup>
-                <col style="width:28px"><col style="width:35px"><col style="width:65px">
-                <col style="width:280px"><col style="width:220px">
-                <col style="width:75px"><col style="width:75px"><col style="width:75px"><col style="width:60px">
-                <col style="width:65px"><col style="width:80px"><col style="width:80px"><col style="width:40px">
-            </colgroup>
-            <thead><tr>
-                <th><input type="checkbox" id="checkAll" onchange="toggleAll()"></th>
-                <th>No<span class="resize-handle"></span></th><th>플랫폼<span class="resize-handle"></span></th>
-                <th class="text-left">상품명<span class="resize-handle"></span></th>
-                <th class="text-left">옵션<span class="resize-handle"></span></th>
-                <th>원가<span class="resize-handle"></span></th><th>판매가<span class="resize-handle"></span></th><th>개당순익<span class="resize-handle"></span></th><th>이익률<span class="resize-handle"></span></th>
-                <th>판매수량<span class="resize-handle"></span></th><th>월매출<span class="resize-handle"></span></th><th>월순익<span class="resize-handle"></span></th><th>삭제</th>
-            </tr></thead>
-            <tbody id="costBody"><tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px;">로딩 중...</td></tr></tbody>
-        </table>
-    </div>
-</div>
-
-<div class="modal-overlay" id="deleteModal">
-    <div class="modal">
-        <h3>⚠️ 삭제 확인</h3>
-        <p id="deleteMsg"></p>
-        <div class="modal-count" id="deleteCount"></div>
-        <p style="font-size:12px;color:#e94560;">이 작업은 되돌릴 수 없습니다!</p>
-        <div class="modal-btns">
-            <button onclick="closeModal()" style="background:#f0ebe3;color:#666;">취소</button>
-            <button id="deleteConfirmBtn" style="background:#e94560;color:white;">삭제</button>
-        </div>
-    </div>
-</div>
-
-<div class="toast" id="toast"></div>
+<aside class="card builder-side">
+  <div class="section-head"><div><h3>3. 판매가·마진 계산</h3><p>판매가를 입력하면 재료비와 플랫폼별 잔액을 계산합니다.</p></div></div>
+  <div class="total-box"><div class="total-label">구성 원가</div><div class="total-value" id="totalValue">0원</div><div class="total-sub" id="totalSub">부속품을 선택해 주세요.</div></div>
+  <div class="pricing-box">
+    <div class="field"><label for="sellingPriceInput">계산용 판매가</label><div class="price-input"><input id="sellingPriceInput" type="number" min="0" placeholder="0" oninput="updateSellingPrice(this.value)"><span>원</span></div></div>
+    <div class="ratio-grid"><div class="ratio-card"><small>판매가 중 재료비</small><strong id="materialRate">-</strong></div><div class="ratio-card"><small>수수료 전 마진</small><strong id="grossMarginRate">-</strong></div></div>
+  </div>
+  <div class="fee-title"><strong>플랫폼별 예상 잔액</strong><span>수수료율·정책비는 직접 수정 가능</span></div>
+  <div class="platform-profit-list" id="platformProfitList"></div>
+  <div class="metric-list"><div class="metric"><span>선택 부속품</span><strong id="selectedCount">0종</strong></div><div class="metric"><span>현재 저장 원가</span><strong id="savedCost">-</strong></div><div class="metric"><span>연결 플랫폼 상품</span><strong id="linkedCount">0개</strong></div><div class="metric"><span>마지막 원가 수정</span><strong id="lastCostUpdate">-</strong></div></div>
+  <div><div style="font-size:12px;color:var(--muted);font-weight:700">반영 대상</div><div class="platforms" id="platformChips"></div><div class="link-help" id="linkHelp"></div></div>
+  <button class="btn btn-brand" id="saveRecipeBtn" onclick="saveRecipe()" style="width:100%;margin-top:18px" disabled>원가·판매가 저장</button>
+  <div class="save-note">예상 잔액은 판매가에서 재료비·플랫폼 수수료·정책비를 뺀 금액입니다. 광고비·별도 택배비·포장비·세금은 포함하지 않습니다.</div>
+</aside>
+</div></section>
+<section class="tab-panel" id="panel-legacy"><div class="summary-strip" id="legacySummary"></div><div class="card legacy-tools"><div class="month-nav"><button class="btn btn-soft" onclick="changeMonth(-1)">이전달</button><div class="month-label" id="monthLabel"></div><button class="btn btn-soft" onclick="changeMonth(1)">다음달</button><button class="btn btn-brand" onclick="goCurrentMonth()">이번달</button></div><select id="filterPlatform" onchange="loadLegacyCosts()"><option value="전체">전체 플랫폼</option><option>네이버</option><option>쿠팡</option><option>오늘의집</option><option>아이디어스</option></select><select id="filterCostStatus" onchange="loadLegacyCosts()"><option value="전체">전체 원가</option><option value="미입력">원가 미입력</option><option value="입력완료">입력 완료</option></select><input id="filterSearch" placeholder="상품명 검색" onkeydown="if(event.key==='Enter')loadLegacyCosts()"><button class="btn btn-primary" onclick="loadLegacyCosts()">조회</button><button class="btn btn-brand" onclick="saveLegacyChanges()">변경 저장</button><button class="btn btn-danger" onclick="deleteSelectedLegacy()">선택 삭제</button><span class="change-count" id="changeCount"></span></div>
+<div class="card table-card"><table><thead><tr><th><input type="checkbox" id="checkAll" onchange="toggleAllLegacy()"></th><th>No</th><th>플랫폼</th><th class="text-left">상품명</th><th class="text-left">옵션</th><th>원가</th><th>판매가</th><th>개당 순익</th><th>이익률</th><th>판매수량</th><th>월매출</th><th>월순익</th><th></th></tr></thead><tbody id="costBody"><tr><td colspan="13"><div class="empty">탭을 열면 데이터를 불러옵니다.</div></td></tr></tbody></table></div></section>
+</main><div class="toast" id="toast"></div>
 <script>
-const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co';
-const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
-const {createClient}=window.supabase;
-const db=createClient(SUPABASE_URL,SUPABASE_KEY);
-const PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"};
-const CR={"네이버":0.055,"쿠팡":0.11,"아이디어스":0.15,"오늘의집":0};
-
-let currentDate=new Date(),allCosts=[],changes={},salesData={};
-
-function updateMonthLabel(){document.getElementById('monthLabel').textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`;}
-function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);updateMonthLabel();loadCosts();}
-function goCurrentMonth(){currentDate=new Date();updateMonthLabel();loadCosts();}
-function getMonthRange(){
-    const y=currentDate.getFullYear(),m=currentDate.getMonth();
-    return{start:`${y}-${String(m+1).padStart(2,'0')}-01`,end:`${y}-${String(m+1).padStart(2,'0')}-${String(new Date(y,m+1,0).getDate()).padStart(2,'0')}`};
-}
-
-async function loadCosts(){
-    changes={};updateChangeCount();
-    const pf=document.getElementById('filterPlatform').value;
-    const st=document.getElementById('filterCostStatus').value;
-    const search=document.getElementById('filterSearch').value.trim();
-    const {start:ms,end:me}=getMonthRange();
-
-    // 페이지네이션 함수
-    async function fetchAll(table, select, filters={}){
-        const PAGE=1000; let all=[], from=0;
-        while(true){
-            let q=db.from(table).select(select);
-            if(filters.eq) filters.eq.forEach(f=>q=q.eq(f[0],f[1]));
-            if(filters.gte) filters.gte.forEach(f=>q=q.gte(f[0],f[1]));
-            if(filters.lte) filters.lte.forEach(f=>q=q.lte(f[0],f[1]));
-            if(filters.ilike) filters.ilike.forEach(f=>q=q.ilike(f[0],f[1]));
-            if(filters.order) filters.order.forEach(f=>q=q.order(f));
-            const {data}=await q.range(from,from+PAGE-1);
-            if(!data||!data.length) break;
-            all=all.concat(data);
-            if(data.length<PAGE) break;
-            from+=PAGE;
-        }
-        return all;
-    }
-
-    const costFilters={order:['platform','product']};
-    if(pf!=='전체')costFilters.eq=[['platform',pf]];
-    if(search)costFilters.ilike=[['product',`%${search}%`]];
-    const costs=await fetchAll('product_costs','*',costFilters);
-    if(!costs){showToast('로드 실패','error');return;}
-
-    // 해당 월 판매
-    const mo=await fetchAll('orders','platform,product,option,quantity,price',{gte:[['order_date',ms]],lte:[['order_date',me]]});
-    salesData={};
-    (mo||[]).forEach(o=>{const k=`${o.platform}|${o.product}|${o.option||''}`;if(!salesData[k])salesData[k]={qty:0,revenue:0};salesData[k].qty+=(o.quantity||1);salesData[k].revenue+=(o.price||0)*(o.quantity||1);});
-
-    // 판매가 자동 입력
-    const ao=await fetchAll('orders','platform,product,option,price');
-    const ap={};(ao||[]).forEach(o=>{const k=`${o.platform}|${o.product}|${o.option||''}`;if(!ap[k])ap[k]=[];if(o.price>0)ap[k].push(o.price);});
-    const au=[];
-    (costs||[]).forEach(c=>{
-        if(!c.selling_price||c.selling_price===0){
-            const k=`${c.platform}|${c.product}|${c.option||''}`,prices=ap[k];
-            if(prices&&prices.length>0){
-                const pc={};prices.forEach(p=>{const rp=Math.round(p);pc[rp]=(pc[rp]||0)+1;});
-                const tp=Number(Object.entries(pc).sort((a,b)=>b[1]-a[1])[0][0]);
-                au.push({id:c.id,selling_price:tp});c.selling_price=tp;
-            }
-        }
-    });
-    if(au.length>0){for(const u of au)await db.from('product_costs').update({selling_price:u.selling_price}).eq('id',u.id);showToast(`판매가 ${au.length}개 자동 입력!`,'success');}
-
-    let filtered=costs||[];
-    if(st==='미입력')filtered=filtered.filter(c=>!c.cost||c.cost===0);
-    else if(st==='입력완료')filtered=filtered.filter(c=>c.cost>0);
-    allCosts=filtered;
-    renderTable();renderSummary(costs||[]);
-}
-
-function renderTable(){
-    const tbody=document.getElementById('costBody');
-    if(!allCosts.length){tbody.innerHTML='<tr><td colspan="13" style="text-align:center;color:#ccc;padding:40px;">상품이 없습니다</td></tr>';return;}
-    tbody.innerHTML=allCosts.map((c,i)=>{
-        const k=`${c.platform}|${c.product}|${c.option||''}`,s=salesData[k]||{qty:0,revenue:0};
-        const cost=c.cost||0,sp=c.selling_price||0,cr=CR[c.platform]||0;
-        const up=sp>0?(sp-sp*cr-cost):0;
-        const margin=sp>0?((up/sp)*100).toFixed(1):'–';
-        const mRev=s.revenue,mProfit=mRev-mRev*cr-(cost*s.qty);
-        const costClass=cost>0?'has-cost':'no-cost';
-        const upc=up>0?'#0f9b58':up<0?'#e94560':'#888';
-        const mpc=mProfit>0?'#0f9b58':mProfit<0?'#e94560':'#888';
-        const mgc=Number(margin)>30?'#0f9b58':Number(margin)>0?'#f4a900':'#e94560';
-        return `<tr>
-            <td><input type="checkbox" class="cost-check" value="${c.id}"></td>
-            <td style="color:#aaa;font-size:10px;">${i+1}</td>
-            <td><span class="platform-badge" style="background:${PFC[c.platform]||'#999'}">${c.platform}</span></td>
-            <td class="text-left" title="${c.product}" style="font-size:11px;">${c.product||''}</td>
-            <td class="text-left" title="${c.option||''}" style="font-size:10px;color:#666;">${c.option||'-'}</td>
-            <td><input class="editable ${costClass}" type="text" value="${cost?Math.round(cost).toLocaleString():''}" placeholder="0" data-id="${c.id}" data-field="cost" onchange="onEdit(this)" onfocus="this.select()"></td>
-            <td><input class="editable" type="text" value="${sp?Math.round(sp).toLocaleString():''}" placeholder="0" data-id="${c.id}" data-field="selling_price" onchange="onEdit(this)" onfocus="this.select()"></td>
-            <td style="font-weight:700;color:${upc};font-size:11px;">${cost>0&&sp>0?Math.round(up).toLocaleString()+'원':'–'}</td>
-            <td style="font-weight:600;color:${mgc};font-size:11px;">${margin!=='–'?margin+'%':'–'}</td>
-            <td style="font-size:11px;">${s.qty>0?s.qty.toLocaleString()+'개':'-'}</td>
-            <td class="text-right amount" style="font-size:11px;">${s.qty>0?Math.round(mRev).toLocaleString()+'원':'-'}</td>
-            <td class="text-right amount" style="color:${mpc};font-size:11px;">${s.qty>0?Math.round(mProfit).toLocaleString()+'원':'-'}</td>
-            <td><button class="del-btn" onclick="deleteSingle(${c.id})" title="삭제">✕</button></td>
-        </tr>`;
-    }).join('');
-}
-
-function onEdit(input){
-    const id=Number(input.dataset.id),field=input.dataset.field;
-    const val=Number(input.value.replace(/[^\d]/g,''))||0;
-    input.value=val>0?val.toLocaleString():'';
-    input.classList.add('changed');
-    if(!changes[id])changes[id]={};
-    changes[id][field]=val;
-    updateChangeCount();
-}
-function updateChangeCount(){const n=Object.keys(changes).length;document.getElementById('changeCount').textContent=n>0?`⚠️ ${n}개 변경됨 — 저장 필요!`:'';}
-function toggleAll(){const c=document.getElementById('checkAll').checked;document.querySelectorAll('.cost-check').forEach(cb=>cb.checked=c);}
-
-async function saveAllChanges(){
-    const ids=Object.keys(changes);
-    if(!ids.length){showToast('변경사항 없음','info');return;}
-    let saved=0;
-    for(const id of ids){const{error}=await db.from('product_costs').update(changes[id]).eq('id',Number(id));if(!error)saved++;}
-    changes={};updateChangeCount();
-    document.querySelectorAll('.editable.changed').forEach(el=>el.classList.remove('changed'));
-    showToast(`${saved}개 저장 완료!`,'success');
-    loadCosts();
-}
-
-// ── 삭제: 개별 ──
-async function deleteSingle(id){
-    showDeleteModal('이 상품 원가를 삭제합니다.','1건',async()=>{
-        await db.from('product_costs').delete().eq('id',id);
-        showToast('삭제됨','success');loadCosts();
-    });
-}
-
-// ── 삭제: 선택 ──
-async function deleteSelected(){
-    const ids=[...document.querySelectorAll('.cost-check:checked')].map(cb=>Number(cb.value));
-    if(!ids.length){showToast('삭제할 항목을 선택해주세요','info');return;}
-    showDeleteModal('선택한 상품 원가를 삭제합니다.',ids.length+'건',async()=>{
-        for(const id of ids) await db.from('product_costs').delete().eq('id',id);
-        showToast(`${ids.length}건 삭제 완료`,'success');
-        document.getElementById('checkAll').checked=false;
-        loadCosts();
-    });
-}
-
-// ── 삭제: 플랫폼별 ──
-async function deleteByPlatform(){
-    const pf=document.getElementById('filterPlatform').value;
-    if(pf==='전체'){showToast('플랫폼을 먼저 선택해주세요','info');return;}
-    const{count}=await db.from('product_costs').select('*',{count:'exact',head:true}).eq('platform',pf);
-    showDeleteModal(`[${pf}] 원가 데이터를 삭제합니다.`,count+'건',async()=>{
-        await db.from('product_costs').delete().eq('platform',pf);
-        showToast(`${pf} ${count}건 삭제 완료`,'success');loadCosts();
-    });
-}
-
-// ── 삭제: 전체 ──
-async function deleteAllCosts(){
-    const{count}=await db.from('product_costs').select('*',{count:'exact',head:true});
-    showDeleteModal('⚠️ 모든 상품 원가 데이터를 삭제합니다.',count+'건',async()=>{
-        await db.from('product_costs').delete().neq('id',0);
-        showToast(`전체 ${count}건 삭제 완료`,'success');loadCosts();
-    });
-}
-
-// ── 모달 ──
-function showDeleteModal(msg,cnt,onConfirm){
-    document.getElementById('deleteMsg').textContent=msg;
-    document.getElementById('deleteCount').textContent=cnt;
-    document.getElementById('deleteModal').classList.add('show');
-    document.getElementById('deleteConfirmBtn').onclick=()=>{closeModal();onConfirm();};
-}
-function closeModal(){document.getElementById('deleteModal').classList.remove('show');}
-
-function renderSummary(allData){
-    const m=currentDate.getMonth()+1,t=allData.length,hp=allData.filter(c=>c.cost>0).length,np=t-hp;
-    let mRev=0,mProfit=0;
-    allData.forEach(c=>{const k=`${c.platform}|${c.product}|${c.option||''}`,s=salesData[k]||{qty:0,revenue:0};mRev+=s.revenue;mProfit+=s.revenue-s.revenue*(CR[c.platform]||0)-((c.cost||0)*s.qty);});
-    document.getElementById('summaryCards').innerHTML=`
-        <div class="sc"><div class="sc-label">전체 상품</div><div class="sc-value">${t}개</div></div>
-        <div class="sc"><div class="sc-label">원가 입력</div><div class="sc-value" style="color:#0f9b58">${hp}개</div></div>
-        <div class="sc"><div class="sc-label">미입력</div><div class="sc-value" style="color:${np>0?'#e94560':'#0f9b58'}">${np}개</div></div>
-        <div class="sc"><div class="sc-label">${m}월 매출</div><div class="sc-value" style="color:#4285f4">${Math.round(mRev).toLocaleString()}</div></div>
-        <div class="sc"><div class="sc-label">${m}월 순익</div><div class="sc-value" style="color:${mProfit>=0?'#0f9b58':'#e94560'}">${Math.round(mProfit).toLocaleString()}</div></div>`;
-}
-
-function showToast(msg,type='info'){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+type+' show';setTimeout(()=>el.classList.remove('show'),3000);}
-if(window.self!==window.top){document.querySelectorAll('.header').forEach(el=>el.style.display='none');const c=document.querySelector('.container');if(c)c.style.paddingTop='12px';}
-document.addEventListener('DOMContentLoaded',()=>{
-    updateMonthLabel();loadCosts();
-    // 컬럼 리사이즈
-    const table=document.getElementById('costTable');
-    const cols=table.querySelectorAll('colgroup col');
-    table.querySelectorAll('thead .resize-handle').forEach(handle=>{
-        let startX,startW,colIdx;
-        handle.addEventListener('mousedown',e=>{
-            e.preventDefault();
-            const th=handle.parentElement;
-            colIdx=Array.from(th.parentElement.children).indexOf(th);
-            startX=e.pageX;
-            startW=cols[colIdx].style.width?parseInt(cols[colIdx].style.width):th.offsetWidth;
-            handle.classList.add('active');
-            document.addEventListener('mousemove',onMove);
-            document.addEventListener('mouseup',onUp);
-        });
-        function onMove(e){
-            const diff=e.pageX-startX;
-            const newW=Math.max(30,startW+diff);
-            cols[colIdx].style.width=newW+'px';
-        }
-        function onUp(){
-            handle.classList.remove('active');
-            document.removeEventListener('mousemove',onMove);
-            document.removeEventListener('mouseup',onUp);
-        }
-    });
-});
-</script>
-</body>
-</html>
+const SUPABASE_URL='https://hayfpcuacwkytbjwjdhm.supabase.co',SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
+const {createClient}=window.supabase,db=createClient(SUPABASE_URL,SUPABASE_KEY),PFC={"네이버":"#00C73C","쿠팡":"#E31837","오늘의집":"#35C5F0","아이디어스":"#FF6F61"},CR={"네이버":.055,"쿠팡":.118,"아이디어스":.15,"오늘의집":.20};
+const PLATFORM_ORDER=['네이버','쿠팡','오늘의집','아이디어스'],DEFAULT_FEE_RATES={"네이버":5.5,"쿠팡":11.8,"오늘의집":20,"아이디어스":15},DEFAULT_FIXED_COSTS={"네이버":0,"쿠팡":0,"오늘의집":0,"아이디어스":3000};
+let finishedProducts=[],components=[],productLinks=[],selectedProductId=null,workingRecipe=[],workingSellingPrice=0,workingFeeRates={...DEFAULT_FEE_RATES},workingFixedCosts={...DEFAULT_FIXED_COSTS},editingComponentId=null,currentDate=new Date(),allCosts=[],legacyChanges={},salesData={},legacyLoaded=false;
+const fmt=v=>`${Math.round(Number(v)||0).toLocaleString()}원`,esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])),today=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'});
+function normalizeRecipe(v){try{const p=typeof v==='string'?JSON.parse(v):v;return Array.isArray(p)?p.map(x=>({component_id:Number(x.component_id),quantity:Number(x.quantity)||0})).filter(x=>x.component_id&&x.quantity>0):[]}catch{return []}}
+async function fetchAll(table,select,build=q=>q){const PAGE=1000;let rows=[],from=0;while(true){const {data,error}=await build(db.from(table).select(select)).range(from,from+PAGE-1);if(error)throw error;if(!data?.length)break;rows=rows.concat(data);if(data.length<PAGE)break;from+=PAGE}return rows}
+function showToast(m,t='info'){const e=document.getElementById('toast');e.textContent=m;e.className=`toast ${t} show`;clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>e.classList.remove('show'),3200)}
+function switchMainTab(tab){document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${tab}`));if(tab==='legacy'&&!legacyLoaded){legacyLoaded=true;updateMonthLabel();loadLegacyCosts()}}
+async function loadBuilderData(preferred=selectedProductId){try{const [all,links]=await Promise.all([fetchAll('my_products','id,name,sku,cost,selling_price,platform_fee_rates,platform_fixed_costs,product_type,unit,cost_recipe,cost_updated_at,is_active,updated_at',q=>q.order('name')),fetchAll('product_links','id,my_product_id,platform,product,option,mapping_role,is_active',q=>q.order('id'))]);finishedProducts=all.filter(p=>(p.product_type||'finished')==='finished'&&p.is_active!==false);components=all.filter(p=>p.product_type==='component'&&p.is_active!==false);productLinks=links.filter(l=>l.is_active!==false);selectedProductId=finishedProducts.some(p=>p.id===Number(preferred))?Number(preferred):(finishedProducts[0]?.id||null);renderProductOptions();loadSelectedRecipe();renderComponents();renderBuilderSummary()}catch(error){console.error(error);showToast(`원가 데이터를 불러오지 못했습니다: ${error.message}`,'error');document.getElementById('componentList').innerHTML='<div class="empty"><strong>데이터를 불러오지 못했습니다.</strong>잠시 후 새로고침해 주세요.</div>'}}
+function renderProductOptions(){const e=document.getElementById('productSelect');e.innerHTML=finishedProducts.length?finishedProducts.map(p=>`<option value="${p.id}" ${p.id===selectedProductId?'selected':''}>${esc(p.name)}${p.sku?` · ${esc(p.sku)}`:''}</option>`).join(''):'<option value="">재고관리에 등록된 대표 제품이 없습니다</option>'}
+function currentProduct(){return finishedProducts.find(p=>p.id===selectedProductId)}function selectFinishedProduct(v){selectedProductId=Number(v)||null;loadSelectedRecipe();renderComponents();renderBuilderSummary()}function normalizeNumberMap(v,defaults){let source=v;try{if(typeof source==='string')source=JSON.parse(source)}catch{source={}}const result={...defaults};PLATFORM_ORDER.forEach(pf=>{const value=Number(source?.[pf]);if(Number.isFinite(value)&&value>=0)result[pf]=value});return result}function loadSelectedRecipe(){const p=currentProduct();workingRecipe=normalizeRecipe(p?.cost_recipe);workingSellingPrice=Number(p?.selling_price)||0;workingFeeRates=normalizeNumberMap(p?.platform_fee_rates,DEFAULT_FEE_RATES);workingFixedCosts=normalizeNumberMap(p?.platform_fixed_costs,DEFAULT_FIXED_COSTS);const input=document.getElementById('sellingPriceInput');if(input)input.value=workingSellingPrice||''}function recipeItem(id){return workingRecipe.find(x=>x.component_id===Number(id))}
+function setComponentSelected(id,checked){id=Number(id);if(checked&&!recipeItem(id))workingRecipe.push({component_id:id,quantity:1});if(!checked)workingRecipe=workingRecipe.filter(x=>x.component_id!==id);renderComponents();renderBuilderSummary()}function setComponentQuantity(id,v){const item=recipeItem(id);if(!item)return;item.quantity=Math.max(0,Number(v)||0);if(!item.quantity)workingRecipe=workingRecipe.filter(x=>x.component_id!==Number(id));renderComponents();renderBuilderSummary()}
+function renderComponents(){const e=document.getElementById('componentList');if(!components.length){e.innerHTML='<div class="empty"><strong>등록된 부속품이 없습니다.</strong>위 입력칸에서 첫 부속품을 추가해 주세요.</div>';return}const used=id=>finishedProducts.filter(p=>normalizeRecipe(p.cost_recipe).some(x=>x.component_id===id)).length;e.innerHTML=components.map(c=>{const item=recipeItem(c.id),sel=!!item;return `<div class="component-row ${sel?'selected':''}"><input type="checkbox" ${sel?'checked':''} onchange="setComponentSelected(${c.id},this.checked)"><div><div class="component-name">${esc(c.name)}</div><div class="component-meta">${esc(c.unit||'개')} 기준 · ${used(c.id)}개 제품에서 사용</div></div><div class="money">${fmt(c.cost)} / ${esc(c.unit||'개')}</div><div class="qty-wrap"><input type="number" min="0" step="0.01" value="${item?.quantity??1}" ${sel?'':'disabled'} onchange="setComponentQuantity(${c.id},this.value)"><span>${esc(c.unit||'개')}</span></div><button class="mini-btn" onclick="startComponentEdit(${c.id})">수정</button></div>`}).join('')}
+function recipeTotal(recipe=workingRecipe){return recipe.reduce((s,x)=>s+(Number(components.find(c=>c.id===x.component_id)?.cost)||0)*(Number(x.quantity)||0),0)}function activeLinksFor(id){return productLinks.filter(l=>l.my_product_id===Number(id)&&l.mapping_role!=='component')}
+function updateSellingPrice(value){workingSellingPrice=Math.max(0,Number(value)||0);renderProfitAnalysis()}function setFeeRate(platform,value){workingFeeRates[platform]=Math.min(100,Math.max(0,Number(value)||0));renderProfitAnalysis()}function setFixedCost(platform,value){workingFixedCosts[platform]=Math.max(0,Number(value)||0);renderProfitAnalysis()}
+function renderProfitAnalysis(){const price=workingSellingPrice,cost=recipeTotal(),materialRate=price?cost/price*100:null,grossRate=price?(price-cost)/price*100:null;document.getElementById('materialRate').textContent=materialRate===null?'-':`${materialRate.toFixed(1)}%`;document.getElementById('grossMarginRate').textContent=grossRate===null?'-':`${grossRate.toFixed(1)}%`;document.getElementById('grossMarginRate').className=grossRate!==null&&grossRate<0?'profit-negative':'profit-positive';const counts={};activeLinksFor(selectedProductId).forEach(l=>counts[l.platform]=(counts[l.platform]||0)+1);document.getElementById('platformProfitList').innerHTML=PLATFORM_ORDER.map(pf=>{const rate=Number(workingFeeRates[pf])||0,fixed=Number(workingFixedCosts[pf])||0,fee=price*rate/100,remain=price-cost-fee-fixed,margin=price?remain/price*100:0,linked=counts[pf]||0;return `<div class="profit-row"><div class="profit-row-top"><div class="profit-platform"><span class="profit-dot" style="background:${PFC[pf]}"></span>${pf}${linked?` <small style="color:var(--muted)">${linked}개 연결</small>`:''}</div><div class="fee-inputs"><label class="fee-edit">수수료 <input type="number" min="0" max="100" step="0.1" value="${rate}" oninput="setFeeRate('${pf}',this.value)">%</label><label class="fee-edit fixed">정책비 <input type="number" min="0" step="100" value="${fixed}" oninput="setFixedCost('${pf}',this.value)">원</label></div></div><div class="profit-row-bottom"><span>수수료 ${fmt(fee)}${fixed?` + 정책비 ${fmt(fixed)}`:''}</span><span>예상 잔액 <strong class="${remain>=0?'profit-positive':'profit-negative'}">${price?fmt(remain):'-'}</strong>${price?` · ${margin.toFixed(1)}%`:''}</span></div></div>`}).join('')}
+function renderBuilderSummary(){const p=currentProduct(),total=recipeTotal(),items=workingRecipe.filter(x=>x.quantity>0),links=activeLinksFor(selectedProductId);document.getElementById('totalValue').textContent=fmt(total);document.getElementById('totalSub').textContent=items.length?`${items.length}종 부속품 합계`:'부속품을 선택해 주세요.';document.getElementById('selectedCount').textContent=`${items.length}종`;document.getElementById('savedCost').textContent=p?fmt(p.cost):'-';document.getElementById('linkedCount').textContent=`${links.length}개`;document.getElementById('lastCostUpdate').textContent=p?.cost_updated_at?new Date(p.cost_updated_at).toLocaleDateString('ko-KR'):'-';const counts={};links.forEach(l=>counts[l.platform]=(counts[l.platform]||0)+1);document.getElementById('platformChips').innerHTML=Object.entries(counts).map(([pf,n])=>`<span class="platform-chip" style="background:${PFC[pf]||'#777'}">${esc(pf)} ${n}</span>`).join('')||'<span style="font-size:12px;color:#aaa">연결된 상품 없음</span>';document.getElementById('linkHelp').innerHTML=links.length?'저장 시 위 플랫폼 상품 원가도 같은 금액으로 바뀝니다.':'<a href="order-inventory.html">재고관리</a>에서 플랫폼 상품을 연결하면 자동 반영됩니다.';document.getElementById('saveRecipeBtn').disabled=!p||!items.length;renderProfitAnalysis()}
+function startComponentEdit(id){const c=components.find(x=>x.id===id);if(!c)return;editingComponentId=id;componentName.value=c.name;componentUnit.value=c.unit||'개';componentCost.value=Number(c.cost)||0;componentSaveBtn.textContent='수정 저장';componentCancelBtn.style.display='inline-block';componentName.focus()}function cancelComponentEdit(){editingComponentId=null;componentName.value='';componentUnit.value='개';componentCost.value='';componentSaveBtn.textContent='부속품 추가';componentCancelBtn.style.display='none'}
+async function saveComponent(){const name=componentName.value.trim(),unit=componentUnit.value.trim()||'개',cost=Number(componentCost.value);if(!name){showToast('부속품 이름을 입력해 주세요.','error');return}if(!Number.isFinite(cost)||cost<0){showToast('단가를 0원 이상으로 입력해 주세요.','error');return}componentSaveBtn.disabled=true;try{if(editingComponentId){const {error}=await db.from('my_products').update({name,unit,cost,updated_at:new Date().toISOString()}).eq('id',editingComponentId);if(error)throw error;await recalculateProductsUsing(editingComponentId);showToast('부속품과 연결 제품 원가를 수정했습니다.','success')}else{const {error}=await db.from('my_products').insert({name,sku:`PART-${Date.now().toString(36).toUpperCase()}`,stock:0,safe_stock:0,cost,product_type:'component',unit,cost_recipe:[],stock_as_of:today(),is_active:true});if(error)throw error;showToast('부속품을 추가했습니다.','success')}cancelComponentEdit();await loadBuilderData(selectedProductId)}catch(error){console.error(error);showToast(error.code==='23505'?'이미 같은 이름의 제품이나 부속품이 있습니다.':`저장 실패: ${error.message}`,'error')}finally{componentSaveBtn.disabled=false}}
+async function recalculateProductsUsing(id){for(const p of finishedProducts.filter(p=>normalizeRecipe(p.cost_recipe).some(x=>x.component_id===Number(id)))){const recipe=normalizeRecipe(p.cost_recipe);await syncProductCost(p,recipe,recipeTotal(recipe),false)}}
+async function syncProductCost(p,recipe,total,history=true,pricing=null){const now=new Date().toISOString(),group=`MY:${p.sku||p.id}`,update={cost:total,cost_recipe:recipe,cost_updated_at:now,updated_at:now};if(pricing){update.selling_price=pricing.sellingPrice;update.platform_fee_rates=pricing.feeRates;update.platform_fixed_costs=pricing.fixedCosts}let r=await db.from('my_products').update(update).eq('id',p.id);if(r.error)throw r.error;const links=activeLinksFor(p.id);if(links.length){r=await db.from('product_costs').upsert(links.map(l=>({platform:l.platform,product:l.product,option:l.option||'',cost:total,cost_group:group,cost_effective_from:today()})),{onConflict:'platform,product,option'});if(r.error)throw r.error}if(history&&Number(p.cost)!==Number(total)){r=await db.from('product_cost_history').select('id').eq('cost_group',group).eq('effective_from',today()).limit(1);if(r.error)throw r.error;if(r.data?.length)r=await db.from('product_cost_history').update({cost:total}).eq('id',r.data[0].id);else r=await db.from('product_cost_history').insert({cost_group:group,cost:total,effective_from:today()});if(r.error)throw r.error}}
+async function saveRecipe(){const p=currentProduct(),recipe=workingRecipe.filter(x=>x.quantity>0&&components.some(c=>c.id===x.component_id)),total=recipeTotal(recipe);if(!p||!recipe.length){showToast('대표 제품과 부속품을 선택해 주세요.','error');return}saveRecipeBtn.disabled=true;saveRecipeBtn.textContent='저장 중...';try{await syncProductCost(p,recipe,total,true,{sellingPrice:workingSellingPrice,feeRates:workingFeeRates,fixedCosts:workingFixedCosts});showToast(`${p.name} 원가·판매가를 저장했습니다.`,'success');await loadBuilderData(p.id);if(legacyLoaded)loadLegacyCosts()}catch(error){console.error(error);showToast(`원가 반영 실패: ${error.message}`,'error')}finally{saveRecipeBtn.textContent='원가·판매가 저장';renderBuilderSummary()}}
+function updateMonthLabel(){monthLabel.textContent=`${currentDate.getFullYear()}년 ${currentDate.getMonth()+1}월`}function changeMonth(d){currentDate.setMonth(currentDate.getMonth()+d);updateMonthLabel();loadLegacyCosts()}function goCurrentMonth(){currentDate=new Date();updateMonthLabel();loadLegacyCosts()}function monthRange(){const y=currentDate.getFullYear(),m=currentDate.getMonth();return{start:`${y}-${String(m+1).padStart(2,'0')}-01`,end:`${y}-${String(m+1).padStart(2,'0')}-${String(new Date(y,m+1,0).getDate()).padStart(2,'0')}`}}
+async function loadLegacyCosts(){legacyChanges={};updateLegacyChangeCount();const pf=filterPlatform.value,st=filterCostStatus.value,search=filterSearch.value.trim(),{start,end}=monthRange();try{const [costs,orders]=await Promise.all([fetchAll('product_costs','*',q=>{q=q.order('platform').order('product');if(pf!=='전체')q=q.eq('platform',pf);if(search)q=q.ilike('product',`%${search}%`);return q}),fetchAll('orders','platform,product,option,quantity,price',q=>q.gte('order_date',start).lte('order_date',end))]);salesData={};orders.forEach(o=>{const k=`${o.platform}|${o.product}|${o.option||''}`;salesData[k]??={qty:0,revenue:0};salesData[k].qty+=Number(o.quantity)||1;salesData[k].revenue+=(Number(o.price)||0)*(Number(o.quantity)||1)});allCosts=st==='미입력'?costs.filter(c=>!Number(c.cost)):st==='입력완료'?costs.filter(c=>Number(c.cost)>0):costs;renderLegacyTable();renderLegacySummary(costs)}catch(error){console.error(error);showToast(`기존 원가 로드 실패: ${error.message}`,'error')}}
+function legacyData(c){const s=salesData[`${c.platform}|${c.product}|${c.option||''}`]||{qty:0,revenue:0},cost=Number(c.cost)||0,sp=Number(c.selling_price)||0,commission=CR[c.platform]||0,fixed=DEFAULT_FIXED_COSTS[c.platform]||0,unitProfit=sp?sp-sp*commission-cost-fixed:0;return{s,cost,sp,unitProfit,margin:sp?unitProfit/sp*100:null,monthProfit:s.revenue-s.revenue*commission-(cost+fixed)*s.qty}}
+function renderLegacyTable(){if(!allCosts.length){costBody.innerHTML='<tr><td colspan="13"><div class="empty">조건에 맞는 상품이 없습니다.</div></td></tr>';return}costBody.innerHTML=allCosts.map((c,i)=>{const d=legacyData(c);return `<tr><td><input type="checkbox" class="cost-check" value="${c.id}"></td><td>${i+1}</td><td><span class="platform-badge" style="background:${PFC[c.platform]||'#777'}">${esc(c.platform)}</span></td><td class="text-left">${esc(c.product)}</td><td class="text-left" style="color:#777">${esc(c.option||'-')}</td><td><input class="editable ${d.cost?'':'no-cost'}" value="${d.cost?Math.round(d.cost).toLocaleString():''}" data-id="${c.id}" data-field="cost" onchange="editLegacy(this)"></td><td><input class="editable" value="${d.sp?Math.round(d.sp).toLocaleString():''}" data-id="${c.id}" data-field="selling_price" onchange="editLegacy(this)"></td><td style="color:${d.unitProfit>=0?'var(--green)':'var(--red)'};font-weight:700">${d.cost&&d.sp?fmt(d.unitProfit):'-'}</td><td>${d.margin===null?'-':d.margin.toFixed(1)+'%'}</td><td>${d.s.qty?d.s.qty.toLocaleString():'-'}</td><td class="text-right">${d.s.qty?fmt(d.s.revenue):'-'}</td><td class="text-right" style="color:${d.monthProfit>=0?'var(--green)':'var(--red)'};font-weight:700">${d.s.qty?fmt(d.monthProfit):'-'}</td><td><button class="delete-link" onclick="deleteLegacySingle(${c.id})">✕</button></td></tr>`}).join('')}
+function renderLegacySummary(costs){let revenue=0,profit=0;costs.forEach(c=>{const d=legacyData(c);revenue+=d.s.revenue;profit+=d.monthProfit});const filled=costs.filter(c=>Number(c.cost)>0).length;legacySummary.innerHTML=`<div class="summary-item"><small>전체 상품</small><strong>${costs.length}개</strong></div><div class="summary-item"><small>원가 입력</small><strong style="color:var(--green)">${filled}개</strong></div><div class="summary-item"><small>${currentDate.getMonth()+1}월 매출</small><strong style="color:var(--blue)">${fmt(revenue)}</strong></div><div class="summary-item"><small>${currentDate.getMonth()+1}월 예상 순익</small><strong style="color:${profit>=0?'var(--green)':'var(--red)'}">${fmt(profit)}</strong></div>`}
+function editLegacy(e){const id=Number(e.dataset.id),v=Number(e.value.replace(/[^\d.-]/g,''))||0;e.value=v?Math.round(v).toLocaleString():'';e.classList.add('changed');legacyChanges[id]??={};legacyChanges[id][e.dataset.field]=v;updateLegacyChangeCount()}function updateLegacyChangeCount(){const n=Object.keys(legacyChanges).length;changeCount.textContent=n?`${n}개 변경됨`:''}async function saveLegacyChanges(){const ids=Object.keys(legacyChanges);if(!ids.length){showToast('변경된 원가가 없습니다.','info');return}try{for(const id of ids){const {error}=await db.from('product_costs').update(legacyChanges[id]).eq('id',Number(id));if(error)throw error}showToast(`${ids.length}개 원가를 저장했습니다.`,'success');loadLegacyCosts()}catch(error){showToast(`저장 실패: ${error.message}`,'error')}}function toggleAllLegacy(){document.querySelectorAll('.cost-check').forEach(e=>e.checked=checkAll.checked)}async function deleteLegacySingle(id){if(!confirm('이 플랫폼 원가 항목을 삭제할까요?'))return;const {error}=await db.from('product_costs').delete().eq('id',id);if(error)showToast(error.message,'error');else{showToast('삭제했습니다.','success');loadLegacyCosts()}}async function deleteSelectedLegacy(){const ids=[...document.querySelectorAll('.cost-check:checked')].map(e=>Number(e.value));if(!ids.length){showToast('삭제할 항목을 선택해 주세요.','info');return}if(!confirm(`선택한 ${ids.length}개 원가 항목을 삭제할까요?`))return;const {error}=await db.from('product_costs').delete().in('id',ids);if(error)showToast(error.message,'error');else{showToast(`${ids.length}개를 삭제했습니다.`,'success');loadLegacyCosts()}}
+if(window.self!==window.top){document.querySelector('.header')?.remove();document.querySelector('.container').style.paddingTop='12px'}document.addEventListener('DOMContentLoaded',()=>{updateMonthLabel();loadBuilderData()});
+</script></body></html>
