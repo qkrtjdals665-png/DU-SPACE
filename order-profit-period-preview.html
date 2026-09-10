@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>주문기준 손익 · 기간별 미리보기</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
+    :root{--ink:#20211f;--muted:#74766f;--line:#e2e3de;--paper:#fff;--bg:#f3f3ef;--green:#0d8f70;--green-soft:#e9f7f2;--blue:#3976df;--red:#d94a5c;--amber:#f2aa18;--navy:#202333}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',sans-serif}.top{height:68px;padding:0 28px;background:#20201e;color:#fff;display:flex;align-items:center;justify-content:space-between}.brand{font-size:19px;font-weight:800}.brand span{color:var(--amber)}.preview-tag{padding:7px 10px;border:1px solid #484844;border-radius:999px;color:#d6d6d1;font-size:12px}.wrap{max-width:1180px;margin:auto;padding:24px}.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px}.eyebrow{font-size:12px;color:var(--green);font-weight:800;letter-spacing:.08em}.head h1{font-size:28px;letter-spacing:-.05em;margin:4px 0}.head p{font-size:14px;color:var(--muted);margin:0}.period{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}.segments{display:flex;gap:4px;padding:4px;background:#ededE9;border-radius:11px}.period-btn{border:0;background:transparent;color:#6d6f69;font:inherit;font-size:14px;font-weight:700;padding:9px 15px;border-radius:8px;cursor:pointer}.period-btn.active{background:#fff;color:#20211f;box-shadow:0 1px 4px #00000012}.date-nav{display:flex;align-items:center;gap:8px}.date-nav button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer}.range{min-width:190px;text-align:center;font-size:16px;font-weight:800}.notice{display:flex;align-items:center;gap:8px;margin-bottom:14px;color:#765d20;background:#fff8e6;border:1px solid #f2dfaa;border-radius:11px;padding:10px 13px;font-size:13px}.kpis{display:grid;grid-template-columns:1.15fr 1.15fr .8fr;gap:12px;margin-bottom:12px}.card{background:#fff;border:1px solid var(--line);border-radius:16px}.kpi{padding:20px}.label{font-size:13px;color:var(--muted);font-weight:700}.value{font-size:29px;font-weight:800;letter-spacing:-.04em;margin:7px 0 4px;font-variant-numeric:tabular-nums}.value.green{color:var(--green)}.value.blue{color:var(--blue)}.value.amber{color:#b27600}.sub{font-size:12px;color:#969890}.main-grid{display:grid;grid-template-columns:1.02fr 1.45fr;gap:12px}.panel{padding:20px}.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.panel-title{font-size:17px;font-weight:800}.small-pill{background:var(--green-soft);color:var(--green);font-size:12px;font-weight:800;border-radius:999px;padding:6px 9px}.flow{display:grid;gap:15px}.flow-row{display:grid;grid-template-columns:112px 1fr 96px;gap:10px;align-items:center}.flow-name{font-size:14px;color:#555751}.bar{height:9px;border-radius:99px;background:#efefeb;overflow:hidden}.fill{height:100%;border-radius:99px}.flow-value{text-align:right;font-size:14px;font-weight:750;font-variant-numeric:tabular-nums}.formula{margin-top:18px;padding:14px;background:#f7f7f4;border-radius:11px;color:#666861;font-size:13px;line-height:1.7}.formula strong{color:var(--ink)}table{width:100%;border-collapse:collapse;font-size:14px}th{font-size:12px;color:#858780;background:#f7f7f4;text-align:right;padding:10px 9px}th:first-child,td:first-child{text-align:left}td{text-align:right;padding:12px 9px;border-bottom:1px solid #edeee9;font-variant-numeric:tabular-nums}.platform{display:flex;align-items:center;gap:8px;font-weight:750}.dot{width:8px;height:8px;border-radius:50%}.profit{font-weight:800;color:var(--green)}.bottom{margin-top:12px;padding:18px 20px}.rules{display:flex;gap:8px;flex-wrap:wrap}.rule{font-size:13px;color:#61635d;background:#f6f6f2;border:1px solid #e7e8e2;border-radius:9px;padding:9px 11px}.rule strong{color:var(--ink)}
+    @media(max-width:850px){.head{display:block}.preview-tag{display:none}.period{align-items:stretch;flex-direction:column}.segments{overflow:auto}.period-btn{white-space:nowrap}.date-nav{justify-content:center}.kpis,.main-grid{grid-template-columns:1fr}.top{padding:0 18px}.wrap{padding:16px}.value{font-size:25px}.flow-row{grid-template-columns:92px 1fr 88px}.table-wrap{overflow:auto}table{min-width:620px}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand">DU SPACE <span>재무보드</span></div><div class="preview-tag">화면 구성 미리보기</div></header>
+  <main class="wrap">
+    <section class="head"><div><div class="eyebrow">ORDER PROFIT</div><h1>주문기준 손익</h1><p>고객이 주문한 날짜를 기준으로 얼마를 팔고 얼마가 남았는지 확인합니다.</p></div></section>
+
+    <section class="period">
+      <div class="segments" aria-label="정산 기간">
+        <button class="period-btn" data-mode="day">1일</button>
+        <button class="period-btn" data-mode="week">주간</button>
+        <button class="period-btn active" data-mode="month">월간</button>
+        <button class="period-btn" data-mode="half">반기</button>
+        <button class="period-btn" data-mode="year">연간</button>
+      </div>
+      <div class="date-nav"><button type="button" id="prevBtn" aria-label="이전 기간">‹</button><div class="range" id="rangeLabel">-</div><button type="button" id="nextBtn" aria-label="다음 기간">›</button><button type="button" id="todayBtn">오늘</button></div>
+    </section>
+
+    <div class="notice"><span>●</span><span><strong>예시 데이터입니다.</strong> 실제 적용하면 선택한 기간의 주문 데이터로 자동 변경됩니다.</span></div>
+
+    <section class="kpis">
+      <article class="card kpi"><div class="label" id="salesLabel">총 주문매출</div><div class="value blue" id="salesValue">4,482,014원</div><div class="sub">고객 결제금액 · 배송비 제외</div></article>
+      <article class="card kpi"><div class="label">예상 순익</div><div class="value green" id="profitValue">2,049,227원</div><div class="sub">원가·수수료·광고비 차감</div></article>
+      <article class="card kpi"><div class="label">순이익률</div><div class="value amber" id="rateValue">45.7%</div><div class="sub">예상 순익 ÷ 주문매출</div></article>
+    </section>
+
+    <section class="main-grid">
+      <article class="card panel">
+        <div class="panel-head"><div class="panel-title">돈이 빠진 항목</div><span class="small-pill">간단 요약</span></div>
+        <div class="flow">
+          <div class="flow-row"><div class="flow-name">상품 원가</div><div class="bar"><div class="fill" style="width:54%;background:#65758b"></div></div><div class="flow-value">1,358,787원</div></div>
+          <div class="flow-row"><div class="flow-name">플랫폼 수수료</div><div class="bar"><div class="fill" style="width:19%;background:#dc5968"></div></div><div class="flow-value">480,000원</div></div>
+          <div class="flow-row"><div class="flow-name">광고비</div><div class="bar"><div class="fill" style="width:24%;background:#f2aa18"></div></div><div class="flow-value">594,000원</div></div>
+        </div>
+        <div class="formula">주문매출 4,482,014원<br>− 상품 원가 1,358,787원<br>− 플랫폼 수수료 480,000원<br>− 광고비 594,000원<br><strong>= 예상 순익 2,049,227원</strong></div>
+      </article>
+
+      <article class="card panel">
+        <div class="panel-head"><div class="panel-title">플랫폼별 손익</div><span class="small-pill">주문일 기준</span></div>
+        <div class="table-wrap"><table><thead><tr><th>플랫폼</th><th>주문매출</th><th>판매수량</th><th>예상 순익</th><th>이익률</th></tr></thead><tbody>
+          <tr><td><div class="platform"><span class="dot" style="background:#00c73c"></span>네이버</div></td><td>3,195,000원</td><td>24개</td><td class="profit">1,384,903원</td><td>43.3%</td></tr>
+          <tr><td><div class="platform"><span class="dot" style="background:#35c5f0"></span>오늘의집</div></td><td>881,212원</td><td>8개</td><td class="profit">412,662원</td><td>46.8%</td></tr>
+          <tr><td><div class="platform"><span class="dot" style="background:#ff6f61"></span>아이디어스</div></td><td>405,802원</td><td>5개</td><td class="profit">251,662원</td><td>62.0%</td></tr>
+          <tr><td><div class="platform"><span class="dot" style="background:#e31837"></span>쿠팡</div></td><td>0원</td><td>0개</td><td>0원</td><td>-</td></tr>
+        </tbody></table></div>
+      </article>
+    </section>
+
+    <section class="card bottom"><div class="panel-head"><div class="panel-title">이 화면의 계산 기준</div></div><div class="rules"><div class="rule"><strong>매출</strong> 주문일 기준</div><div class="rule"><strong>배송비</strong> 제외</div><div class="rule"><strong>차감</strong> 원가·수수료·광고비</div><div class="rule"><strong>제외</strong> 통장 입출금·생활비·고정비</div><div class="rule"><strong>추가상품</strong> 연결된 항목 자동 반영</div></div></section>
+  </main>
+  <script>
+    let mode='month';let anchor=new Date();
+    const pad=n=>String(n).padStart(2,'0');
+    const ymd=d=>`${d.getFullYear()}.${pad(d.getMonth()+1)}.${pad(d.getDate())}`;
+    function startOfWeek(date){const d=new Date(date),day=d.getDay()||7;d.setDate(d.getDate()-day+1);return d}
+    function label(){const y=anchor.getFullYear(),m=anchor.getMonth(),d=anchor.getDate();if(mode==='day')return ymd(anchor);if(mode==='week'){const s=startOfWeek(anchor),e=new Date(s);e.setDate(s.getDate()+6);return`${ymd(s)} – ${ymd(e)}`}if(mode==='month')return`${y}년 ${m+1}월`;if(mode==='half')return`${y}년 ${m<6?'상반기':'하반기'}`;return`${y}년`}
+    function shift(dir){if(mode==='day')anchor.setDate(anchor.getDate()+dir);else if(mode==='week')anchor.setDate(anchor.getDate()+dir*7);else if(mode==='month')anchor.setMonth(anchor.getMonth()+dir);else if(mode==='half')anchor.setMonth(anchor.getMonth()+dir*6);else anchor.setFullYear(anchor.getFullYear()+dir);render()}
+    function render(){document.getElementById('rangeLabel').textContent=label();document.querySelectorAll('.period-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));document.getElementById('salesLabel').textContent=mode==='day'?'오늘 주문매출':mode==='week'?'주간 주문매출':mode==='month'?'월간 주문매출':mode==='half'?'반기 주문매출':'연간 주문매출'}
+    document.querySelectorAll('.period-btn').forEach(button=>button.addEventListener('click',()=>{mode=button.dataset.mode;render()}));
+    document.getElementById('prevBtn').addEventListener('click',()=>shift(-1));document.getElementById('nextBtn').addEventListener('click',()=>shift(1));document.getElementById('todayBtn').addEventListener('click',()=>{anchor=new Date();render()});render();
+  </script>
+</body>
+</html>
