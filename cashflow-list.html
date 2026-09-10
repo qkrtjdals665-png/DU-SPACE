@@ -26,6 +26,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .filter-bar select,.filter-bar input{padding:8px 12px;border:1.5px solid #D9D4CA;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;background:#fff;}
 .filter-bar select:focus,.filter-bar input:focus{outline:none;border-color:#f4a900;}
 .filter-bar label{font-size:12px;font-weight:600;color:#555;display:flex;align-items:center;gap:6px;}
+.btn-manage{margin-left:auto;padding:8px 13px;border:0;border-radius:8px;background:#1a1a2e;color:#fff;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+.category-manager{display:none;margin:0 0 16px;padding:16px;border:1px solid #d9d4ca;border-radius:12px;background:#faf8f4;}.category-manager.open{display:block}
+.category-manager-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}.category-manager-head strong{font-size:14px;color:#1a1a2e}.category-manager-head p{font-size:10px;color:#888;margin-top:3px}
+.category-form{display:grid;grid-template-columns:150px minmax(180px,1fr) auto auto;gap:8px;align-items:center;margin-bottom:12px}.category-form select,.category-form input{padding:8px 10px;border:1px solid #d9d4ca;border-radius:7px;background:#fff;font-family:inherit;font-size:11px}.category-form button,.category-action{padding:7px 10px;border:0;border-radius:7px;font-family:inherit;font-size:10px;font-weight:700;cursor:pointer}.category-save{background:#0f9b58;color:#fff}.category-cancel{background:#e8e4dc;color:#555}.category-delete{background:#fce4ec;color:#c62828}.category-edit{background:#e3f2fd;color:#1565c0}.rename-check{display:none;font-size:10px;color:#666;margin:-3px 0 10px}.rename-check.show{display:block}
+.category-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.category-row{display:flex;align-items:center;gap:7px;padding:8px 9px;border:1px solid #ebe6dd;border-radius:8px;background:#fff;font-size:10px}.category-row .category-path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.category-group{font-weight:700;color:#333}.category-sub{color:#777}
 .unclassified-badge{background:#e94560;color:white;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;margin-left:4px;}
 
 /* 테이블 */
@@ -62,7 +67,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
 .no-data{text-align:center;padding:40px;color:#bbb;font-size:14px;}
 .toast{position:fixed;bottom:30px;right:30px;padding:14px 24px;border-radius:10px;color:white;font-size:13px;font-weight:600;opacity:0;transform:translateY(20px);transition:all 0.3s;z-index:1000;}
 .toast.show{opacity:1;transform:translateY(0);}.toast.success{background:#0f9b58;}.toast.info{background:#1976d2;}
-@media(max-width:768px){.summary-grid{grid-template-columns:repeat(3,1fr);}.filter-bar{flex-direction:column;align-items:stretch;}}
+@media(max-width:768px){.summary-grid{grid-template-columns:repeat(3,1fr);}.filter-bar{flex-direction:column;align-items:stretch}.btn-manage{margin-left:0}.category-form{grid-template-columns:1fr}.category-list{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="du-theme.css">
 </head>
@@ -74,18 +79,29 @@ body{font-family:'Noto Sans KR',sans-serif;background:#EDE8DF;min-height:100vh;}
     <div class="card">
         <div class="filter-bar">
             <label>통장: <select id="filterAccount"><option value="">전체</option></select></label>
-            <label>분류: <select id="filterCategory">
-                <option value="">전체</option>
-                <option value="__unclassified__">⚠️ 미분류만</option>
-                <option value="__review__">🔍 검토필요만</option>
-                <option value="매출">매출</option>
-                <option value="사업지출">사업지출</option>
-                <option value="고정비">고정비</option>
-                <option value="통장간이체">통장간이체</option>
-            </select></label>
+            <label>분류: <select id="filterCategory"></select></label>
             <label>기간: <input type="date" id="filterFrom"> ~ <input type="date" id="filterTo"></label>
             <label>검색: <input type="text" id="filterSearch" placeholder="거래처/적요" style="width:140px;"></label>
+            <button class="btn-manage" type="button" onclick="toggleCategoryManager()">⚙ 분류 관리</button>
         </div>
+
+        <section class="category-manager" id="categoryManager">
+            <div class="category-manager-head">
+                <div><strong>내 분류 관리</strong><p>여기서 추가한 분류는 거래 선택 목록에 바로 반영됩니다. 같은 기기의 이 브라우저에 저장됩니다.</p></div>
+                <button class="category-action category-cancel" type="button" onclick="toggleCategoryManager(false)">닫기</button>
+            </div>
+            <div class="category-form">
+                <select id="categoryGroup" aria-label="큰 분류">
+                    <option value="매출">매출</option><option value="사업지출">사업지출</option><option value="고정비">고정비</option>
+                    <option value="개인">개인(생활비)</option><option value="플랫폼결제">플랫폼결제</option><option value="통장간이체">통장간이체</option><option value="제외">제외</option>
+                </select>
+                <input id="categoryName" type="text" maxlength="60" placeholder="세부 분류 이름 (예: 반려동물 사료)" aria-label="세부 분류 이름">
+                <button class="category-save" type="button" id="categorySaveBtn" onclick="saveCategoryDefinition()">분류 추가</button>
+                <button class="category-cancel" type="button" id="categoryCancelBtn" onclick="cancelCategoryEdit()" style="display:none">취소</button>
+            </div>
+            <label class="rename-check" id="renameCheck"><input type="checkbox" id="renameExisting" checked> 이미 분류된 거래와 자동분류 규칙도 새 이름으로 함께 변경</label>
+            <div class="category-list" id="categoryList"></div>
+        </section>
 
         <div style="max-height:600px;overflow-y:auto;">
             <table class="tx-table">
@@ -107,17 +123,22 @@ const SUPABASE_KEY='sb_publishable_OnGhN5iA72Y6H0jmTu82tg_Vv9VJyI7';
 const{createClient}=window.supabase;
 const db=createClient(SUPABASE_URL,SUPABASE_KEY);
 
-const CATEGORIES=[
+const DEFAULT_CATEGORIES=[
     {cat:'매출',sub:'네이버 정산'},{cat:'매출',sub:'오늘의집 정산'},{cat:'매출',sub:'아이디어스 정산'},{cat:'매출',sub:'쿠팡 정산'},{cat:'매출',sub:'네이버페이 환불'},
     {cat:'사업지출',sub:'택배비'},{cat:'사업지출',sub:'원재료(편백)'},{cat:'사업지출',sub:'원재료(목재)'},{cat:'사업지출',sub:'외주(프리랜서)'},
     {cat:'사업지출',sub:'광고비(네이버)'},{cat:'사업지출',sub:'광고비(아이디어스)'},{cat:'사업지출',sub:'광고비(기타)'},
     {cat:'사업지출',sub:'포장재'},{cat:'사업지출',sub:'세금(국세)'},{cat:'사업지출',sub:'카드결제대금'},{cat:'사업지출',sub:'구독/SaaS'},{cat:'사업지출',sub:'기타'},
-    {cat:'고정비',sub:'통신비'},{cat:'고정비',sub:'보험'},{cat:'고정비',sub:'임대료'},{cat:'고정비',sub:'기타'},
+    {cat:'고정비',sub:'통신비'},{cat:'고정비',sub:'보험'},{cat:'고정비',sub:'임대료'},{cat:'고정비',sub:'기타 고정비'},
     {cat:'통장간이체',sub:'본인 이체'},{cat:'통장간이체',sub:'택배비 충당이체'},{cat:'통장간이체',sub:'저축 이체'},
-    {cat:'개인',sub:'식비'},{cat:'개인',sub:'교통비'},{cat:'개인',sub:'쇼핑'},{cat:'개인',sub:'유흥/카페'},{cat:'개인',sub:'의료'},{cat:'개인',sub:'투자/적금'},{cat:'개인',sub:'기타'},
+    {cat:'개인',sub:'식비'},{cat:'개인',sub:'교통비'},{cat:'개인',sub:'공유 자전거'},{cat:'개인',sub:'주전부리'},{cat:'개인',sub:'혼술'},
+    {cat:'개인',sub:'자동차 기름'},{cat:'개인',sub:'커피'},{cat:'개인',sub:'음료'},{cat:'개인',sub:'편의점'},{cat:'개인',sub:'마트 장보기'},
+    {cat:'개인',sub:'공용비(사료·엄마 물건)'},{cat:'개인',sub:'쇼핑'},{cat:'개인',sub:'의료'},{cat:'개인',sub:'투자/적금'},{cat:'개인',sub:'기타'},
     {cat:'플랫폼결제',sub:'네이버페이(검토필요)'},{cat:'플랫폼결제',sub:'쿠팡(검토필요)'},{cat:'플랫폼결제',sub:'카카오페이(검토필요)'},
     {cat:'제외',sub:'개인 부탁/대행'},{cat:'제외',sub:'실수 송금/반환'},{cat:'제외',sub:'무시'},
 ];
+const CATEGORY_STORAGE_KEY='du_cash_categories_v1';
+let CATEGORIES=[];
+let editingCategoryId=null;
 
 let accounts=[];
 let allTxs=[];
@@ -126,6 +147,9 @@ const PAGE_SIZE=50;
 let currentPage=1;
 
 async function init(){
+    loadCategoryDefinitions();
+    renderCategoryFilter();
+    renderCategoryManager();
     const{data:accts}=await db.from('bank_accounts').select('*').order('id');
     accounts=accts||[];
     const sel=document.getElementById('filterAccount');
@@ -142,6 +166,94 @@ async function init(){
     ['filterAccount','filterCategory'].forEach(id=>document.getElementById(id).addEventListener('change',applyFilters));
     ['filterFrom','filterTo'].forEach(id=>document.getElementById(id).addEventListener('change',loadTransactions));
     document.getElementById('filterSearch').addEventListener('input',debounce(applyFilters,300));
+}
+
+function loadCategoryDefinitions(){
+    try{
+        const saved=JSON.parse(localStorage.getItem(CATEGORY_STORAGE_KEY)||'null');
+        const source=Array.isArray(saved)&&saved.length?saved:DEFAULT_CATEGORIES;
+        CATEGORIES=source.map((item,index)=>({id:item.id||`default-${index}`,cat:String(item.cat||'').trim(),sub:String(item.sub||'').trim()})).filter(item=>item.cat&&item.sub);
+    }catch(error){CATEGORIES=DEFAULT_CATEGORIES.map((item,index)=>({...item,id:`default-${index}`}));}
+}
+
+function saveCategoryDefinitions(){
+    localStorage.setItem(CATEGORY_STORAGE_KEY,JSON.stringify(CATEGORIES));
+    renderCategoryFilter();
+    renderCategoryManager();
+    renderTable();
+}
+
+function renderCategoryFilter(){
+    const select=document.getElementById('filterCategory');
+    const current=select.value;
+    const groups=[...new Set(CATEGORIES.map(item=>item.cat))];
+    select.innerHTML='<option value="">전체</option><option value="__unclassified__">⚠️ 미분류만</option><option value="__review__">🔍 검토필요만</option>'+groups.map(group=>`<option value="${escapeHtml(group)}">${escapeHtml(group)}</option>`).join('');
+    if([...select.options].some(option=>option.value===current))select.value=current;
+}
+
+function toggleCategoryManager(force){
+    const panel=document.getElementById('categoryManager');
+    panel.classList.toggle('open',typeof force==='boolean'?force:!panel.classList.contains('open'));
+}
+
+function renderCategoryManager(){
+    const list=document.getElementById('categoryList');
+    list.innerHTML=CATEGORIES.map((item,index)=>`<div class="category-row"><span class="category-path"><span class="category-group">${escapeHtml(item.cat)}</span> <span class="category-sub">/ ${escapeHtml(item.sub)}</span></span><button type="button" class="category-action category-edit" onclick="editCategoryDefinition(${index})">수정</button><button type="button" class="category-action category-delete" onclick="deleteCategoryDefinition(${index})">삭제</button></div>`).join('');
+}
+
+function editCategoryDefinition(index){
+    const item=CATEGORIES[index];if(!item)return;
+    editingCategoryId=item.id;
+    document.getElementById('categoryGroup').value=item.cat;
+    document.getElementById('categoryName').value=item.sub;
+    document.getElementById('categorySaveBtn').textContent='수정 저장';
+    document.getElementById('categoryCancelBtn').style.display='block';
+    document.getElementById('renameCheck').classList.add('show');
+    document.getElementById('categoryName').focus();
+}
+
+function cancelCategoryEdit(){
+    editingCategoryId=null;
+    document.getElementById('categoryName').value='';
+    document.getElementById('categorySaveBtn').textContent='분류 추가';
+    document.getElementById('categoryCancelBtn').style.display='none';
+    document.getElementById('renameCheck').classList.remove('show');
+}
+
+async function saveCategoryDefinition(){
+    const cat=document.getElementById('categoryGroup').value;
+    const sub=document.getElementById('categoryName').value.trim();
+    if(!sub){showToast('세부 분류 이름을 입력해주세요.','info');return;}
+    const duplicate=CATEGORIES.some(item=>item.cat===cat&&item.sub===sub&&item.id!==editingCategoryId);
+    if(duplicate){showToast('이미 있는 분류입니다.','info');return;}
+    if(editingCategoryId){
+        const item=CATEGORIES.find(entry=>entry.id===editingCategoryId);if(!item)return;
+        const oldCat=item.cat,oldSub=item.sub;
+        if(document.getElementById('renameExisting').checked&&(oldCat!==cat||oldSub!==sub)){
+            const txResult=await db.from('cash_transactions').update({category:cat,sub_category:sub}).eq('category',oldCat).eq('sub_category',oldSub);
+            if(txResult.error){showToast('기존 거래 이름 변경 실패: '+txResult.error.message,'error');return;}
+            const ruleResult=await db.from('categorization_rules').update({category:cat,sub_category:sub}).eq('category',oldCat).eq('sub_category',oldSub);
+            if(ruleResult.error)showToast('거래는 변경됐지만 자동분류 규칙 변경은 실패했습니다.','info');
+            allTxs.forEach(tx=>{if(tx.category===oldCat&&tx.sub_category===oldSub){tx.category=cat;tx.sub_category=sub;}});
+        }
+        item.cat=cat;item.sub=sub;
+        showToast('분류를 수정했습니다.','success');
+    }else{
+        CATEGORIES.push({id:`custom-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,cat,sub});
+        showToast('새 분류를 추가했습니다.','success');
+    }
+    saveCategoryDefinitions();
+    cancelCategoryEdit();
+    applyFilters();
+}
+
+function deleteCategoryDefinition(index){
+    const item=CATEGORIES[index];if(!item)return;
+    if(!confirm(`${item.cat} / ${item.sub} 분류를 목록에서 삭제할까요?\n이미 분류된 거래와 합계는 그대로 유지됩니다.`))return;
+    CATEGORIES.splice(index,1);
+    if(item.id===editingCategoryId)cancelCategoryEdit();
+    saveCategoryDefinitions();
+    showToast('분류 목록에서 삭제했습니다.','success');
 }
 
 async function loadTransactions(){
@@ -226,10 +338,12 @@ function renderTable(){
         const catDisplay=hasCategory?`${tx.category}${tx.sub_category?' / '+tx.sub_category:''}`:'-';
 
         // 수동 분류 드롭다운 — 모든 건에 표시 (분류된 건도 수정 가능)
+        let lastGroup='';
         const options=CATEGORIES.map(c=>{
-            const val=`${c.cat}|${c.sub}`;
+            const val=`${encodeURIComponent(c.cat)}|${encodeURIComponent(c.sub)}`;
             const selected=(tx.category===c.cat&&tx.sub_category===c.sub)?'selected':'';
-            return `<option value="${val}" ${selected}>${c.cat} / ${c.sub}</option>`;
+            const prefix=c.cat===lastGroup?'　':`${c.cat} / `;lastGroup=c.cat;
+            return `<option value="${val}" ${selected}>${escapeHtml(prefix+c.sub)}</option>`;
         }).join('');
         const classifyUI=`<div style="display:flex;gap:4px;align-items:center;">
             <select class="classify-select" data-id="${tx.id}" onchange="classifyTx(this)" style="${hasCategory?'border-color:#0f9b58;':''}">
@@ -270,7 +384,7 @@ async function classifyTx(selectEl){
     const val=selectEl.value;
     if(!val)return;
 
-    const[cat,sub]=val.split('|');
+    const[cat,sub]=val.split('|').map(decodeURIComponent);
     const ruleCheckbox=document.querySelector(`.cb-rule[data-id="${txId}"]`);
     const addRule=ruleCheckbox&&ruleCheckbox.checked;
 
@@ -329,6 +443,7 @@ function goPage(p){currentPage=p;renderTable();window.scrollTo(0,200);}
 
 function getBankClass(bank){return bank==='하나'?'bank-hana':bank==='KB국민'?'bank-kb':bank==='농협'?'bank-nh':'';}
 function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 function showToast(m,t){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+(t||'info')+' show';setTimeout(()=>e.classList.remove('show'),2500);}
 
