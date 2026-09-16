@@ -82,6 +82,43 @@
   }
 </style>
 <link rel="stylesheet" href="du-theme.css">
+<style>
+  button.nav-item {
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    background: transparent;
+  }
+  details.nav-group > summary.nav-group-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 30px;
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    cursor: pointer;
+    list-style: none;
+    border-radius: 6px;
+    user-select: none;
+  }
+  details.nav-group > summary::-webkit-details-marker { display: none; }
+  details.nav-group > summary::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    margin-right: 3px;
+  }
+  details.nav-group[open] > summary::after { transform: rotate(45deg); }
+  details.nav-group > summary:hover { background: rgba(255, 255, 255, 0.6); color: var(--du-text) !important; }
+  .nav-item:focus-visible, summary.nav-group-label:focus-visible {
+    outline: 2px solid var(--du-brand-dark);
+    outline-offset: 2px;
+  }
+  .topbar { justify-content: flex-start; gap: 14px; }
+</style>
 </head>
 <body>
 
@@ -97,41 +134,48 @@
       </div>
     </div>
   </div>
-  <nav class="sidebar-nav">
+  <nav class="sidebar-nav" aria-label="업무 메뉴">
     <div class="nav-group">
       <div class="nav-group-label">메인</div>
-      <div class="nav-item active" data-page="overview"><span class="nav-icon">📊</span> 사업 현황</div>
-      <div class="nav-item" data-page="dashboard"><span class="nav-icon">🧰</span> 도구 모음</div>
+      <button type="button" class="nav-item active" data-page="overview">사업 현황</button>
     </div>
-    <div class="nav-group">
-      <div class="nav-group-label">제작 도구</div>
-      <div class="nav-item" data-page="laser"><span class="nav-icon">🏷️</span> 레이저 각인 <span class="nav-badge">LIVE</span></div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-label">주문 / 배송</div>
-      <div class="nav-item" data-page="order-upload"><span class="nav-icon">📦</span> 주문서 업로드 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-list"><span class="nav-icon">📋</span> 주문 목록 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-daily"><span class="nav-icon">📈</span> 일별 매출/예상 이익 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-costs"><span class="nav-icon">💰</span> 상품 원가 관리 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-products"><span class="nav-icon">📊</span> 제품별 판매량 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-inventory"><span class="nav-icon">📦</span> 재고 관리 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-addons"><span class="nav-icon">🧩</span> 추가상품 관리 <span class="nav-badge new">NEW</span></div>
-      <div class="nav-item" data-page="order-ads"><span class="nav-icon">📢</span> 광고비 관리 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="order-merge"><span class="nav-icon">📂</span> 주문서 정리 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="invoice"><span class="nav-icon">🚚</span> 송장 변환기 <span class="nav-badge">LIVE</span></div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-label">입출금 관리</div>
-      <div class="nav-item" data-page="cf-upload"><span class="nav-icon">📤</span> 은행 엑셀 업로드 <span class="nav-badge new">NEW</span></div>
-      <div class="nav-item" data-page="cf-list"><span class="nav-icon">📋</span> 거래 목록/분류 <span class="nav-badge new">NEW</span></div>
-      <div class="nav-item" data-page="cf-dashboard"><span class="nav-icon">💳</span> 전체 지출 현황 <span class="nav-badge new">NEW</span></div>
-    </div>
-    <div class="nav-group">
-      <div class="nav-group-label">재무 / 문서</div>
-      <div class="nav-item" data-page="freelancer"><span class="nav-icon">👤</span> 프리랜서 급여 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="quotation"><span class="nav-icon">📝</span> 견적서 <span class="nav-badge">LIVE</span></div>
-      <div class="nav-item" data-page="transaction"><span class="nav-icon">📄</span> 거래명세서 <span class="nav-badge">LIVE</span></div>
-    </div>
+    <details class="nav-group" data-group="orders" open>
+      <summary class="nav-group-label">주문 / 배송</summary>
+      <div class="nav-group-items">
+        <button type="button" class="nav-item" data-page="order-upload">주문서 업로드</button>
+        <button type="button" class="nav-item" data-page="order-list">주문 목록</button>
+        <button type="button" class="nav-item" data-page="order-daily">일별 매출/예상 이익</button>
+        <button type="button" class="nav-item" data-page="order-costs">상품 원가 관리</button>
+        <button type="button" class="nav-item" data-page="order-products">제품별 판매량</button>
+        <button type="button" class="nav-item" data-page="order-inventory">제품 통합관리</button>
+        <button type="button" class="nav-item" data-page="order-addons">추가상품 관리</button>
+        <button type="button" class="nav-item" data-page="order-ads">광고비 관리</button>
+        <button type="button" class="nav-item" data-page="order-merge">주문서 정리</button>
+        <button type="button" class="nav-item" data-page="invoice">송장 변환기</button>
+      </div>
+    </details>
+    <details class="nav-group" data-group="cashflow" open>
+      <summary class="nav-group-label">입출금 관리</summary>
+      <div class="nav-group-items">
+        <button type="button" class="nav-item" data-page="cf-upload">은행 엑셀 업로드</button>
+        <button type="button" class="nav-item" data-page="cf-list">거래 목록/분류</button>
+        <button type="button" class="nav-item" data-page="cf-dashboard">전체 지출 현황</button>
+      </div>
+    </details>
+    <details class="nav-group" data-group="documents">
+      <summary class="nav-group-label">재무 / 문서</summary>
+      <div class="nav-group-items">
+        <button type="button" class="nav-item" data-page="freelancer">프리랜서 급여</button>
+        <button type="button" class="nav-item" data-page="quotation">견적서</button>
+        <button type="button" class="nav-item" data-page="transaction">거래명세서</button>
+      </div>
+    </details>
+    <details class="nav-group" data-group="production">
+      <summary class="nav-group-label">제작 도구</summary>
+      <div class="nav-group-items">
+        <button type="button" class="nav-item" data-page="laser">레이저 각인</button>
+      </div>
+    </details>
   </nav>
   <div class="sidebar-footer">
     <div class="user-avatar">DU</div>
@@ -145,70 +189,10 @@
 <main class="main">
   <div class="topbar">
     <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-    <div class="topbar-title" id="topbarTitle"><span>📊</span> 사업 현황</div>
-    <div class="topbar-actions">
-      <button class="topbar-btn" onclick="navigate('dashboard')">🧰 도구 모음</button>
-    </div>
+    <div class="topbar-title" id="topbarTitle">사업 현황</div>
   </div>
   <div class="content">
     <div class="subpage active" id="page-overview"></div>
-    <div class="subpage" id="page-dashboard">
-      <div class="dashboard-home">
-        <div class="greeting-text">안녕, <span>디유 스페이스</span> 👋</div>
-        <div class="greeting-sub" id="greetingSub"></div>
-        <div class="tool-grid">
-          <div class="tool-card" data-color="red" onclick="navigate('order-dash')">
-            <span class="tool-emoji">📦</span>
-            <div class="tool-name">주문관리</div>
-            <div class="tool-desc">4개 플랫폼 통합 관리<br>대시보드 · 업로드 · 일별분석</div>
-            <div class="tool-status">☁ LIVE</div>
-          </div>
-          <div class="tool-card" data-color="yellow" onclick="navigate('cf-dashboard')">
-            <span class="tool-emoji">💰</span>
-            <div class="tool-name">입출금 관리</div>
-            <div class="tool-desc">은행 엑셀 업로드 · 자동분류<br>통장별 잔액 · 현금흐름 대시보드</div>
-            <div class="tool-status new">✨ NEW</div>
-          </div>
-          <div class="tool-card" data-color="purple" onclick="navigate('analysis')">
-            <span class="tool-emoji">🔍</span>
-            <div class="tool-name">사업 분석 리포트</div>
-            <div class="tool-desc">플랫폼별 효율 · 상품 수익성<br>자동 진단 · 실행 제안</div>
-            <div class="tool-status new">✨ NEW</div>
-          </div>
-          <div class="tool-card" data-color="red" onclick="navigate('laser')">
-            <span class="tool-emoji">🏷️</span>
-            <div class="tool-name">레이저 각인 생성기</div>
-            <div class="tool-desc">태그/복주머니/차량용 · JSX 생성<br>누적 통계 · 클라우드 동기화</div>
-            <div class="tool-status">☁ 클라우드 연동</div>
-          </div>
-          <div class="tool-card" data-color="blue" onclick="navigate('freelancer')">
-            <span class="tool-emoji">👤</span>
-            <div class="tool-name">프리랜서 급여내역서</div>
-            <div class="tool-desc">원천징수 3.3% 자동 계산<br>인별 현황 · 엑셀 저장</div>
-            <div class="tool-status">☁ 클라우드 연동</div>
-          </div>
-          <div class="tool-card" data-color="yellow" onclick="navigate('quotation')">
-            <span class="tool-emoji">📝</span>
-            <div class="tool-name">견적서</div>
-            <div class="tool-desc">디유 스페이스 견적서 생성<br>이력 저장 · PDF 인쇄</div>
-            <div class="tool-status">☁ 클라우드 연동</div>
-          </div>
-          <div class="tool-card" data-color="green" onclick="navigate('transaction')">
-            <span class="tool-emoji">📄</span>
-            <div class="tool-name">거래명세서</div>
-            <div class="tool-desc">품목 입력 → 인쇄/PDF<br>이력 저장 · 부가세 계산</div>
-            <div class="tool-status">☁ 클라우드 연동</div>
-          </div>
-          <div class="tool-card" data-color="blue" onclick="navigate('invoice')">
-            <span class="tool-emoji">🚚</span>
-            <div class="tool-name">송장 변환기</div>
-            <div class="tool-desc">쿠팡/오늘의집 → CJ/롯데 변환<br>운송장 매칭 · 오늘의집 업로드</div>
-            <div class="tool-status">☁ LIVE</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- LIVE 앱들 (iframe) -->
     <div class="subpage" id="page-laser"></div>
     <div class="subpage" id="page-freelancer"></div>
@@ -265,42 +249,68 @@
   };
 
   const pageInfo = {
-    overview: ['📊', '사업 현황'],
-    dashboard: ['🧰', '도구 모음'],
-    laser: ['🏷️', '레이저 각인'],
-    freelancer: ['👤', '프리랜서 급여'],
-    quotation: ['📝', '견적서'],
-    transaction: ['📄', '거래명세서'],
-    'order-dash': ['📊', '주문 대시보드'],
-    'order-upload': ['📦', '주문서 업로드'],
-    'order-list': ['📋', '주문 목록'],
-    'order-daily': ['📈', '일별 매출/예상 이익'],
-    'order-costs': ['💰', '상품 원가 관리'],
-    'order-products': ['📊', '제품별 판매량'],
-    'order-ads': ['📢', '광고비 관리'],
-    'order-finance': ['🏦', '재무 리포트'],
-    'order-inventory': ['📦', '재고 관리'],
-    'order-addons': ['🧩', '추가상품 관리'],
-    'order-merge': ['📂', '주문서 정리'],
-    invoice: ['🚚', '송장 변환기'],
-    'cf-upload': ['📤', '은행 엑셀 업로드'],
-    'cf-list': ['📋', '거래 목록/분류'],
-    'cf-dashboard': ['💳', '전체 지출 현황'],
-    'analysis': ['🔍', '사업 분석 리포트']
+    overview: '사업 현황',
+    laser: '레이저 각인',
+    freelancer: '프리랜서 급여',
+    quotation: '견적서',
+    transaction: '거래명세서',
+    'order-dash': '주문 대시보드',
+    'order-upload': '주문서 업로드',
+    'order-list': '주문 목록',
+    'order-daily': '일별 매출/예상 이익',
+    'order-costs': '상품 원가 관리',
+    'order-products': '제품별 판매량',
+    'order-ads': '광고비 관리',
+    'order-finance': '재무 리포트',
+    'order-inventory': '제품 통합관리',
+    'order-addons': '추가상품 관리',
+    'order-merge': '주문서 정리',
+    invoice: '송장 변환기',
+    'cf-upload': '은행 엑셀 업로드',
+    'cf-list': '거래 목록/분류',
+    'cf-dashboard': '전체 지출 현황',
+    'analysis': '사업 분석 리포트'
   };
 
+  const groupStorageKey = 'du-sidebar-groups-v1';
+  const navGroups = [...document.querySelectorAll('details.nav-group')];
+  function saveNavGroups() {
+    try {
+      localStorage.setItem(groupStorageKey, JSON.stringify(
+        Object.fromEntries(navGroups.map(group => [group.dataset.group, group.open]))
+      ));
+    } catch (_) { /* 브라우저 저장이 제한되어도 메뉴는 사용할 수 있습니다. */ }
+  }
+  try {
+    const savedGroups = JSON.parse(localStorage.getItem(groupStorageKey) || '{}') || {};
+    navGroups.forEach(group => {
+      if (typeof savedGroups[group.dataset.group] === 'boolean') {
+        group.open = savedGroups[group.dataset.group];
+      }
+    });
+  } catch (_) { /* 저장값이 없거나 잘못된 경우 기본 펼침 상태를 사용합니다. */ }
+  navGroups.forEach(group => group.addEventListener('toggle', saveNavGroups));
+
   function navigate(pageId) {
+    if (!iframePages[pageId]) pageId = 'overview';
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     const activeNav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
-    if (activeNav) activeNav.classList.add('active');
+    if (activeNav) {
+      activeNav.classList.add('active');
+      const group = activeNav.closest('details.nav-group');
+      if (group) group.open = true;
+    }
+    document.querySelectorAll('.nav-item').forEach(item => {
+      if (item === activeNav) item.setAttribute('aria-current', 'page');
+      else item.removeAttribute('aria-current');
+    });
     document.querySelectorAll('.subpage').forEach(p => p.classList.remove('active'));
     const page = document.getElementById('page-' + pageId);
     if (page) page.classList.add('active');
-    if (iframePages[pageId] && !page.querySelector('iframe')) {
+    if (page && iframePages[pageId] && !page.querySelector('iframe')) {
       page.innerHTML = `<iframe src="${iframePages[pageId]}"></iframe>`;
     }
-    const info = pageInfo[pageId] || ['📊', '대시보드'];
-    document.getElementById('topbarTitle').innerHTML = `<span>${info[0]}</span> ${info[1]}`;
+    document.getElementById('topbarTitle').textContent = pageInfo[pageId] || '사업 현황';
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('overlay').classList.remove('show');
   }
@@ -314,12 +324,6 @@
     document.getElementById('overlay').classList.toggle('show');
   }
 
-  const now = new Date();
-  const m = now.getMonth() + 1, d = now.getDate();
-  const dn = ['일','월','화','수','목','금','토'][now.getDay()];
-  const h = now.getHours();
-  const g = h < 12 ? '오전' : h < 18 ? '오후' : '저녁';
-  document.getElementById('greetingSub').textContent = `${m}월 ${d}일 ${dn}요일 · 좋은 ${g}이에요`;
   navigate('overview');
 </script>
 </body>
