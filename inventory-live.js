@@ -347,7 +347,7 @@ async function editSettings(id) {
 
 function editProductInfo(id) {
     switchMode('mapping');
-    renderMapping();
+    renderMapping(id);
     document.getElementById('existingProduct').value = String(id);
     loadExistingProduct();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -493,8 +493,18 @@ function updateGroupPreview() {
         <div class="mapping-note"><span>ℹ️</span><span>저장 후 어느 플랫폼에서 팔려도 ${escapeHtml(sku)} 재고에서 함께 차감됩니다.</span></div>`;
 }
 
-function renderMapping() {
+function representativeProducts() {
+    return products.filter(product => (product.product_type || 'finished') === 'finished')
+        .slice().sort((a, b) => String(a.sku || '').localeCompare(String(b.sku || ''), 'ko', { numeric: true })
+            || String(a.name || '').localeCompare(String(b.name || ''), 'ko', { numeric: true }));
+}
+
+function renderMapping(editingId = null) {
     selectedCandidateIndexes.clear();
+    const selectableProducts = representativeProducts();
+    // 재고 현황에서 부속품을 직접 수정할 때만 해당 항목을 임시로 표시합니다.
+    const editingProduct = products.find(product => product.id === editingId);
+    if (editingProduct && !selectableProducts.some(product => product.id === editingId)) selectableProducts.push(editingProduct);
     document.getElementById('mappingApp').innerHTML = `
         <section class="mapping-flow">
             <div class="flow-step"><span class="flow-no">1</span><div><div class="flow-title">내부 제품번호 만들기</div><div class="flow-copy">변하지 않는 우리 상품 번호</div></div></div>
@@ -508,7 +518,7 @@ function renderMapping() {
                 <div class="mapping-card-title">내부 제품번호</div>
                 <div class="mapping-card-copy">기존 제품을 선택하면 제품명·제품번호를 수정할 수 있습니다. 원가·부속품 구성·플랫폼 연결은 유지됩니다.</div>
                 <div class="form-grid">
-                    <div class="field span-2"><label>기존 제품 선택 · 새 제품이면 ‘새 제품 등록’</label><select id="existingProduct" onchange="loadExistingProduct()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="">새 제품 등록</option>${products.map(product => `<option value="${product.id}">${escapeHtml(product.sku)} · ${escapeHtml(product.name)}${product.is_active === false ? ' · 사용중지' : ''}</option>`).join('')}</select></div>
+                    <div class="field span-2"><label>대표 제품 선택 · 새 제품이면 ‘새 제품 등록’</label><select id="existingProduct" onchange="loadExistingProduct()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="">새 제품 등록</option>${selectableProducts.map(product => `<option value="${product.id}">${escapeHtml(product.sku)} · ${escapeHtml(product.name)}${product.is_active === false ? ' · 사용중지' : ''}</option>`).join('')}</select></div>
                     <div class="field"><label>제품 종류</label><select id="skuType" onchange="changeProductType()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="finished">완제품</option><option value="component">부속품·재료</option><option value="addon">추가상품</option></select></div>
                     <div class="field"><label>관리 단위</label><input id="skuUnit" value="개" placeholder="개, 장, 세트"></div>
                     <div class="field span-2"><label>제품번호</label><div class="field-row"><input id="skuCode" value="${nextSku('finished')}" oninput="syncExistingMode();updateGroupPreview()"><button class="mini-btn" type="button" onclick="setAutoSku()">자동번호</button></div></div>
