@@ -373,7 +373,6 @@ function nextSku(type = 'finished') {
 
 function setAutoSku() {
     document.getElementById('skuCode').value = nextSku(document.getElementById('skuType')?.value || 'finished');
-    document.getElementById('existingProduct').value = '';
     syncExistingMode();
     updateGroupPreview();
 }
@@ -418,15 +417,14 @@ function loadExistingProduct() {
 }
 
 function syncExistingMode() {
-    const sku = document.getElementById('skuCode')?.value.trim().toUpperCase();
-    const existing = products.find(product => product.sku === sku);
+    const selectedId = Number(document.getElementById('existingProduct')?.value);
+    const existing = products.find(product => product.id === selectedId);
     const stockInput = document.getElementById('skuStock');
     const dateInput = document.getElementById('skuDate');
     if (stockInput) stockInput.disabled = Boolean(existing);
     if (dateInput) dateInput.disabled = Boolean(existing);
-    const selectedId = Number(document.getElementById('existingProduct')?.value);
     const skuInput = document.getElementById('skuCode');
-    if (skuInput) skuInput.readOnly = Boolean(selectedId);
+    if (skuInput) skuInput.readOnly = false;
     const costInput = document.getElementById('skuCost');
     if (costInput) {
         costInput.readOnly = Boolean(existing);
@@ -475,7 +473,8 @@ function updateGroupPreview() {
     const linkQuantity = Math.max(1, Number(document.getElementById('skuLinkQty')?.value) || 1);
     const totalSold = selected.reduce((sum, item) => sum + item.sold30, 0);
     const platforms = [...new Set(selected.map(item => item.platform))];
-    const existing = products.find(product => product.sku === sku);
+    const selectedId = Number(document.getElementById('existingProduct')?.value);
+    const existing = products.find(product => product.id === selectedId);
     target.innerHTML = `
         <div class="mapping-card-title">${existing ? '기존 제품 수정·연결' : '새 제품 등록'}</div>
         <div class="mapping-card-copy">${existing ? '기존 원가와 부속품 구성은 유지됩니다.' : '플랫폼 상품을 선택하지 않아도 등록할 수 있습니다.'}</div>
@@ -507,7 +506,7 @@ function renderMapping() {
         <section class="mapping-layout">
             <article class="mapping-card">
                 <div class="mapping-card-title">내부 제품번호</div>
-                <div class="mapping-card-copy">기존 제품을 선택하면 저장된 정보가 불러와집니다. 이름 수정 시 원가·부속품 구성은 유지됩니다.</div>
+                <div class="mapping-card-copy">기존 제품을 선택하면 제품명·제품번호를 수정할 수 있습니다. 원가·부속품 구성·플랫폼 연결은 유지됩니다.</div>
                 <div class="form-grid">
                     <div class="field span-2"><label>기존 제품 선택 · 새 제품이면 ‘새 제품 등록’</label><select id="existingProduct" onchange="loadExistingProduct()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="">새 제품 등록</option>${products.map(product => `<option value="${product.id}">${escapeHtml(product.sku)} · ${escapeHtml(product.name)}${product.is_active === false ? ' · 사용중지' : ''}</option>`).join('')}</select></div>
                     <div class="field"><label>제품 종류</label><select id="skuType" onchange="changeProductType()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="finished">완제품</option><option value="component">부속품·재료</option><option value="addon">추가상품</option></select></div>
@@ -566,21 +565,21 @@ async function saveProductGroup() {
     }
 
     const selectedProductId = Number(document.getElementById('existingProduct')?.value);
-    let product = selectedProductId
-        ? products.find(item => item.id === selectedProductId)
-        : products.find(item => item.sku === sku);
+    let product = products.find(item => item.id === selectedProductId);
     if (selectedProductId && !product) return showToast('기존 제품을 불러오지 못했습니다. 새로고침 후 다시 선택해주세요.');
-    if (selectedProductId && product.sku !== sku) return showToast('기존 제품번호는 변경하지 않습니다. 이름만 수정하거나 새 제품으로 등록해주세요.');
+    const duplicate = products.find(item => item.sku?.toUpperCase() === sku && item.id !== product?.id);
+    if (duplicate) return showToast(`이미 사용 중인 제품번호입니다: ${duplicate.sku} · ${duplicate.name}. 다른 번호를 입력해주세요.`);
     const previousType = product?.product_type;
     if (!product) {
         const { data, error } = await db.from('my_products').insert({
             sku, name, ...values, cost, selling_price: sellingPrice, product_type: productType, unit, cost_recipe: [], is_active: true, updated_at: new Date().toISOString()
         }).select().single();
-        if (error) return showToast(`제품 저장 실패: ${error.message}`);
+        if (error) return showToast(productSaveError(error));
         product = data;
     } else {
         // 이름/연결 수정은 원가, 원가 구성, 수수료 설정, 실제 재고를 덮어쓰지 않습니다.
         const update = {
+            sku,
             name,
             product_type: productType,
             unit,
@@ -592,7 +591,7 @@ async function saveProductGroup() {
         };
         if (sellingPrice !== Number(product.selling_price || 0)) update.selling_price = sellingPrice;
         const { data: saved, error } = await db.from('my_products').update(update).eq('id', product.id).select('id').single();
-        if (error) return showToast(`제품 수정 실패: ${error.message}`);
+        if (error) return showToast(productSaveError(error));
         if (!saved) return showToast('제품 수정이 반영되지 않았습니다. 저장 권한을 확인해주세요.');
         if (previousType !== productType) {
             const { error: roleError } = await db.from('product_links').update({
@@ -627,6 +626,15 @@ async function saveProductGroup() {
     showToast(selected.length ? `${sku}에 ${selected.length}개 상품을 연결했습니다.` : `${sku} 제품 정보를 저장했습니다.`);
     await loadData();
     switchMode('dashboard');
+}
+
+function productSaveError(error) {
+    if (error.code === '23505') {
+        if (/history_conflict|원가 이력/.test(error.message || '')) return '이 제품번호에 예전 원가 이력이 남아 있습니다. 다른 번호를 입력해주세요. 기존 데이터는 변경하지 않았습니다.';
+        if (/sku/i.test(error.message || '')) return '다른 제품이 사용하는 제품번호입니다. 다른 번호를 입력해주세요.';
+        if (/name_key/.test(error.message || '')) return '제품명 중복 허용 설정이 아직 반영되지 않았습니다. 관리자에게 확인해주세요.';
+    }
+    return `제품 저장 실패: ${error.message || '잠시 후 다시 시도해주세요.'}`;
 }
 
 async function deleteProductLink(id) {
