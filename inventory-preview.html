@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>디유 스페이스 - 재고 관리</title>
+<title>디유 스페이스 - 제품 통합관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -156,15 +156,16 @@ h1{font-size:28px;line-height:1.2;letter-spacing:-.045em;margin-bottom:7px}
 <main class="inventory">
     <header class="page-head">
         <div>
-            <div class="eyebrow">DU-SPACE INVENTORY</div>
-            <h1>재고 관리</h1>
-            <p class="page-sub">주문은 자동으로 반영하고, 최초 재고와 입고 수량만 직접 관리하는 방식입니다.</p>
+            <div class="eyebrow">DU-SPACE PRODUCT MASTER</div>
+            <h1>제품 통합관리</h1>
+            <p class="page-sub">플랫폼마다 다른 상품명과 옵션을 내부 제품번호 하나로 묶어 재고와 원가를 관리합니다.</p>
         </div>
         <div class="preview-pill"><span class="preview-dot"></span>실시간 주문 연동 · 저장 가능</div>
     </header>
-    <nav class="mode-tabs" aria-label="재고 관리 화면">
-        <button class="mode-tab active" data-view="dashboard" onclick="switchMode('dashboard')">재고 현황</button>
-        <button class="mode-tab" data-view="mapping" onclick="switchMode('mapping')">제품번호로 묶기</button>
+    <nav class="mode-tabs" aria-label="제품 통합관리 화면">
+        <button class="mode-tab active" data-view="dashboard" onclick="switchMode('dashboard')">제품 현황</button>
+        <button class="mode-tab" data-view="mapping" onclick="switchMode('mapping')">제품 등록·연결</button>
+        <button class="mode-tab" data-view="unmapped" onclick="switchMode('unmapped')">미연결 주문 <span id="unmappedTabCount"></span></button>
         <button class="mode-tab" data-view="idus" onclick="switchMode('idus')">아이디어스 옵션 분해</button>
     </nav>
     <section class="mode-view active" id="dashboardView">
@@ -172,6 +173,9 @@ h1{font-size:28px;line-height:1.2;letter-spacing:-.045em;margin-bottom:7px}
     </section>
     <section class="mode-view" id="mappingView">
         <div id="mappingApp"><div class="loading">플랫폼 상품을 불러오고 있습니다.</div></div>
+    </section>
+    <section class="mode-view" id="unmappedView">
+        <div id="unmappedApp"><div class="loading">연결되지 않은 주문을 찾고 있습니다.</div></div>
     </section>
     <section class="mode-view" id="idusView">
         <div id="idusApp"><div class="loading">아이디어스 실제 옵션을 분석하고 있습니다.</div></div>
@@ -655,6 +659,6 @@ async function loadInventory(){
 loadInventory();
 }
 </script>
-<script src="inventory-live.js"></script>
+<script src="inventory-live.js?v=20260917-preserve-cost1"></script>
 </body>
 </html>

@@ -18,6 +18,7 @@ let dashboardRows = [];
 let selectedCandidateIndexes = new Set();
 let selectedIdusIndex = 0;
 let currentFilter = 'all';
+let dataAsOf = '';
 
 const fmt = value => Math.round(Number(value) || 0).toLocaleString('ko-KR');
 const todayText = () => {
@@ -35,8 +36,8 @@ const shortName = value => {
 const orderKey = item => `${item.platform}|${item.product}|${item.option || ''}`;
 const daysAgo = dateText => {
     const target = new Date(`${dateText}T00:00:00`);
-    const today = new Date(`${todayText()}T00:00:00`);
-    return Math.floor((today - target) / 86400000);
+    const reference = new Date(`${dataAsOf || todayText()}T00:00:00`);
+    return Math.floor((reference - target) / 86400000);
 };
 
 async function fetchAll(table, select, configure = query => query) {
@@ -66,24 +67,39 @@ function switchMode(mode) {
     );
     document.getElementById('dashboardView').classList.toggle('active', mode === 'dashboard');
     document.getElementById('mappingView').classList.toggle('active', mode === 'mapping');
+    document.getElementById('unmappedView').classList.toggle('active', mode === 'unmapped');
     document.getElementById('idusView').classList.toggle('active', mode === 'idus');
 }
 
 function linksForOrder(order) {
-    const exact = links.filter(link =>
+    const active = links.filter(link => link.is_active !== false);
+    const exact = active.filter(link =>
+        link.product !== '*' &&
         link.is_active !== false &&
         link.platform === order.platform &&
         link.product === order.product &&
         (link.option || '') === (order.option || '')
     );
-    if (exact.length) return exact;
-    return links.filter(link =>
-        link.is_active !== false &&
+    const productLevel = exact.length ? [] : active.filter(link =>
+        link.product !== '*' &&
         link.platform === order.platform &&
         link.product === order.product &&
         !(link.option || '')
     );
+    const combined = `${order.product || ''} ${order.option || ''}`.toLowerCase();
+    const keyword = active.filter(link =>
+        link.product === '*' &&
+        (link.platform === '전체' || link.platform === order.platform) &&
+        String(link.option || '').trim() &&
+        combined.includes(String(link.option).trim().toLowerCase())
+    );
+    return [...new Map([...exact, ...productLevel, ...keyword].map(link => [link.id, link])).values()];
 }
+
+const PRODUCT_TYPE_LABELS = { finished: '완제품', component: '부속품', addon: '추가상품' };
+const PRODUCT_TYPE_PREFIXES = { finished: 'DU-P', component: 'DU-M', addon: 'DU-A' };
+function productTypeLabel(value) { return PRODUCT_TYPE_LABELS[value] || '완제품'; }
+function mappingRoleForType(value) { return value === 'addon' ? 'addon' : value === 'component' ? 'component' : 'base'; }
 
 function buildInventoryRows() {
     const usage = new Map(products.map(product => [product.id, {
@@ -190,7 +206,7 @@ function renderRows() {
     if (currentFilter === 'selling') rows = rows.filter(row => row.sold30 > 0);
     const tbody = document.getElementById('inventoryBody');
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="10"><div class="empty">이 조건에 해당하는 제품이 없습니다.</div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12"><div class="empty">이 조건에 해당하는 제품이 없습니다.</div></td></tr>';
         return;
     }
     tbody.innerHTML = rows.map(row => {
@@ -205,11 +221,13 @@ function renderRows() {
                     <span class="product-icon">📦</span>
                     <div style="min-width:0">
                         <div class="product-name" title="${escapeHtml(row.name)}">${escapeHtml(row.name)}</div>
-                        <span class="sku-tag">${escapeHtml(row.sku)}</span>
+                        <span class="sku-tag">${escapeHtml(row.sku)}</span> <span class="linked-badge">${productTypeLabel(row.product_type)}</span>
                         <div class="product-meta">${platformDots}<span>${escapeHtml(row.platforms.join(' · ') || '연결 상품 없음')}</span></div>
                     </div>
                 </div>
             </td>
+            <td class="num">${fmt(row.cost)}원</td>
+            <td class="num">${fmt(row.selling_price)}원</td>
             <td class="num">${fmt(row.sold30)}개</td>
             <td class="num">${row.forecastDaily.toFixed(1)}개</td>
             <td class="num">${fmt(row.currentStock)}개<div class="runout-date">기준 ${escapeHtml(row.stock_as_of)}</div></td>
@@ -221,7 +239,8 @@ function renderRows() {
             <td><div class="inline-actions">
                 <button class="ghost-btn" onclick="receiveStock(${row.id})">입고</button>
                 <button class="ghost-btn" onclick="adjustStock(${row.id})">실사</button>
-                <button class="ghost-btn" onclick="editSettings(${row.id})">설정</button>
+                <button class="ghost-btn" onclick="editProductInfo(${row.id})">제품정보</button>
+                <button class="ghost-btn" onclick="toggleProductUsage(${row.id},false)">사용중지</button>
             </div></td>
         </tr>`;
     }).join('');
@@ -232,31 +251,33 @@ function renderDashboard() {
     const totalStock = dashboardRows.reduce((sum, row) => sum + row.currentStock, 0);
     const sold30 = dashboardRows.reduce((sum, row) => sum + row.sold30, 0);
     const lowCount = dashboardRows.filter(row => row.low).length;
-    const mappedKeys = new Set(links.filter(link => link.is_active !== false).map(link => `${link.platform}|${link.product}|${link.option || ''}`));
     const recentCandidates = platformCandidates.filter(item => item.sold30 > 0);
-    const unmappedCount = recentCandidates.filter(item => !mappedKeys.has(item.key)).length;
+    const unmappedCount = recentCandidates.filter(item => !linksForOrder(item).length).length;
+    const unmappedBadge = document.getElementById('unmappedTabCount');
+    if (unmappedBadge) unmappedBadge.textContent = unmappedCount ? `(${fmt(unmappedCount)})` : '';
     document.getElementById('app').innerHTML = `
         ${renderAlertStrip()}
         <section class="kpi-grid">
-            <article class="kpi"><div class="kpi-label">관리 제품</div><div class="kpi-value">${fmt(dashboardRows.length)}개</div><div class="kpi-note">제품번호 기준 통합 재고</div></article>
+            <article class="kpi"><div class="kpi-label">등록 제품번호</div><div class="kpi-value">${fmt(dashboardRows.length)}개</div><div class="kpi-note">완제품·부속품·추가상품 통합</div></article>
             <article class="kpi"><div class="kpi-label">현재 추정 재고</div><div class="kpi-value">${fmt(totalStock)}개</div><div class="kpi-note">기준 재고 - 이후 주문 차감</div></article>
             <article class="kpi"><div class="kpi-label">30일 판매수량</div><div class="kpi-value">${fmt(sold30)}개</div><div class="kpi-note">연결 완료 제품 기준</div></article>
-            <article class="kpi"><div class="kpi-label">발주 확인</div><div class="kpi-value">${fmt(lowCount)}개</div><div class="kpi-note">미연결 주문상품 ${fmt(unmappedCount)}개</div></article>
+            <article class="kpi"><div class="kpi-label">발주 확인</div><div class="kpi-value">${fmt(lowCount)}개</div><div class="kpi-note">미연결 주문형태 ${fmt(unmappedCount)}개</div></article>
         </section>
-        <div class="method-note"><b>예상 소진 계산:</b> 최근 7일 50% + 14일 30% + 30일 20%의 가중 일평균을 사용합니다. AI 추측이 아니라 주문수량을 이용한 고정 공식이며, 표의 신뢰도는 판매 표본량에 따라 표시됩니다.</div>
+        <div class="method-note"><b>관리 기준:</b> 플랫폼 상품명과 옵션이 달라도 내부 제품번호가 같으면 재고·원가·판매량을 한 제품으로 합칩니다. 판매 추이는 최근 업로드 주문일 ${escapeHtml(dataAsOf || '-')} 기준이며, 예상 소진은 7일 50% + 14일 30% + 30일 20%의 가중 일평균입니다.</div>
         <section class="panel">
             <div class="panel-head">
-                <div><div class="panel-title">제품번호별 재고 현황</div><div class="panel-desc">주문서가 추가되면 연결된 제품 재고와 소진 예상이 자동으로 다시 계산됩니다.</div></div>
+                <div><div class="panel-title">제품번호별 통합 현황</div><div class="panel-desc">주문서가 추가되면 연결된 제품의 판매량·재고·소진 예상이 자동으로 다시 계산됩니다.</div></div>
                 <div class="panel-actions">
                     <button class="filter-btn" data-filter="all" onclick="applyFilter('all')">전체</button>
                     <button class="filter-btn" data-filter="low" onclick="applyFilter('low')">발주 확인</button>
                     <button class="filter-btn" data-filter="selling" onclick="applyFilter('selling')">판매 중</button>
-                    <button class="action-btn green" onclick="switchMode('mapping')">제품 연결</button>
+                    <button class="action-btn" onclick="switchMode('unmapped')">미연결 확인</button>
+                    <button class="action-btn green" onclick="switchMode('mapping')">제품 등록·연결</button>
                 </div>
             </div>
             <div class="table-wrap">
-                <table class="inventory-table" style="min-width:1180px">
-                    <thead><tr><th>내부 제품</th><th>30일 판매</th><th>예상 일판매</th><th>현재 재고</th><th>안전재고</th><th>예상 소진</th><th>추천 입고</th><th>상태</th><th>신뢰도</th><th>관리</th></tr></thead>
+                <table class="inventory-table" style="min-width:1380px">
+                    <thead><tr><th>내부 제품번호</th><th>현재 원가</th><th>판매가</th><th>30일 판매</th><th>예상 일판매</th><th>현재 재고</th><th>안전재고</th><th>예상 소진</th><th>추천 입고</th><th>상태</th><th>신뢰도</th><th>관리</th></tr></thead>
                     <tbody id="inventoryBody"></tbody>
                 </table>
             </div>
@@ -324,19 +345,42 @@ async function editSettings(id) {
     await loadData();
 }
 
-function nextSku() {
+function editProductInfo(id) {
+    switchMode('mapping');
+    renderMapping();
+    document.getElementById('existingProduct').value = String(id);
+    loadExistingProduct();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function toggleProductUsage(id, active) {
+    if (!active && !confirm('이 제품을 사용중지할까요? 주문과 연결 기록은 삭제되지 않습니다.')) return;
+    const { error } = await db.from('my_products').update({ is_active: active, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) return showToast(`변경 실패: ${error.message}`);
+    showToast(active ? '제품을 다시 사용합니다.' : '제품을 사용중지했습니다.');
+    await loadData();
+}
+
+function nextSku(type = 'finished') {
     const used = new Set(products.map(product => product.sku));
+    const prefix = PRODUCT_TYPE_PREFIXES[type] || PRODUCT_TYPE_PREFIXES.finished;
     for (let number = 1; number < 10000; number++) {
-        const sku = `DU-P-${String(number).padStart(3, '0')}`;
+        const sku = `${prefix}-${String(number).padStart(3, '0')}`;
         if (!used.has(sku)) return sku;
     }
-    return `DU-P-${Date.now()}`;
+    return `${prefix}-${Date.now()}`;
 }
 
 function setAutoSku() {
-    document.getElementById('skuCode').value = nextSku();
+    document.getElementById('skuCode').value = nextSku(document.getElementById('skuType')?.value || 'finished');
     document.getElementById('existingProduct').value = '';
     syncExistingMode();
+    updateGroupPreview();
+}
+
+function changeProductType() {
+    const existingId = Number(document.getElementById('existingProduct')?.value);
+    if (!existingId) document.getElementById('skuCode').value = nextSku(document.getElementById('skuType').value);
     updateGroupPreview();
 }
 
@@ -344,8 +388,12 @@ function loadExistingProduct() {
     const id = Number(document.getElementById('existingProduct').value);
     const product = products.find(item => item.id === id);
     if (!product) {
-        document.getElementById('skuCode').value = nextSku();
+        document.getElementById('skuType').value = 'finished';
+        document.getElementById('skuCode').value = nextSku('finished');
         document.getElementById('skuName').value = '';
+        document.getElementById('skuCost').value = 0;
+        document.getElementById('skuPrice').value = 0;
+        document.getElementById('skuUnit').value = '개';
         document.getElementById('skuStock').value = 0;
         document.getElementById('skuSafe').value = 10;
         document.getElementById('skuDate').value = todayText();
@@ -355,6 +403,10 @@ function loadExistingProduct() {
         const row = dashboardRows.find(item => item.id === id);
         document.getElementById('skuCode').value = product.sku;
         document.getElementById('skuName').value = product.name;
+        document.getElementById('skuType').value = product.product_type || 'finished';
+        document.getElementById('skuCost').value = Number(product.cost) || 0;
+        document.getElementById('skuPrice').value = Number(product.selling_price) || 0;
+        document.getElementById('skuUnit').value = product.unit || '개';
         document.getElementById('skuStock').value = Math.max(0, row?.currentStock ?? product.stock);
         document.getElementById('skuSafe').value = product.safe_stock;
         document.getElementById('skuDate').value = product.stock_as_of;
@@ -372,6 +424,14 @@ function syncExistingMode() {
     const dateInput = document.getElementById('skuDate');
     if (stockInput) stockInput.disabled = Boolean(existing);
     if (dateInput) dateInput.disabled = Boolean(existing);
+    const selectedId = Number(document.getElementById('existingProduct')?.value);
+    const skuInput = document.getElementById('skuCode');
+    if (skuInput) skuInput.readOnly = Boolean(selectedId);
+    const costInput = document.getElementById('skuCost');
+    if (costInput) {
+        costInput.readOnly = Boolean(existing);
+        costInput.title = existing ? '저장된 원가는 유지됩니다. 원가 변경은 상품 원가 관리에서 해주세요.' : '';
+    }
 }
 
 function toggleCandidate(index, checked) {
@@ -390,7 +450,7 @@ function renderCandidateList(query = '') {
         .filter(({ candidate }) => !keyword || `${candidate.platform} ${candidate.product} ${candidate.option}`.toLowerCase().includes(keyword))
         .slice(0, 80);
     list.innerHTML = filtered.map(({ candidate, index }) => {
-        const mapped = linksForOrder(candidate).filter(link => link.mapping_role === 'base');
+        const mapped = linksForOrder(candidate);
         const mappedLabel = mapped.map(link => productNames.get(link.my_product_id)?.sku).filter(Boolean).join(', ');
         return `<label class="candidate-row">
             <input type="checkbox" ${selectedCandidateIndexes.has(index) ? 'checked' : ''} onchange="toggleCandidate(${index},this.checked)">
@@ -401,7 +461,7 @@ function renderCandidateList(query = '') {
             </span>
             <span class="candidate-sales">30일 ${fmt(candidate.sold30)}개</span>
         </label>`;
-    }).join('') || '<div class="empty">검색 결과가 없습니다.</div>';
+    }).join('') || `<div class="empty">${keyword ? '검색 결과가 없습니다. 검색어를 지워보세요.' : '업로드된 주문 상품이 없습니다. 제품 등록과 이름 수정은 플랫폼 선택 없이 가능합니다.'}</div>`;
 }
 
 function updateGroupPreview() {
@@ -410,24 +470,27 @@ function updateGroupPreview() {
     const selected = [...selectedCandidateIndexes].map(index => platformCandidates[index]).filter(Boolean);
     const sku = document.getElementById('skuCode')?.value.trim().toUpperCase() || '제품번호 없음';
     const name = document.getElementById('skuName')?.value.trim() || '제품명 없음';
+    const type = document.getElementById('skuType')?.value || 'finished';
+    const cost = Number(document.getElementById('skuCost')?.value) || 0;
+    const linkQuantity = Math.max(1, Number(document.getElementById('skuLinkQty')?.value) || 1);
     const totalSold = selected.reduce((sum, item) => sum + item.sold30, 0);
     const platforms = [...new Set(selected.map(item => item.platform))];
     const existing = products.find(product => product.sku === sku);
     target.innerHTML = `
-        <div class="mapping-card-title">${existing ? '기존 제품에 연결' : '새 제품으로 묶기'}</div>
-        <div class="mapping-card-copy">선택한 플랫폼 상품이 모두 아래 재고 하나를 사용합니다.</div>
+        <div class="mapping-card-title">${existing ? '기존 제품 수정·연결' : '새 제품 등록'}</div>
+        <div class="mapping-card-copy">${existing ? '기존 원가와 부속품 구성은 유지됩니다.' : '플랫폼 상품을 선택하지 않아도 등록할 수 있습니다.'}</div>
         <div class="sku-code">${escapeHtml(sku)}</div>
         <div class="sku-name">${escapeHtml(name)}</div>
         <div class="result-grid">
             <div class="result-cell"><div class="result-label">연결 플랫폼</div><div class="result-value">${platforms.length}개</div></div>
-            <div class="result-cell"><div class="result-label">연결 상품</div><div class="result-value">${selected.length}개</div></div>
+            <div class="result-cell"><div class="result-label">연결 상품·차감</div><div class="result-value">${selected.length}개 · 주문당 ${fmt(linkQuantity)}${escapeHtml(document.getElementById('skuUnit')?.value || '개')}</div></div>
             <div class="result-cell"><div class="result-label">30일 통합 판매</div><div class="result-value">${fmt(totalSold)}개</div></div>
-            <div class="result-cell"><div class="result-label">현재 상태</div><div class="result-value">${existing ? '등록됨' : '신규'}</div></div>
+            <div class="result-cell"><div class="result-label">종류·원가</div><div class="result-value">${productTypeLabel(type)} · ${fmt(cost)}원</div></div>
         </div>
         <div class="linked-list">${selected.slice(0, 5).map(item => `
             <div class="linked-item"><span class="linked-pf">${escapeHtml(item.platform)}</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(shortName(item.product))}</span></div>`
-        ).join('') || '<div class="linked-item">가운데 목록에서 같은 실물 상품을 선택하세요.</div>'}</div>
-        <button class="primary-preview" type="button" onclick="saveProductGroup()">${existing ? '선택 상품을 이 제품에 연결' : '제품 등록하고 연결'}</button>
+        ).join('') || '<div class="linked-item">플랫폼 연결은 선택사항입니다. 나중에 연결해도 됩니다.</div>'}</div>
+        <button class="primary-preview" type="button" onclick="saveProductGroup()">${selected.length ? (existing ? '제품 정보 저장하고 선택 상품 연결' : '제품 등록하고 연결') : (existing ? '제품 정보만 저장' : '제품번호만 먼저 등록')}</button>
         <div class="mapping-note"><span>ℹ️</span><span>저장 후 어느 플랫폼에서 팔려도 ${escapeHtml(sku)} 재고에서 함께 차감됩니다.</span></div>`;
 }
 
@@ -443,12 +506,17 @@ function renderMapping() {
         </section>
         <section class="mapping-layout">
             <article class="mapping-card">
-                <div class="mapping-card-title">내부 제품</div>
-                <div class="mapping-card-copy">기존 제품을 선택하면 재고는 유지하고 플랫폼 상품만 추가 연결합니다.</div>
+                <div class="mapping-card-title">내부 제품번호</div>
+                <div class="mapping-card-copy">기존 제품을 선택하면 저장된 정보가 불러와집니다. 이름 수정 시 원가·부속품 구성은 유지됩니다.</div>
                 <div class="form-grid">
-                    <div class="field span-2"><label>기존 제품 선택 · 새 제품이면 ‘새 제품 등록’</label><select id="existingProduct" onchange="loadExistingProduct()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="">새 제품 등록</option>${products.map(product => `<option value="${product.id}">${escapeHtml(product.sku)} · ${escapeHtml(product.name)}</option>`).join('')}</select></div>
-                    <div class="field span-2"><label>제품번호</label><div class="field-row"><input id="skuCode" value="${nextSku()}" oninput="syncExistingMode();updateGroupPreview()"><button class="mini-btn" type="button" onclick="setAutoSku()">자동번호</button></div></div>
+                    <div class="field span-2"><label>기존 제품 선택 · 새 제품이면 ‘새 제품 등록’</label><select id="existingProduct" onchange="loadExistingProduct()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="">새 제품 등록</option>${products.map(product => `<option value="${product.id}">${escapeHtml(product.sku)} · ${escapeHtml(product.name)}${product.is_active === false ? ' · 사용중지' : ''}</option>`).join('')}</select></div>
+                    <div class="field"><label>제품 종류</label><select id="skuType" onchange="changeProductType()" style="width:100%;border:1px solid #deded8;border-radius:9px;background:#fafaf8;padding:9px 10px;font-size:11px"><option value="finished">완제품</option><option value="component">부속품·재료</option><option value="addon">추가상품</option></select></div>
+                    <div class="field"><label>관리 단위</label><input id="skuUnit" value="개" placeholder="개, 장, 세트"></div>
+                    <div class="field span-2"><label>제품번호</label><div class="field-row"><input id="skuCode" value="${nextSku('finished')}" oninput="syncExistingMode();updateGroupPreview()"><button class="mini-btn" type="button" onclick="setAutoSku()">자동번호</button></div></div>
                     <div class="field span-2"><label>내부 제품명</label><input id="skuName" placeholder="예: 액막이 명태 자석형" oninput="updateGroupPreview()"></div>
+                    <div class="field"><label>현재 원가</label><input id="skuCost" type="number" min="0" value="0" oninput="updateGroupPreview()"></div>
+                    <div class="field"><label>기준 판매가</label><input id="skuPrice" type="number" min="0" value="0"></div>
+                    <div class="field span-2"><label>주문 1개당 재고 차감수량</label><input id="skuLinkQty" type="number" min="1" value="1" oninput="updateGroupPreview()"></div>
                     <div class="field"><label>현재 실제 재고</label><input id="skuStock" type="number" min="0" value="0"></div>
                     <div class="field"><label>안전재고</label><input id="skuSafe" type="number" min="0" value="10"></div>
                     <div class="field"><label>재고 기준일</label><input id="skuDate" type="date" value="${todayText()}"></div>
@@ -459,11 +527,17 @@ function renderMapping() {
             </article>
             <article class="mapping-card">
                 <div class="mapping-card-title">플랫폼 상품 선택</div>
-                <div class="mapping-card-copy">최근 30일 주문상품입니다. 같은 실물 상품을 여러 개 선택하세요.</div>
+                <div class="mapping-card-copy">업로드한 전체 주문 상품입니다. 판매수량은 최근 업로드 주문일 ${escapeHtml(dataAsOf || '-')} 기준 30일입니다. 연결은 나중에 해도 됩니다.</div>
                 <input class="candidate-search" type="search" placeholder="상품명·옵션·플랫폼 검색" oninput="renderCandidateList(this.value)">
                 <div class="candidate-list" id="candidateList"></div>
             </article>
             <article class="mapping-card dark" id="groupPreview"></article>
+        </section>
+        <section class="panel" style="margin-top:14px">
+            <div class="panel-head"><div><div class="panel-title">현재 플랫폼 연결</div><div class="panel-desc">연결을 해제해도 주문 원본과 제품은 삭제되지 않습니다.</div></div><span class="linked-badge">${fmt(links.filter(link => link.is_active !== false).length)}개</span></div>
+            <div class="table-wrap"><table class="inventory-table" style="min-width:1050px"><thead><tr><th>내부 제품번호</th><th>플랫폼</th><th>플랫폼 상품명</th><th>옵션·찾을 문구</th><th>차감수량</th><th>연결 방식</th><th>관리</th></tr></thead><tbody>
+            ${links.filter(link => link.is_active !== false).slice().reverse().slice(0, 120).map(link => { const product = products.find(item => item.id === link.my_product_id); return `<tr><td><span class="sku-tag">${escapeHtml(product?.sku || '없는 제품')}</span><div class="product-name" style="margin-top:5px">${escapeHtml(product?.name || '-')}</div></td><td><span class="candidate-platform" style="--pf:${PLATFORM_COLORS[link.platform] || '#777'}">${escapeHtml(link.platform)}</span></td><td style="text-align:left;max-width:330px"><div class="candidate-name">${escapeHtml(link.product === '*' ? '상품명 전체' : link.product)}</div></td><td style="text-align:left;max-width:330px"><div class="candidate-option">${escapeHtml(link.option || '옵션 전체')}</div></td><td class="num">${fmt(link.quantity_per_order || 1)}${escapeHtml(product?.unit || '개')}</td><td>${productTypeLabel(product?.product_type)}</td><td><button class="ghost-btn" onclick="deleteProductLink(${link.id})">연결 해제</button></td></tr>`; }).join('') || '<tr><td colspan="7"><div class="empty">연결된 플랫폼 상품이 없습니다.</div></td></tr>'}
+            </tbody></table></div>
         </section>`;
     renderCandidateList();
     syncExistingMode();
@@ -473,9 +547,13 @@ function renderMapping() {
 async function saveProductGroup() {
     const sku = document.getElementById('skuCode').value.trim().toUpperCase();
     const name = document.getElementById('skuName').value.trim();
+    const productType = document.getElementById('skuType').value;
+    const cost = Number(document.getElementById('skuCost').value);
+    const sellingPrice = Number(document.getElementById('skuPrice').value);
+    const unit = document.getElementById('skuUnit').value.trim() || '개';
+    const linkQuantity = Number(document.getElementById('skuLinkQty').value);
     const selected = [...selectedCandidateIndexes].map(index => platformCandidates[index]).filter(Boolean);
     if (!sku || !name) return showToast('제품번호와 내부 제품명을 입력해주세요.');
-    if (!selected.length) return showToast('같은 재고로 묶을 플랫폼 상품을 선택해주세요.');
     const values = {
         stock: Number(document.getElementById('skuStock').value),
         safe_stock: Number(document.getElementById('skuSafe').value),
@@ -483,51 +561,81 @@ async function saveProductGroup() {
         lead_time_days: Number(document.getElementById('skuLead').value),
         target_cover_days: Number(document.getElementById('skuTarget').value)
     };
-    if (Object.values(values).some(value => typeof value === 'number' && (!Number.isFinite(value) || value < 0)) || values.target_cover_days <= 0) {
-        return showToast('재고와 설정값을 올바르게 입력해주세요.');
+    if (![cost, sellingPrice].every(value => Number.isFinite(value) && value >= 0) || !Number.isFinite(linkQuantity) || linkQuantity <= 0 || Object.values(values).some(value => typeof value === 'number' && (!Number.isFinite(value) || value < 0)) || values.target_cover_days <= 0) {
+        return showToast('원가·판매가·재고와 설정값을 올바르게 입력해주세요.');
     }
 
-    let product = products.find(item => item.sku === sku);
+    const selectedProductId = Number(document.getElementById('existingProduct')?.value);
+    let product = selectedProductId
+        ? products.find(item => item.id === selectedProductId)
+        : products.find(item => item.sku === sku);
+    if (selectedProductId && !product) return showToast('기존 제품을 불러오지 못했습니다. 새로고침 후 다시 선택해주세요.');
+    if (selectedProductId && product.sku !== sku) return showToast('기존 제품번호는 변경하지 않습니다. 이름만 수정하거나 새 제품으로 등록해주세요.');
+    const previousType = product?.product_type;
     if (!product) {
         const { data, error } = await db.from('my_products').insert({
-            sku, name, ...values, cost: 0, is_active: true, updated_at: new Date().toISOString()
+            sku, name, ...values, cost, selling_price: sellingPrice, product_type: productType, unit, cost_recipe: [], is_active: true, updated_at: new Date().toISOString()
         }).select().single();
         if (error) return showToast(`제품 저장 실패: ${error.message}`);
         product = data;
     } else {
-        const { error } = await db.from('my_products').update({
+        // 이름/연결 수정은 원가, 원가 구성, 수수료 설정, 실제 재고를 덮어쓰지 않습니다.
+        const update = {
             name,
+            product_type: productType,
+            unit,
             safe_stock: values.safe_stock,
             lead_time_days: values.lead_time_days,
             target_cover_days: values.target_cover_days,
+            is_active: true,
             updated_at: new Date().toISOString()
-        }).eq('id', product.id);
+        };
+        if (sellingPrice !== Number(product.selling_price || 0)) update.selling_price = sellingPrice;
+        const { data: saved, error } = await db.from('my_products').update(update).eq('id', product.id).select('id').single();
         if (error) return showToast(`제품 수정 실패: ${error.message}`);
+        if (!saved) return showToast('제품 수정이 반영되지 않았습니다. 저장 권한을 확인해주세요.');
+        if (previousType !== productType) {
+            const { error: roleError } = await db.from('product_links').update({
+                mapping_role: mappingRoleForType(productType),
+                updated_at: new Date().toISOString()
+            }).eq('my_product_id', product.id);
+            if (roleError) return showToast(`제품 종류 연결 변경 실패: ${roleError.message}`);
+        }
     }
 
     for (const candidate of selected) {
+        const mappingRole = mappingRoleForType(productType);
         const { error: deleteError } = await db.from('product_links')
             .delete()
             .eq('platform', candidate.platform)
             .eq('product', candidate.product)
             .eq('option', candidate.option || '')
-            .eq('mapping_role', 'base');
+            .eq('mapping_role', mappingRole);
         if (deleteError) return showToast(`기존 연결 정리 실패: ${deleteError.message}`);
         const { error: linkError } = await db.from('product_links').insert({
             my_product_id: product.id,
             platform: candidate.platform,
             product: candidate.product,
             option: candidate.option || '',
-            quantity_per_order: 1,
-            mapping_role: 'base',
+            quantity_per_order: linkQuantity,
+            mapping_role: mappingRole,
             is_active: true,
             updated_at: new Date().toISOString()
         });
         if (linkError) return showToast(`상품 연결 실패: ${linkError.message}`);
     }
-    showToast(`${sku}에 ${selected.length}개 상품을 연결했습니다.`);
+    showToast(selected.length ? `${sku}에 ${selected.length}개 상품을 연결했습니다.` : `${sku} 제품 정보를 저장했습니다.`);
     await loadData();
     switchMode('dashboard');
+}
+
+async function deleteProductLink(id) {
+    if (!confirm('이 플랫폼 상품 연결을 해제할까요? 주문 원본은 삭제되지 않지만 제품번호별 과거 집계에서도 빠집니다.')) return;
+    const { error } = await db.from('product_links').delete().eq('id', id);
+    if (error) return showToast(`연결 해제 실패: ${error.message}`);
+    showToast('플랫폼 상품 연결을 해제했습니다.');
+    await loadData();
+    switchMode('mapping');
 }
 
 const cleanOptionValue = value => String(value || '')
@@ -708,6 +816,10 @@ async function ensureProduct(movement, index) {
         lead_time_days: 7,
         target_cover_days: 30,
         cost: 0,
+        product_type: movement.role === 'base' ? 'finished' : 'component',
+        unit: '개',
+        cost_recipe: [],
+        selling_price: 0,
         is_active: true,
         updated_at: new Date().toISOString()
     }).select().single();
@@ -791,20 +903,65 @@ function notifyAlerts(force) {
     }
 }
 
+function startMappingCandidate(index) {
+    switchMode('mapping');
+    renderMapping();
+    selectedCandidateIndexes.add(index);
+    renderCandidateList();
+    updateGroupPreview();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderUnmapped() {
+    const unmapped = platformCandidates
+        .map((candidate, index) => ({ candidate, index }))
+        .filter(({ candidate }) => candidate.sold30 > 0 && !linksForOrder(candidate).length);
+    const tabCount = document.getElementById('unmappedTabCount');
+    if (tabCount) tabCount.textContent = unmapped.length ? `(${fmt(unmapped.length)})` : '';
+    const target = document.getElementById('unmappedApp');
+    if (!target) return;
+    if (!unmapped.length) {
+        target.innerHTML = `<section class="panel"><div class="empty"><b>최근 30일 주문이 모두 제품번호에 연결되어 있습니다.</b><br><br>새로운 상품명이나 옵션이 들어오면 이곳에 자동으로 표시됩니다.</div></section>`;
+        return;
+    }
+    const totalQty = unmapped.reduce((sum, item) => sum + item.candidate.sold30, 0);
+    target.innerHTML = `
+        <section class="kpi-grid">
+            <article class="kpi"><div class="kpi-label">미연결 주문형태</div><div class="kpi-value">${fmt(unmapped.length)}개</div><div class="kpi-note">상품명+옵션 조합 기준</div></article>
+            <article class="kpi"><div class="kpi-label">미반영 판매수량</div><div class="kpi-value">${fmt(totalQty)}개</div><div class="kpi-note">아직 제품 재고에서 차감되지 않음</div></article>
+            <article class="kpi"><div class="kpi-label">확인 기준일</div><div class="kpi-value" style="font-size:18px">${escapeHtml(dataAsOf || '-')}</div><div class="kpi-note">최근 업로드 주문부터 30일</div></article>
+            <article class="kpi"><div class="kpi-label">처리 방법</div><div class="kpi-value" style="font-size:18px">한 번만 연결</div><div class="kpi-note">다음 동일 주문부터 자동 반영</div></article>
+        </section>
+        <section class="panel">
+            <div class="panel-head"><div><div class="panel-title">제품번호가 없는 주문</div><div class="panel-desc">같은 실물 제품을 선택해 연결하면 이후 재고와 원가가 제품번호 기준으로 합쳐집니다.</div></div></div>
+            <div class="table-wrap"><table class="inventory-table" style="min-width:980px"><thead><tr><th>플랫폼 상품명</th><th>옵션</th><th>30일 판매</th><th>30일 주문매출</th><th>처리</th></tr></thead><tbody>
+            ${unmapped.map(({ candidate, index }) => `<tr><td><div class="candidate-platform" style="--pf:${PLATFORM_COLORS[candidate.platform] || '#777'}">${escapeHtml(candidate.platform)}</div><div class="product-name">${escapeHtml(candidate.product)}</div></td><td style="text-align:left;max-width:420px"><div class="candidate-option" style="max-width:420px">${escapeHtml(candidate.option || '옵션 없음')}</div></td><td class="num">${fmt(candidate.sold30)}개</td><td class="num">${fmt(candidate.revenue30)}원</td><td><button class="action-btn green" onclick="startMappingCandidate(${index})">제품번호 연결</button></td></tr>`).join('')}
+            </tbody></table></div>
+            <div class="foot-note"><span>ℹ️</span><span>자동으로 확실히 판단할 수 없는 주문만 표시합니다. 잘못된 제품 재고가 차감되지 않도록 처음 한 번은 직접 확인합니다.</span></div>
+        </section>`;
+}
+
 function buildCandidates() {
+    dataAsOf = orders.map(order => order.order_date).filter(Boolean).sort().at(-1) || todayText();
     const map = new Map();
     orders.forEach(order => {
         const age = daysAgo(order.order_date);
-        if (age < 0 || age > 29) return;
+        if (!order.product) return;
         const key = orderKey(order);
         if (!map.has(key)) map.set(key, {
             key,
             platform: order.platform,
             product: order.product,
             option: order.option || '',
-            sold30: 0
+            sold30: 0,
+            revenue30: 0
         });
-        map.get(key).sold30 += Number(order.quantity) || 1;
+        const item = map.get(key);
+        const quantity = Number(order.quantity) || 1;
+        if (Number.isFinite(age) && age >= 0 && age <= 29) {
+            item.sold30 += quantity;
+            item.revenue30 += (Number(order.price) || 0) * quantity;
+        }
     });
     platformCandidates = [...map.values()].sort((a, b) => b.sold30 - a.sold30);
 
@@ -833,14 +990,16 @@ function buildCandidates() {
 async function loadData() {
     try {
         [products, links, orders] = await Promise.all([
-            fetchAll('my_products', 'id,sku,name,stock,safe_stock,cost,stock_as_of,lead_time_days,target_cover_days,is_active,updated_at', query => query.order('id')),
+            fetchAll('my_products', 'id,sku,name,stock,safe_stock,cost,selling_price,product_type,unit,stock_as_of,lead_time_days,target_cover_days,is_active,updated_at', query => query.order('id')),
             fetchAll('product_links', 'id,my_product_id,platform,product,option,quantity_per_order,mapping_role,is_active,updated_at', query => query.order('id')),
-            fetchAll('orders', 'platform,order_date,order_no,product,option,quantity', query => query.order('order_date', { ascending: false }))
+            fetchAll('orders', 'platform,order_date,order_no,product,option,quantity,price', query => query.order('order_date', { ascending: false }))
         ]);
         buildCandidates();
         renderDashboard();
         renderMapping();
+        renderUnmapped();
         renderIdusParser();
+        if (new URLSearchParams(window.location.search).get('view') === 'mapping') switchMode('mapping');
     } catch (error) {
         console.error(error);
         document.getElementById('app').innerHTML = `<div class="error">재고 데이터를 불러오지 못했습니다.<br>${escapeHtml(error.message || '')}</div>`;
